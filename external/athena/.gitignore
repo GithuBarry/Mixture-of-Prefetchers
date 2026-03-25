@@ -1,0 +1,11 @@
+traces/
+experiments/
+**/__pycache__/
+
+bin/
+obj/
+.vscode/
+.cache/
+.DS_Store
+
+og_exp/
