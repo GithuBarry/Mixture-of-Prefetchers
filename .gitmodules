@@ -1,0 +1,6 @@
+[submodule "external/athena"]
+	path = external/athena
+	url = https://github.com/CMU-SAFARI/Athena.git
+[submodule "external/openevolve"]
+	path = external/openevolve
+	url = https://github.com/algorithmicsuperintelligence/openevolve.git
