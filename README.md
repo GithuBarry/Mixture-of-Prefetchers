@@ -34,3 +34,30 @@ Outputs:
 - short Markdown report: `results/single_prefetcher_baselines/summary.md`
 
 Use `--help` to override traces, experiments, or instruction counts.
+
+## MoP-lite
+
+Athena is vendored in-tree under `external/athena` because this project expects substantial local simulator edits.
+The original upstream is documented in [UPSTREAM.md](/Users/barry/Library/Mobile Documents/com~apple~CloudDocs/Carnegie Mellon/15740/Proj/Mixture-of-Prefetchers/external/athena/UPSTREAM.md).
+
+The pre-OpenEvolve path is wired through:
+
+```bash
+python3 scripts/run_mop_lite.py
+```
+
+Defaults:
+
+- Experts: `Pythia` + `SPP+PPF`
+- Routers: `FixedSplit`, `WinnerTakeAll`, `RandomRouter`, `OneShotFit`, `MoPLite`
+- Traces: two small Athena PARSEC traces
+- Window: `5M` warmup + `10M` simulation instructions
+
+Outputs:
+
+- raw logs: `results/mop_lite/logs/`
+- parsed metrics: `results/mop_lite/metrics/`
+- summary: `results/mop_lite/summary.csv`
+- optional epoch traces: `results/mop_lite/epoch_logs/` with `--epoch-trace`
+
+This stage intentionally stops before OpenEvolve. It only exercises the hand-written MoP-lite routers and the single-prefetcher baselines needed to compare against them.
