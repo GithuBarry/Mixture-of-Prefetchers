@@ -38,7 +38,7 @@ Use `--help` to override traces, experiments, or instruction counts.
 ## MoP-lite
 
 Athena is vendored in-tree under `external/athena` because this project expects substantial local simulator edits.
-The original upstream is documented in [UPSTREAM.md](/Users/barry/Library/Mobile Documents/com~apple~CloudDocs/Carnegie Mellon/15740/Proj/Mixture-of-Prefetchers/external/athena/UPSTREAM.md).
+The original upstream is documented in [external/athena/UPSTREAM.md](external/athena/UPSTREAM.md).
 
 The pre-OpenEvolve path is wired through:
 
