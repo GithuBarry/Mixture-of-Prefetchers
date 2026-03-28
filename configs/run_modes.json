@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "description": "Run modes for MoP-lite and single-prefetcher baselines. Instruction counts override Athena TRACE_DATA per-trace knobs; project runners replace BASE warmup/simulation flags (see scripts/run_single_prefetcher_baselines.py).",
+    "trace_set_keys": "References keys under trace_sets in configs/trace_suites.json"
+  },
+  "run_modes": {
+    "search_mode": {
+      "warmup_instructions": 5000000,
+      "simulation_instructions": 10000000,
+      "trace_set": "search_subset",
+      "mop_lite": {
+        "expert_0": "Pythia",
+        "expert_1": "SPP+PPF",
+        "routers": "recommended_routers_search_fast"
+      },
+      "single_prefetcher_baselines": {
+        "experiments": ["Baseline", "Pythia", "SPP+PPF", "MLOP", "SMS"]
+      }
+    },
+    "final_mode": {
+      "warmup_instructions": 20000000,
+      "simulation_instructions": 50000000,
+      "trace_set": "full_suite",
+      "mop_lite": {
+        "expert_0": "Pythia",
+        "expert_1": "SPP+PPF",
+        "routers": "recommended_routers_all"
+      },
+      "single_prefetcher_baselines": {
+        "experiments": ["Baseline", "Pythia", "SPP+PPF", "MLOP", "SMS"]
+      }
+    },
+    "smoke_mode": {
+      "warmup_instructions": 5000000,
+      "simulation_instructions": 10000000,
+      "trace_set": "small_smoke_test_subset",
+      "mop_lite": {
+        "expert_0": "Pythia",
+        "expert_1": "SPP+PPF",
+        "routers": ["MoPLite"]
+      },
+      "single_prefetcher_baselines": {
+        "experiments": ["Baseline", "Pythia"]
+      }
+    }
+  }
+}
