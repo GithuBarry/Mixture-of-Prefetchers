@@ -61,3 +61,19 @@ Outputs:
 - optional epoch traces: `results/mop_lite/epoch_logs/` with `--epoch-trace`
 
 This stage intentionally stops before OpenEvolve. It only exercises the hand-written MoP-lite routers and the single-prefetcher baselines needed to compare against them.
+
+## Experiment configuration (trace suite and run modes)
+
+The repo defines an **official 24-trace suite**, a **train / held-out split**, a **search subset**, and **search vs final** instruction windows in:
+
+- `configs/trace_suites.json` — trace sets and recommended routers
+- `configs/run_modes.json` — warmup/simulation lengths per mode
+
+Human-readable documentation: [docs/experiment_setup.md](docs/experiment_setup.md). Candidate pool and sources: [docs/trace_inventory.md](docs/trace_inventory.md).
+
+**Generate example commands** (includes all `--trace` flags):
+
+```bash
+python3 scripts/print_run_commands.py search_mode
+python3 scripts/print_run_commands.py final_mode
+```
