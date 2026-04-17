@@ -138,5 +138,5 @@ python3 scripts/run_single_prefetcher_baselines.py --download-only "${args[@]}"
 | `configs/trace_suites.yaml` | Same content as `trace_suites.json` (JSON is valid YAML 1.2) |
 | `configs/run_modes.json` | `search_mode`, `final_mode`, `smoke_mode` |
 | `configs/run_modes.yaml` | Same content as `run_modes.json` |
-| `docs/trace_inventory.md` | How the candidate pool was derived |
+| `docs/operational/trace_inventory.md` | How the candidate pool was derived |
 | `scripts/print_run_commands.py` | Emit concrete CLI invocations |

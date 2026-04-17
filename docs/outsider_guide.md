@@ -19,7 +19,7 @@ The local method in this repository is **Mixture-of-Prefetchers Lite
 not invent new prefetch candidates on its own. It only decides how two existing
 L2 prefetchers should be enabled and budgeted from one epoch to the next.
 
-The project question comes from `docs/mop_stage1_instruction.md`:
+The project question comes from `docs/operational/mop_stage1_instruction.md`:
 
 > Can a small epoch-based manager combine two strong L2 prefetchers well enough
 > to beat the strongest single-prefetcher baseline while staying within traffic
@@ -346,8 +346,8 @@ them.
 
 ## Where To Verify Claims
 
-- Project charter: `docs/mop_stage1_instruction.md`
-- Official trace suite and run lengths: `docs/experiment_setup.md`
+- Project charter: `docs/operational/mop_stage1_instruction.md`
+- Official trace suite and run lengths: `docs/operational/experiment_setup.md`
 - Local router implementation: `external/athena/src/oogway.cc`
 - Local MoP-lite config: `external/athena/config/mop_lite.ini`
 - Current processed dataset: `data/processed/runs.csv`

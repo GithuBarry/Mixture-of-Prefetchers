@@ -72,7 +72,7 @@ The repo defines an **official 24-trace suite**, a **train / held-out split**, a
 - `configs/trace_suites.json` — trace sets and recommended routers
 - `configs/run_modes.json` — warmup/simulation lengths per mode
 
-Human-readable documentation: [docs/experiment_setup.md](docs/experiment_setup.md). Candidate pool and sources: [docs/trace_inventory.md](docs/trace_inventory.md).
+Human-readable documentation: [docs/outsider_guide.md](docs/outsider_guide.md). Operational experiment details: [docs/operational/experiment_setup.md](docs/operational/experiment_setup.md). Candidate pool and sources: [docs/operational/trace_inventory.md](docs/operational/trace_inventory.md).
 
 **Generate example commands** (includes all `--trace` flags):
 

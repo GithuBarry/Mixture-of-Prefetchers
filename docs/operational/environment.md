@@ -68,7 +68,7 @@ The current workspace already contains a smoke-mode analysis snapshot.
 - `report/tables/router_ablation.md` and
   `report/tables/expert_pair_ablation.md` summarize that smoke batch.
 - The official broader evaluation design still lives in
-  `docs/experiment_setup.md` and `configs/*.json`.
+  `docs/operational/experiment_setup.md` and `configs/*.json`.
 
 Treat `data/processed/runs.csv` as the analysis entry point for the current
 snapshot. Treat `results/mop_lite/runs/<run_group_id>/` as the place to inspect
@@ -125,6 +125,6 @@ stamp in `data/splits/official_v1.sha256`.
 
 ## Related documents
 
-- `docs/experiment_setup.md`: official trace suite, split, and run modes.
-- `docs/dataset_schema.md`: exact meaning of each dataset column.
-- `docs/research_log.md`: what has been run so far and what the results say.
+- `docs/operational/experiment_setup.md`: official trace suite, split, and run modes.
+- `docs/operational/dataset_schema.md`: exact meaning of each dataset column.
+- `docs/operational/research_log.md`: what has been run so far and what the results say.

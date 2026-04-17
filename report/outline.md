@@ -18,15 +18,15 @@ lean on (which figure, which table, which CSV column).
   OneShotFit, MoPLite), one paragraph each, referencing `oogway.cc` line
   numbers.
 - The builtin comparator: `AthenaMAB`, briefly, noting attribution.
-- Control surface (link to `docs/stage2_memo.md`).
+- Control surface (link to `docs/operational/stage2_memo.md`).
 - Hardware budget: table `report/tables/hardware_budget.md`.
 
 ## 3. Experimental protocol
 
-- Simulator, revision, toolchain (link to `docs/environment.md`).
+- Simulator, revision, toolchain (link to `docs/operational/environment.md`).
 - Traces, split, warmup/sim windows (link to
   `data/splits/official_v1.json`).
-- Metric definitions (link to `docs/dataset_schema.md`).
+- Metric definitions (link to `docs/operational/dataset_schema.md`).
 - Run modes (smoke / search / final) and which results use which mode.
 - Reproducibility: manifest JSONL + sha256-stamped split + pinned flags.
 

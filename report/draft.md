@@ -31,7 +31,7 @@ in `train_and_take_action`, router dispatch in the MoPLite case).
 
 ## 3. Experimental protocol
 
-See `docs/environment.md`, `docs/dataset_schema.md`, and
+See `docs/operational/environment.md`, `docs/operational/dataset_schema.md`, and
 `data/splits/official_v1.json`. The body of this section will mostly link
 those documents rather than duplicate them.
 

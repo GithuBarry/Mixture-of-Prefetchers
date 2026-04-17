@@ -38,9 +38,9 @@ python3 -c "import importlib.util; from pathlib import Path; p=Path('external/at
 | --- | --- |
 | **Zenodo vs local** | If a trace is in `TRACE_DATA`, the project assumes it can be fetched from Zenodo `17850673` using the basename of `path` under `traces/`. This matches Athena’s published bundle. |
 | **CVP “secret” names** | Keys like `secret_compute_int_12` map to `compute_int_12.champsim.gz` on disk; the “secret” prefix is naming in `TRACE_DATA`, not a separate download location. |
-| **Per-trace knobs** | PARSEC/LIGRA/CVP entries often include `knobs` with 100M/150M-style defaults in Athena’s config; the project runners **override** warmup/sim via CLI. Documented in `docs/experiment_setup.md`. |
+| **Per-trace knobs** | PARSEC/LIGRA/CVP entries often include `knobs` with 100M/150M-style defaults in Athena’s config; the project runners **override** warmup/sim via CLI. Documented in `docs/operational/experiment_setup.md`. |
 | **Benchmark family** | Families (e.g. multiple `streamcluster` drops) are **inferred** from name prefixes unless otherwise stated; use exact `TRACE_DATA` keys in configs. |
 
 ## Relation to the official suite
 
-The **official** MoP-lite suite (24 traces), train/held-out split, and search subset are **not** the full 100-trace pool; they are a deliberate subset recorded in `configs/trace_suites.json`. See `docs/experiment_setup.md`.
+The **official** MoP-lite suite (24 traces), train/held-out split, and search subset are **not** the full 100-trace pool; they are a deliberate subset recorded in `configs/trace_suites.json`. See `docs/operational/experiment_setup.md`.

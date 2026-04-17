@@ -53,7 +53,7 @@ Format:
   (24 traces × ~10 experiments × few seeds). CSV is the most friction-free
   format for ad-hoc inspection and for the expected reviewer; parquet would
   require pyarrow/pandas without meaningful gain at this scale. Fail-loud
-  schema doc is maintained in `docs/dataset_schema.md` so downstream scripts
+  schema doc is maintained in `docs/operational/dataset_schema.md` so downstream scripts
   can type-coerce safely.
 - AI-assisted: yes.
 

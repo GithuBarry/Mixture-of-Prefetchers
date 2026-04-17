@@ -45,8 +45,8 @@ so that the first real run generates analysis-ready artifacts end-to-end.
 - Froze the split artifact `data/splits/official_v1.json` (copy of
   `configs/trace_suites.json`) with sha256 side-car
   `data/splits/official_v1.sha256`.
-- Added `docs/environment.md`, `docs/dataset_schema.md`,
-  `docs/research_log.md`, `docs/transparency_log.md`, `docs/stage2_memo.md`,
+- Added `docs/operational/environment.md`, `docs/operational/dataset_schema.md`,
+  `docs/operational/research_log.md`, `docs/operational/transparency_log.md`, `docs/operational/stage2_memo.md`,
   `report/outline.md`, `report/draft.md`.
 
 **Verification.** `make -C external/athena -j$(nproc)` succeeded (exit 0).

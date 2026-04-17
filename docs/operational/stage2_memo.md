@@ -13,7 +13,7 @@ held-out number that results.
 | Expert implementations | `external/athena/config/pythia.ini`, `.../spp_ppf_dev.ini` | Changing the experts changes the identification problem. |
 | Simulator revision | `git_revision` stamp per run | Mixing revisions invalidates cross-run comparisons. |
 | Split (`data/splits/official_v1.json`) + its sha256 | `data/splits/official_v1.sha256` | Held-out protection requires an immovable boundary. |
-| Metric definitions | `docs/dataset_schema.md` | Redefining IPC / MPKI / accuracy changes the ground truth. |
+| Metric definitions | `docs/operational/dataset_schema.md` | Redefining IPC / MPKI / accuracy changes the ground truth. |
 | Warmup / simulation windows per mode | `configs/run_modes.json` | Changing the window changes the benchmark. |
 | OCP disabled | Enforced in `initialize_mop_epoch` (oogway.cc) | Scope lock per charter. |
 | Epoch granularity = retired instructions | `og_epoch_by_inst=true` in `mop_lite.ini` | Enables portable, wall-clock-independent decisions. |
