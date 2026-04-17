@@ -37,10 +37,9 @@ so that the first real run generates analysis-ready artifacts end-to-end.
 - Added `scripts/build_dataset.py` that joins manifest + metrics + official
   split and writes `data/processed/runs.csv` + a summary markdown block.
 - Added `scripts/make_figures.py` (matplotlib, Agg backend) producing:
-  - `ipc_speedup_vs_nopref.png`
-  - `ipc_speedup_vs_best_single.png`
+  - `ipc_speedup_summary.png`
+  - `single_expert_profiles.png`
   - `win_loss_mop_vs_best_single.png`
-  - `accuracy_vs_traffic.png`
   - Tables for router ablation, expert-pair ablation, and hardware budget.
 - Froze the split artifact `data/splits/official_v1.json` (copy of
   `configs/trace_suites.json`) with sha256 side-car

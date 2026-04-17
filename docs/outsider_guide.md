@@ -308,6 +308,8 @@ The committed evidence now includes:
 - the merged processed dataset `data/processed/runs.csv`
 - the regenerated figures and tables under `report/`
 
+Taken together, those two training-side batches cover the full 17-trace training split.
+
 The main Stage 1 conclusion is simple: some coordinators beat no-prefetch, but
 no tested coordinator beats the pair-best single expert in geomean on either
 split.

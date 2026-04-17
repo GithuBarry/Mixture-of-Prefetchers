@@ -69,6 +69,8 @@ Start here:
 3. `report/figures/ipc_speedup_summary.png`
 4. `report/figures/single_expert_profiles.png`
 5. `report/tables/router_ablation.md`
+6. `report/tables/routing_criterion.md`
+7. `report/tables/alternate_pair_exploration.md`
 
 Key source-of-truth files:
 
