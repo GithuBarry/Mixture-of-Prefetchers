@@ -33,6 +33,9 @@ Outputs:
 - parsed CSV: `results/single_prefetcher_baselines/summary.csv`
 - short Markdown report: `results/single_prefetcher_baselines/summary.md`
 
+Both experiment runners launch up to `8` simulator processes by default. Use
+`--workers <N>` to tune concurrency or `--workers 1` for serial execution.
+
 Use `--help` to override traces, experiments, or instruction counts.
 
 ## MoP-lite

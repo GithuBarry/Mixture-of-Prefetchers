@@ -1,0 +1,130 @@
+{
+  "name": "official_v1",
+  "created_utc": "2026-04-17",
+  "source": "configs/trace_suites.json",
+  "source_sha256": "421282ce4e8a1401c77c869b555b23366b42f2bfc8ea564879366e2eb058b2f3",
+  "description": "Frozen Stage-1 split. 17 train / 7 held-out, 10 search_subset, 2 smoke. Held-out traces MUST NOT be touched during search or development; they are reserved for the final evaluation report.",
+  "trace_sets": {
+    "full_suite": [
+      "429.mcf-192B",
+      "433.milc-127B",
+      "437.leslie3d-134B",
+      "450.soplex-92B",
+      "459.GemsFDTD-1169B",
+      "471.omnetpp-188B",
+      "602.gcc_s-734B",
+      "605.mcf_s-472B",
+      "619.lbm_s-2676B",
+      "649.fotonik3d_s-7084B",
+      "parsec_2.1.canneal.simlarge.prebuilt.drop_4750M.length_250M",
+      "parsec_2.1.facesim.simlarge.prebuilt.drop_1500M.length_250M",
+      "parsec_2.1.fluidanimate.simlarge.prebuilt.drop_9500M.length_250M",
+      "parsec_2.1.raytrace.simlarge.prebuilt.drop_23500M.length_250M",
+      "parsec_2.1.streamcluster.simlarge.prebuilt.drop_0M.length_250M",
+      "ligra_BC.com-lj.ungraph.gcc_6.3.0_O3.drop_500M.length_250M",
+      "ligra_BFS.com-lj.ungraph.gcc_6.3.0_O3.drop_500M.length_250M",
+      "ligra_CF.com-lj.ungraph.gcc_6.3.0_O3.drop_154750M.length_250M",
+      "ligra_PageRankDelta.com-lj.ungraph.gcc_6.3.0_O3.drop_1250M.length_250M",
+      "ligra_Triangle.com-lj.ungraph.gcc_6.3.0_O3.drop_750M.length_250M",
+      "secret_compute_fp_105",
+      "secret_compute_fp_45",
+      "secret_compute_int_243",
+      "secret_compute_int_568"
+    ],
+    "train": [
+      "429.mcf-192B",
+      "433.milc-127B",
+      "450.soplex-92B",
+      "602.gcc_s-734B",
+      "605.mcf_s-472B",
+      "619.lbm_s-2676B",
+      "649.fotonik3d_s-7084B",
+      "parsec_2.1.facesim.simlarge.prebuilt.drop_1500M.length_250M",
+      "parsec_2.1.fluidanimate.simlarge.prebuilt.drop_9500M.length_250M",
+      "parsec_2.1.raytrace.simlarge.prebuilt.drop_23500M.length_250M",
+      "ligra_BFS.com-lj.ungraph.gcc_6.3.0_O3.drop_500M.length_250M",
+      "ligra_CF.com-lj.ungraph.gcc_6.3.0_O3.drop_154750M.length_250M",
+      "ligra_PageRankDelta.com-lj.ungraph.gcc_6.3.0_O3.drop_1250M.length_250M",
+      "ligra_Triangle.com-lj.ungraph.gcc_6.3.0_O3.drop_750M.length_250M",
+      "secret_compute_fp_45",
+      "secret_compute_int_243",
+      "secret_compute_int_568"
+    ],
+    "heldout": [
+      "437.leslie3d-134B",
+      "459.GemsFDTD-1169B",
+      "471.omnetpp-188B",
+      "parsec_2.1.canneal.simlarge.prebuilt.drop_4750M.length_250M",
+      "parsec_2.1.streamcluster.simlarge.prebuilt.drop_0M.length_250M",
+      "ligra_BC.com-lj.ungraph.gcc_6.3.0_O3.drop_500M.length_250M",
+      "secret_compute_fp_105"
+    ],
+    "search_subset": [
+      "429.mcf-192B",
+      "450.soplex-92B",
+      "parsec_2.1.fluidanimate.simlarge.prebuilt.drop_9500M.length_250M",
+      "parsec_2.1.raytrace.simlarge.prebuilt.drop_23500M.length_250M",
+      "ligra_CF.com-lj.ungraph.gcc_6.3.0_O3.drop_154750M.length_250M",
+      "ligra_PageRankDelta.com-lj.ungraph.gcc_6.3.0_O3.drop_1250M.length_250M",
+      "secret_compute_fp_45",
+      "secret_compute_int_568",
+      "602.gcc_s-734B",
+      "605.mcf_s-472B"
+    ],
+    "small_smoke_test_subset": [
+      "parsec_2.1.fluidanimate.simlarge.prebuilt.drop_9500M.length_250M",
+      "429.mcf-192B"
+    ]
+  },
+  "benchmark_groups_in_suite": {
+    "note": "Inferred from trace name prefixes. Used for split design; single-trace families are atomic.",
+    "SPEC": [
+      "429.mcf",
+      "433.milc",
+      "437.leslie3d",
+      "450.soplex",
+      "459.GemsFDTD",
+      "471.omnetpp",
+      "602.gcc_s",
+      "605.mcf_s",
+      "619.lbm_s",
+      "649.fotonik3d_s"
+    ],
+    "PARSEC": [
+      "canneal",
+      "facesim",
+      "fluidanimate",
+      "raytrace",
+      "streamcluster"
+    ],
+    "LIGRA": [
+      "BC",
+      "BFS",
+      "CF",
+      "PageRankDelta",
+      "Triangle"
+    ],
+    "CVP": [
+      "fp_105",
+      "fp_45",
+      "int_243",
+      "int_568"
+    ]
+  },
+  "recommended_expert_pair": [
+    "Pythia",
+    "SPP+PPF"
+  ],
+  "recommended_routers_all": [
+    "FixedSplit",
+    "WinnerTakeAll",
+    "RandomRouter",
+    "OneShotFit",
+    "MoPLite"
+  ],
+  "recommended_routers_search_fast": [
+    "MoPLite",
+    "FixedSplit",
+    "WinnerTakeAll"
+  ]
+}

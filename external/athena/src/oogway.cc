@@ -51,6 +51,7 @@ void Oogway::set_mop_budget(uint32_t id, uint64_t budget) {
 void Oogway::initialize_mop_epoch() {
   set_prefetch_enabled(0, true);
   set_prefetch_enabled(1, true);
+  set_ocp_enabled(false);
   set_mop_budget(0, (knob::mop_total_budget * knob::mop_fixed_split_ratio) / 100);
   set_mop_budget(1, knob::mop_total_budget - prefetch_budget[0]);
   reset_epoch_budget_tracking();
@@ -75,7 +76,7 @@ Oogway::Oogway(uint32_t _cpu) : cpu(_cpu) {
       mop_epoch_trace = fopen(filename.c_str(), "w");
       assert(mop_epoch_trace);
       fprintf(mop_epoch_trace,
-              "epoch,action,pref0_enabled,pref1_enabled,budget0,budget1,issued0,issued1,useful0,useful1,score0,score1,overall_bw,pref_bw,pref_pollution\n");
+              "epoch,action,pref0_enabled,pref1_enabled,budget0,budget1,budget_share0,budget_share1,retired_insts,issued0,issued1,useful0,useful1,accuracy0,accuracy1,coverage0,coverage1,score0,score1,overall_bw,pref_bw,pref_pollution\n");
     }
   }
 }
@@ -459,7 +460,7 @@ uint32_t Oogway::mop_decision(og_state_t *state) {
   case 4:
   default:
     if (score0 <= 0.0f && score1 <= 0.0f) {
-      return 3;
+      return 0;
     }
     if (score0 <= 0.0f) {
       return 1;
@@ -495,6 +496,9 @@ void Oogway::configure_mop_epoch(og_state_t *state) {
   case 1:
   case 2:
   case 3:
+    if (curr_action == 0) {
+      break;
+    }
     if (curr_action == 2) {
       set_prefetch_enabled(0, true);
       set_mop_budget(0, total_budget);
@@ -511,6 +515,9 @@ void Oogway::configure_mop_epoch(og_state_t *state) {
   case 4:
   default: {
     const float score_sum = score0 + score1;
+    if (curr_action == 0) {
+      break;
+    }
     if (curr_action == 2) {
       set_prefetch_enabled(0, true);
       set_mop_budget(0, total_budget);
@@ -545,10 +552,19 @@ void Oogway::trace_mop_epoch(og_state_t *state) {
   if (!mop_epoch_trace) {
     return;
   }
-  fprintf(mop_epoch_trace, "%llu,%u,%u,%u,%llu,%llu,%llu,%llu,%llu,%llu,%.6f,%.6f,%u,%u,%u\n", (unsigned long long)epoch_count, curr_action,
-          prefetch_enabled[0], prefetch_enabled[1], (unsigned long long)prefetch_budget[0], (unsigned long long)prefetch_budget[1],
+  const double accuracy0 = state->pref_issued[0] ? (100.0 * static_cast<double>(state->pref_useful[0]) / static_cast<double>(state->pref_issued[0])) : 0.0;
+  const double accuracy1 = state->pref_issued[1] ? (100.0 * static_cast<double>(state->pref_useful[1]) / static_cast<double>(state->pref_issued[1])) : 0.0;
+  const double coverage0 = static_cast<double>(state->pref_useful[0]) / static_cast<double>(state->num_retired_insts + 1);
+  const double coverage1 = static_cast<double>(state->pref_useful[1]) / static_cast<double>(state->num_retired_insts + 1);
+  const double budget_share0 = knob::mop_total_budget ? static_cast<double>(prefetch_budget[0]) / static_cast<double>(knob::mop_total_budget) : 0.0;
+  const double budget_share1 = knob::mop_total_budget ? static_cast<double>(prefetch_budget[1]) / static_cast<double>(knob::mop_total_budget) : 0.0;
+  fprintf(mop_epoch_trace,
+          "%llu,%u,%u,%u,%llu,%llu,%.6f,%.6f,%llu,%llu,%llu,%llu,%llu,%.6f,%.6f,%.9f,%.9f,%.6f,%.6f,%u,%u,%u\n",
+          (unsigned long long)epoch_count, curr_action, prefetch_enabled[0], prefetch_enabled[1], (unsigned long long)prefetch_budget[0],
+          (unsigned long long)prefetch_budget[1], budget_share0, budget_share1, (unsigned long long)state->num_retired_insts,
           (unsigned long long)state->pref_issued[0], (unsigned long long)state->pref_issued[1], (unsigned long long)state->pref_useful[0],
-          (unsigned long long)state->pref_useful[1], mop_score(state, 0), mop_score(state, 1), state->overall_bw, state->pref_bw, state->pref_pollution);
+          (unsigned long long)state->pref_useful[1], accuracy0, accuracy1, coverage0, coverage1, mop_score(state, 0), mop_score(state, 1),
+          state->overall_bw, state->pref_bw, state->pref_pollution);
   fflush(mop_epoch_trace);
 }
 

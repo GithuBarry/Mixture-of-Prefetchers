@@ -41,6 +41,18 @@ Use these norms throughout the project.
 
 A good stage 1 result is a strong baseline and a clean scientific story, even when the absolute gains are modest.
 
+### Writing style for all project documents
+
+Write in a normal, direct style.
+
+- Lead with the answer or takeaway.
+- Use plain sentences and define project-specific terms when they first appear.
+- Give exact file pointers for claims, evidence, configs, and artifacts.
+- Prefer direct positive statements over contrastive phrasing.
+- Keep filler out of the writing.
+- Keep summaries concrete enough that an advisor can trace each claim back to a
+  file, table, metric, or run artifact.
+
 ---
 
 ## 3. Public facts and assumptions you should treat as the current default

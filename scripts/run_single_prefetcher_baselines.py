@@ -11,6 +11,7 @@ import subprocess
 import sys
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -29,6 +30,8 @@ EXPERIMENTS = {
 }
 
 ZENODO_RECORD = "17850673"
+DEFAULT_WORKERS = 8
+SAFE_TRACE_ROOT = Path("/tmp/mop_athena_traces")
 
 
 @dataclass(frozen=True)
@@ -134,9 +137,12 @@ def parse_metrics(stdout: str) -> dict[str, str]:
     return metrics
 
 
-def metric_float(metrics: dict[str, str], key: str) -> float:
-    value = metrics.get(key, "0")
-    return float(value)
+def metric_float(metrics: dict[str, str], key: str, default: float | None = None) -> float:
+    if key not in metrics:
+        if default is not None:
+            return default
+        raise AssertionError(f"Missing metric: {key}")
+    return float(metrics[key])
 
 
 def run_one(
@@ -160,9 +166,16 @@ def run_one(
     cmd = [str(binary), *shlex.split(flags), "-traces", str(trace_arg)]
     env = dict(__import__("os").environ)
     env["ATHENA_HOME"] = str(athena_home)
-    completed = subprocess.run(cmd, capture_output=True, text=True, env=env, check=True)
+    completed = subprocess.run(cmd, capture_output=True, text=True, env=env, check=False)
     log_path.write_text(completed.stdout)
     err_path.write_text(completed.stderr)
+    if completed.returncode != 0:
+        raise subprocess.CalledProcessError(
+            completed.returncode,
+            cmd,
+            output=completed.stdout,
+            stderr=completed.stderr,
+        )
     metrics = parse_metrics(completed.stdout)
     metrics_path.write_text(json.dumps(metrics, indent=2, sort_keys=True))
     assert "Core_0_cumulative_IPC" in metrics, f"IPC missing from {log_path}"
@@ -188,14 +201,22 @@ def run_one(
 
 
 def shell_safe_trace_path(trace_path: Path) -> Path:
-    safe_root = Path("/tmp/mop_athena_traces")
-    safe_root.mkdir(parents=True, exist_ok=True)
-    safe_path = safe_root / trace_path.name
+    trace_path = trace_path.resolve()
+    if trace_path.parent == SAFE_TRACE_ROOT:
+        return trace_path
+    SAFE_TRACE_ROOT.mkdir(parents=True, exist_ok=True)
+    safe_path = SAFE_TRACE_ROOT / trace_path.name
     if safe_path.is_symlink() or safe_path.exists():
-        if safe_path.resolve() == trace_path.resolve():
-            return safe_path
-        safe_path.unlink()
-    safe_path.symlink_to(trace_path.resolve())
+        assert safe_path.resolve() == trace_path, (
+            f"Safe trace path collision: {safe_path} already points to {safe_path.resolve()}"
+        )
+        return safe_path
+    try:
+        safe_path.symlink_to(trace_path)
+    except FileExistsError:
+        assert safe_path.resolve() == trace_path, (
+            f"Safe trace path collision: {safe_path} already points to {safe_path.resolve()}"
+        )
     return safe_path
 
 
@@ -272,6 +293,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--warmup-instructions", type=int, default=20_000_000)
     parser.add_argument("--simulation-instructions", type=int, default=50_000_000)
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=DEFAULT_WORKERS,
+        help="Maximum concurrent simulator processes (default: 8). Use 1 for serial execution.",
+    )
     parser.add_argument("--skip-download", action="store_true")
     parser.add_argument("--download-only", action="store_true")
     return parser.parse_args()
@@ -279,6 +306,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    assert args.workers > 0, "--workers must be >= 1"
     root = repo_root()
     athena_home = root / "external" / "athena"
     traces_dir = root / "artifacts" / "athena_traces"
@@ -310,7 +338,11 @@ def main() -> int:
         return 0
 
     binary = build_athena_if_needed(athena_home)
-    results: list[RunResult] = []
+    safe_trace_paths = {
+        trace_name: shell_safe_trace_path(path)
+        for trace_name, path in local_trace_paths.items()
+    }
+    planned_runs: list[tuple[str, str, str]] = []
     for trace_name in selected_traces:
         for experiment in selected_experiments:
             flags = build_experiment_flags(
@@ -320,18 +352,33 @@ def main() -> int:
                 args.warmup_instructions,
                 args.simulation_instructions,
             )
-            print(f"Running {trace_name} + {experiment}", flush=True)
-            results.append(
-                run_one(
-                    binary=binary,
-                    athena_home=athena_home,
-                    flags=flags,
-                    trace_path=local_trace_paths[trace_name],
-                    trace_name=trace_name,
-                    experiment=experiment,
-                    output_dir=output_dir,
-                )
+            planned_runs.append((trace_name, experiment, flags))
+
+    results: list[RunResult] = []
+    print(
+        f"Launching {len(planned_runs)} runs with up to {args.workers} workers",
+        flush=True,
+    )
+    with ThreadPoolExecutor(max_workers=args.workers) as executor:
+        future_to_job = {}
+        for trace_name, experiment, flags in planned_runs:
+            print(f"Queueing {trace_name} + {experiment}", flush=True)
+            future = executor.submit(
+                run_one,
+                binary=binary,
+                athena_home=athena_home,
+                flags=flags,
+                trace_path=safe_trace_paths[trace_name],
+                trace_name=trace_name,
+                experiment=experiment,
+                output_dir=output_dir,
             )
+            future_to_job[future] = (trace_name, experiment)
+
+        for future in as_completed(future_to_job):
+            trace_name, experiment = future_to_job[future]
+            results.append(future.result())
+            print(f"Finished {trace_name} + {experiment}", flush=True)
 
     write_summary(results, output_dir)
     print(f"Wrote results to {output_dir}")

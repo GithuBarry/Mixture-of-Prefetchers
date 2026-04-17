@@ -1,6 +1,21 @@
 # Experiment setup (MoP-lite milestone)
 
-This document is the **canonical description** of the official trace suite, splits, run modes, and example commands. Machine-readable copies live under `configs/`.
+This document is the **canonical description** of the official trace suite,
+splits, run modes, and example commands. Machine-readable copies live under
+`configs/`.
+
+The current workspace already contains a smoke-mode evidence snapshot. The
+official broader protocol in this file still defines the target evaluation for
+advisor-facing conclusions.
+
+## Why these modes exist
+
+- `smoke_mode` answers a build-and-pipeline question: can the full stack run
+  end to end on two short traces?
+- `search_mode` answers an iteration question: can we compare router choices on
+  a broader training subset at lower cost?
+- `final_mode` answers the strongest evaluation question: how does the method
+  behave on the full official suite under report-style instruction windows?
 
 ## Official trace suite
 

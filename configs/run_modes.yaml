@@ -13,6 +13,7 @@
         "expert_1": "SPP+PPF",
         "routers": "recommended_routers_search_fast"
       },
+      "builtin_coordinators": ["AthenaMAB"],
       "single_prefetcher_baselines": {
         "experiments": ["Baseline", "Pythia", "SPP+PPF", "MLOP", "SMS"]
       }
@@ -26,6 +27,7 @@
         "expert_1": "SPP+PPF",
         "routers": "recommended_routers_all"
       },
+      "builtin_coordinators": ["AthenaMAB"],
       "single_prefetcher_baselines": {
         "experiments": ["Baseline", "Pythia", "SPP+PPF", "MLOP", "SMS"]
       }
@@ -39,8 +41,9 @@
         "expert_1": "SPP+PPF",
         "routers": ["MoPLite"]
       },
+      "builtin_coordinators": ["AthenaMAB"],
       "single_prefetcher_baselines": {
-        "experiments": ["Baseline", "Pythia"]
+        "experiments": ["Baseline", "Pythia", "SPP+PPF"]
       }
     }
   }
