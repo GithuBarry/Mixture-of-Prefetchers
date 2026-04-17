@@ -93,6 +93,8 @@ the later training-side search batch is allowed to tell.
 
 Figure `report/figures/ipc_speedup_summary.png` carries the main baseline story.
 
+![IPC speedup summary](figures/ipc_speedup_summary.png)
+
 Against no-prefetch, some coordinators do achieve small `1+x` gains.
 
 - Train split:
@@ -115,6 +117,8 @@ and do not identify `MoPLite` as the strongest rule.
 This is the decisive Stage 1 comparison; `report/tables/router_ablation.md` and
 `report/figures/win_loss_mop_vs_best_single.png` both show that no evaluated
 coordinator exceeds the pair-best single expert in geomean.
+
+![MoPLite win-loss vs pair-best single](figures/win_loss_mop_vs_best_single.png)
 
 Against the better of the two coordinated experts (`Pythia`, `SPP+PPF`), every
 coordinator remains below `1.0x` in geomean.
@@ -145,6 +149,8 @@ wins 8 traces, `Pythia` 5, `SMS` 2, and `SPP+PPF` 2. On the held-out split,
 `Pythia` wins 3 traces, `SMS` 3, and `MLOP` 1. That means the current negative
 MoPLite result is not because the experts are indistinguishable; it is because
 the present coordination rule is not exploiting their differences well enough.
+
+![Single expert profiles](figures/single_expert_profiles.png)
 
 ### 4.4 Router ablation
 
