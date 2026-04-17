@@ -404,6 +404,10 @@ void Oogway::train_and_take_action(og_state_t *_state) {
     }
   }
 
+  if (!knob::mop_enable) {
+    trace_mop_epoch(curr_state);
+  }
+
   // Fifth, prepare to transition to next epoch
   tmp = prev_state;
   prev_state = curr_state;

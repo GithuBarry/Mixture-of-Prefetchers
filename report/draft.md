@@ -50,6 +50,11 @@ rules are:
 The current MoP-lite score combines expert accuracy, a usefulness-derived
 coverage proxy, and traffic share, with a hard floor at `30%` accuracy.
 
+The main prior coordinator comparator is `AthenaMAB`. The fairest Stage 1
+framing is not that `MoPLite` is strictly smaller in hardware bytes, but that it
+has a more transparent control surface: fixed rule-based scoring over two
+experts, rather than per-arm online reward estimation and discounted-UCB updates.
+
 ## 3. Experimental protocol
 
 The official split is frozen in `data/splits/official_v1.json`. Stage 1 used:
@@ -123,6 +128,11 @@ coordinator exceeds the pair-best single expert in geomean.
 Against the better of the two coordinated experts (`Pythia`, `SPP+PPF`), every
 coordinator remains below `1.0x` in geomean.
 
+Throughout this report, **pair-best single** means exactly that local two-expert
+reference: `max(Pythia, SPP+PPF)` on the same trace. It does **not** mean the
+best method of any kind in the batch; that broader skyline would include
+coordinators such as `AthenaMAB` and would answer a different question.
+
 - Train split:
   - `AthenaMAB = 0.961926x`
   - `WinnerTakeAll = 0.956400x`
@@ -160,8 +170,15 @@ The router ablation shows two things clearly.
    - vs no-prefetch, `AthenaMAB` and `OneShotFit` look best on held-out.
    - vs pair-best single, `AthenaMAB` is best, but still below `1.0x`.
 2. The current `MoPLite` rule is not the strongest simple coordinator baseline.
-   `AthenaMAB` is stronger on the full training side, and `OneShotFit`
-   is stronger on held-out traces.
+   `AthenaMAB` is the main comparator and is stronger on both the full training
+   side and the held-out split; `OneShotFit` is also stronger than `MoPLite` on
+   held-out traces.
+
+For an outsider reader, the most important comparison in this section is
+therefore not MoPLite versus every other ablation simultaneously; it is
+`MoPLite` versus `AthenaMAB`. The supporting ablations matter because they show
+that MoPLite is not merely losing to one sophisticated prior method. It is also
+not obviously the strongest among the simpler coordinator rules.
 
 ### 4.5 Failure-mode diagnostics
 
@@ -189,6 +206,22 @@ routing skill, but not a reliable action policy. Table
 `report/tables/routing_criterion.md` gives the full criterion set, not only the
 favorable cases.
 
+That fair criterion still does **not** rescue the blind-single comparison. On
+the 8 criterion traces as a set, `MoPLite` reaches only `1.008597x` vs
+no-prefetch, while always choosing `Pythia` reaches `1.224603x` and always
+choosing `SPP+PPF` reaches `1.172079x`. The reason is that the criterion set is
+not balanced: both experts are useful, but `Pythia` wins most of those traces
+and often by a wide margin. So even a fair mixed subset can still leave a blind
+fixed expert as the stronger policy if the router does not fully exploit the
+minority win region.
+
+The corresponding router-comparison plot (`report/figures/router_compare_criterion.png`)
+focuses on the same criterion traces and asks a narrower question than the main
+performance plots: when the single-expert ordering is favorable to routing, do
+the compared routers actually choose actions that include the offline-better
+expert, and how much of their action mass is spent on `both off`, single-expert,
+or both-on decisions?
+
 ### 4.6 What the Stage 1 evidence supports
 
 The current evidence supports three claims and rules out two stronger ones.
@@ -203,8 +236,9 @@ Supported:
 Not supported:
 
 - Stage 1 does **not** justify the claim that the current `MoPLite` rule is the
-  best coordinator in this repo. It is not; `AthenaMAB`, `WinnerTakeAll`, or
-  `OneShotFit` are stronger depending on which comparator is used.
+  best coordinator in this repo. It is not; `AthenaMAB` is the strongest prior
+  coordinator comparator in the current Stage 1 evidence, and `WinnerTakeAll` or
+  `OneShotFit` are also stronger in some comparator settings.
 - Stage 1 does **not** support a headline claim that two-expert coordination,
   under the committed pair and protocol, beats the strongest constituent expert.
 
@@ -240,8 +274,11 @@ decoupled from the measured IPC.
 Anticipated validity questions:
 
 - **"Are you beating prior coordination?"**
-  Not in the strongest sense. `MoPLite` does not beat `AthenaMAB` on the current
-  Stage 1 evidence.
+  No. `MoPLite` does not beat `AthenaMAB` on the current Stage 1 evidence.
+- **"Can you claim MoPLite is cheaper than AthenaMAB?"**
+  Not as a strict byte-count claim from Stage 1 alone. The safer claim is that
+  `MoPLite` is more transparent and avoids AthenaMAB's per-arm online reward
+  estimation.
 - **"Is best-single a fair baseline?"**
   It is fair as a strict postmortem comparator and is reported as such. The
   primary deployable baseline remains no-prefetch.

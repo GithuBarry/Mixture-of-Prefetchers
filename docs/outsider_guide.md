@@ -354,6 +354,14 @@ weakness is not only choosing the wrong expert**.
   diagnostic, yet `MoPLite` is not the best overall coordinator in the merged
   Stage 1 result.
 
+Even under a stricter fair-routing criterion, the current router does not beat a
+blind fixed expert. On the 8 traces where both `Pythia` and `SPP+PPF` are
+individually above no-prefetch and one clearly wins, `MoPLite` reaches only
+`1.008597x` vs no-prefetch, while always choosing `Pythia` reaches `1.224603x`
+and always choosing `SPP+PPF` reaches `1.172079x`. That is an important result:
+the problem is not just picking the wrong expert on obviously complementary
+traces. The current action policy still leaves too much value on the table.
+
 So the current local result is not "the router made two experts stronger." The
 current local result is closer to this:
 

@@ -214,12 +214,13 @@ def builtin_flags(
     expert0: str,
     expert1: str,
     coordinator: str,
+    epoch_trace_prefix: Path | None,
 ) -> str:
     base = build_base_flags(config_module, athena_home, warmup, sim)
     spec0 = EXPERTS[expert0]
     spec1 = EXPERTS[expert1]
     cfg = BUILTIN_COORDINATORS[coordinator]
-    return (
+    flags = (
         f"{base} "
         f"--config={shlex.quote(str(athena_home / cfg))} "
         f"--l2c_prefetcher_types={spec0['type']} "
@@ -228,6 +229,9 @@ def builtin_flags(
         f"--config={shlex.quote(str(athena_home / spec1['config']))} "
         "--l2c_prefetcher_force_prefetch_at_llc=true"
     )
+    if epoch_trace_prefix is not None:
+        flags += f" --mop_epoch_trace={shlex.quote(str(epoch_trace_prefix))}"
+    return flags
 
 
 def collect_result(trace: str, experiment: str, kind: str, run_result) -> MopResult:
@@ -527,9 +531,12 @@ def main() -> int:
                     expert_0, expert_1, experiment, args.seed, epoch_trace_prefix,
                 )
             elif kind == "builtin":
+                if args.epoch_trace:
+                    epoch_trace_prefix = artifact_dir / "epoch_logs" / f"{trace_name}__{experiment}"
+                    epoch_trace_prefix.parent.mkdir(parents=True, exist_ok=True)
                 flags = builtin_flags(
                     config_module, athena_home, warmup, sim,
-                    expert_0, expert_1, experiment,
+                    expert_0, expert_1, experiment, epoch_trace_prefix,
                 )
             else:
                 raise AssertionError(f"Unknown experiment kind: {kind}")

@@ -56,12 +56,14 @@ coordination problem is real rather than degenerate."
 ### 4.4 Router ablation
 
 Evidence: `report/tables/router_ablation.md`.
-Claim line: "Dropping the usefulness floor (FixedSplit) regresses [N]% on
-traffic-sensitive traces; dropping the score (RandomRouter) regresses [M]%."
+Claim line: "The main MoPLite-vs-AthenaMAB comparison favors AthenaMAB on both
+splits; the simpler router baselines provide supporting context rather than the
+primary claim."
 
 ### 4.5 Fair routing criterion
 
-Evidence: `report/tables/routing_criterion.md`.
+Evidence: `report/tables/routing_criterion.md` and
+`report/figures/router_compare_criterion.png`.
 Claim line: "Under a predeclared complementary-trace criterion, the router shows
 real ranking skill on some traces but still fails because of its action policy
 on others."

@@ -7,6 +7,7 @@ Produces under report/figures/ and report/tables/:
     ipc_speedup_summary.png              combined speedup summary figure
     win_loss_mop_vs_best_single.png      MoP-lite delta vs best single (bar, sorted)
     single_expert_profiles.png          per-trace winning single-expert profile
+    mop_vs_reference_rows.png           per-trace MoPLite vs reference rows
 
   tables/
     router_ablation.md                   per-router geomean speedups (train + heldout)
@@ -161,8 +162,21 @@ def fig_speedup_summary(rows: list[dict], out_path: Path) -> None:
         return
     experiments = experiment_order(list({r["experiment"] for r in plot_rows}))
     nopref = split_summary(plot_rows, experiments, "speedup_vs_baseline")
-    pairbest = split_summary(plot_rows, experiments, "speedup_vs_best_single")
+    fig, ax = plt.subplots(figsize=(10, max(5, len(experiments) * 0.45)))
+    draw_split_bars(ax, nopref, experiments, "Geomean IPC vs prefetch-off", "How much do methods beat prefetch-off?")
+    ax.legend(fontsize=8, ncols=2, title="Split")
+    fig.text(0.01, 0.01, "Caption: All bars use the same normalization: IPC relative to prefetch-off. Filled bars are the 17-trace training split; hatched white bars are the 7-trace held-out split. Pair-best-single comparisons are intentionally kept out of this figure and shown elsewhere.", ha="left", va="bottom", fontsize=8, color=PALETTE["black"], wrap=True)
+    fig.tight_layout(rect=(0, 0.06, 1, 1))
+    fig.savefig(out_path, dpi=160)
+    plt.close(fig)
 
+
+def fig_mop_vs_reference_rows(rows: list[dict], out_path: Path) -> None:
+    plot_rows = [r for r in rows if r["experiment_kind"] != "baseline"]
+    mop_rows = [r for r in plot_rows if r["experiment"] == "MoPLite"]
+    if not mop_rows:
+        skip_output(out_path, "no MoPLite rows")
+        return
     traces = ordered_traces(plot_rows)
     split_for_trace = {r["trace"]: r.get("split_side", "unknown") for r in plot_rows}
     mop_by_trace = {}
@@ -178,30 +192,23 @@ def fig_speedup_summary(rows: list[dict], out_path: Path) -> None:
             pairbest_by_trace[trace] = max(r["speedup_vs_baseline"] for r in singles)
         best_by_trace[trace] = max(r["speedup_vs_baseline"] for r in trace_rows)
 
-    fig, axes = plt.subplots(3, 1, figsize=(10, 13), gridspec_kw={"height_ratios": [1.3, 1.3, 1.8]})
-    draw_split_bars(axes[0], nopref, experiments, "Geomean IPC vs no-prefetch", "How much do methods beat no-prefetch?")
-    axes[0].legend(fontsize=8, ncols=2, title="Split")
-    draw_split_bars(axes[1], pairbest, experiments, "Fraction of pair-best-single IPC", "How far are methods from the pair-best ceiling?")
-
+    fig, ax = plt.subplots(figsize=(10, max(6, len(traces) * 0.35)))
     y = list(range(len(traces)))
-    axes[2].barh(y, [mop_by_trace.get(t, math.nan) for t in traces], color=PALETTE["magenta"], edgecolor=PALETTE["black"], linewidth=0.4, label="MoPLite")
-    axes[2].scatter([pairbest_by_trace.get(t, math.nan) for t in traces], y, color=PALETTE["purple"], edgecolors=PALETTE["black"], linewidths=0.4, s=36, label="Pair-best single")
-    axes[2].scatter([best_by_trace.get(t, math.nan) for t in traces], y, color=PALETTE["white"], edgecolors=PALETTE["black"], linewidths=1.0, s=42, label="Best method in batch")
-    axes[2].axvline(1.0, color=PALETTE["black"], linestyle=":", linewidth=1.0)
+    ax.barh(y, [mop_by_trace.get(t, math.nan) for t in traces], color=PALETTE["magenta"], edgecolor=PALETTE["black"], linewidth=0.4, label="MoPLite")
+    ax.scatter([pairbest_by_trace.get(t, math.nan) for t in traces], y, color=PALETTE["purple"], edgecolors=PALETTE["black"], linewidths=0.4, s=36, label="Pair-best single")
+    ax.scatter([best_by_trace.get(t, math.nan) for t in traces], y, color=PALETTE["white"], edgecolors=PALETTE["black"], linewidths=1.0, s=42, label="Best method in batch")
+    ax.axvline(1.0, color=PALETTE["black"], linestyle=":", linewidth=1.0)
     for idx in range(1, len(traces)):
         if split_for_trace[traces[idx - 1]] != split_for_trace[traces[idx]]:
-            axes[2].axhline(idx - 0.5, color=PALETTE["light_grey"], linewidth=1.0)
-    axes[2].set_yticks(y)
-    axes[2].set_yticklabels([t[:30] for t in traces])
-    axes[2].set_xlabel("IPC vs no-prefetch")
-    axes[2].set_title("Per-trace reference rows: MoPLite, pair-best single, and best available method")
-    axes[2].grid(True, axis="x", linestyle=":")
-    axes[2].legend(fontsize=8, ncols=3)
-    if any(split_for_trace[t] == "heldout" for t in traces):
-        axes[2].text(0.01, -0.08, "Rows above the separator are the search-side subset; rows below are held-out.", transform=axes[2].transAxes, fontsize=8, color=PALETTE["black"])
-
-    fig.text(0.01, 0.01, "Caption: Filled bars are the search-side subset; hatched white bars are held-out. The bottom panel keeps no-prefetch as the only normalization and shows where MoPLite sits relative to the pair-best single expert and the best method available on each trace.", ha="left", va="bottom", fontsize=8, color=PALETTE["black"], wrap=True)
-    fig.tight_layout(rect=(0, 0.06, 1, 1))
+            ax.axhline(idx - 0.5, color=PALETTE["light_grey"], linewidth=1.0)
+    ax.set_yticks(y)
+    ax.set_yticklabels([t[:30] for t in traces])
+    ax.set_xlabel("IPC vs prefetch-off")
+    ax.set_title("MoPLite versus two per-trace reference rows")
+    ax.grid(True, axis="x", linestyle=":")
+    ax.legend(fontsize=8, ncols=3)
+    fig.text(0.01, 0.01, "Caption: Pair-best single means max(Pythia, SPP+PPF) on that trace only. Best method in batch is broader: the best of all methods on that trace, including coordinators such as AthenaMAB. Separating them avoids mixing a local two-expert reference with a full-batch skyline.", ha="left", va="bottom", fontsize=8, color=PALETTE["black"], wrap=True)
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     fig.savefig(out_path, dpi=160)
     plt.close(fig)
 
@@ -352,7 +359,7 @@ def fig_win_loss(rows: list[dict], out_path: Path) -> None:
     plt.close(fig)
 
 
-# -- Figure 4: single-expert winner profile --------------------------------------
+# -- Figure 4: single-expert winner profile + MoPLite -----------------------------
 
 def fig_single_expert_profiles(rows: list[dict], out_path: Path) -> None:
     singles = [r for r in rows if r["experiment_kind"] == "single" and r.get("split_side") in {"train", "heldout"}]
@@ -363,12 +370,16 @@ def fig_single_expert_profiles(rows: list[dict], out_path: Path) -> None:
     split_for_trace = {r["trace"]: r.get("split_side", "unknown") for r in singles}
     best = {}
     runner_up = {}
+    mop = {}
     for trace in traces:
         trace_rows = sorted([r for r in singles if r["trace"] == trace], key=lambda r: r["speedup_vs_baseline"], reverse=True)
         if not trace_rows:
             continue
         best[trace] = trace_rows[0]
         runner_up[trace] = trace_rows[1] if len(trace_rows) > 1 else None
+        mop_rows = [r for r in rows if r["trace"] == trace and r["experiment"] == "MoPLite"]
+        if mop_rows:
+            mop[trace] = mop_rows[0]
 
     fig, ax = plt.subplots(figsize=(10, max(6, len(traces) * 0.35)))
     y = list(range(len(traces)))
@@ -380,6 +391,16 @@ def fig_single_expert_profiles(rows: list[dict], out_path: Path) -> None:
         edgecolors=PALETTE["black"],
         linewidths=0.5,
         zorder=3,
+    )
+    ax.scatter(
+        [mop.get(t, {"speedup_vs_baseline": math.nan})["speedup_vs_baseline"] for t in traces],
+        y,
+        s=54,
+        marker="s",
+        c=PALETTE["magenta"],
+        edgecolors=PALETTE["black"],
+        linewidths=0.5,
+        zorder=4,
     )
     for idx, trace in enumerate(traces):
         if runner_up[trace] is not None:
@@ -398,15 +419,16 @@ def fig_single_expert_profiles(rows: list[dict], out_path: Path) -> None:
             ax.axhline(idx - 0.5, color=PALETTE["light_grey"], linewidth=1.0)
     ax.set_yticks(y)
     ax.set_yticklabels([t[:30] for t in traces])
-    ax.set_xlabel("Best single-expert IPC vs no-prefetch")
-    ax.set_title("Which single expert wins where?")
+    ax.set_xlabel("IPC vs no-prefetch")
+    ax.set_title("Which single expert wins where, and where does MoPLite land?")
     ax.grid(True, axis="x", linestyle=":")
     legend_handles = []
     for name in ["MLOP", "Pythia", "SMS", "SPP+PPF"]:
         legend_handles.append(plt.Line2D([0], [0], marker='o', color='none', markerfacecolor=experiment_color(name), markeredgecolor=PALETTE["black"], markersize=8, label=name))
+    legend_handles.append(plt.Line2D([0], [0], marker='s', color='none', markerfacecolor=PALETTE["magenta"], markeredgecolor=PALETTE["black"], markersize=8, label='MoPLite'))
     legend_handles.append(plt.Line2D([0], [0], marker='o', color='none', markerfacecolor=PALETTE["white"], markeredgecolor=PALETTE["black"], markersize=7, label='Runner-up'))
     ax.legend(handles=legend_handles, fontsize=8, ncols=3)
-    fig.text(0.01, 0.01, "Caption: Filled markers show the winning single prefetcher on each trace; hollow markers show the runner-up. Distinct winners across traces indicate that the single experts have genuinely different performance profiles, which is the precondition for a meaningful coordination problem.", ha="left", va="bottom", fontsize=8, color=PALETTE["black"], wrap=True)
+    fig.text(0.01, 0.01, "Caption: Filled circles show the winning single prefetcher on each trace, hollow circles show the runner-up, and magenta squares show MoPLite. This makes it visible whether the router lands near the better expert, between the two experts, or below both of them.", ha="left", va="bottom", fontsize=8, color=PALETTE["black"], wrap=True)
     fig.tight_layout(rect=(0, 0.08, 1, 1))
     fig.savefig(out_path, dpi=160)
     plt.close(fig)
@@ -516,6 +538,7 @@ def main() -> int:
     args.tables_dir.mkdir(parents=True, exist_ok=True)
     rows = load_rows(args.csv)
     fig_speedup_summary       (rows, args.figures_dir / "ipc_speedup_summary.png")
+    fig_mop_vs_reference_rows (rows, args.figures_dir / "mop_vs_reference_rows.png")
     (args.figures_dir / "ipc_speedup_vs_nopref.png").unlink(missing_ok=True)
     (args.figures_dir / "ipc_speedup_vs_best_single.png").unlink(missing_ok=True)
     fig_win_loss              (rows, args.figures_dir / "win_loss_mop_vs_best_single.png")
