@@ -379,6 +379,70 @@ Instead, the rule often includes the right expert but still loses because it
 fails to isolate that expert, turns both experts off too often, or shares budget
 in a way that gives up too much IPC.
 
+## 2026-04-17 — Fair routing criterion on complementary Pythia/SPP traces
+
+**Criterion.** Evaluate routing only on traces where both `Pythia` and
+`SPP+PPF` are individually above no-prefetch, and one of them is clearly better.
+Do not report only the traces that make the router look good.
+
+**Criterion-matching diagnostics run.**
+
+- `429.mcf-192B` (SPP+PPF better)
+- `619.lbm_s-2676B` (SPP+PPF better)
+- `602.gcc_s-734B` (Pythia better)
+- `secret_compute_int_243` (Pythia better)
+- `secret_compute_fp_105` (Pythia better)
+- `437.leslie3d-134B` (Pythia slightly better)
+- `parsec_2.1.canneal...` (Pythia better)
+
+**Observed signal.**
+
+- Clear successes:
+  - `602.gcc_s`: oracle-better expert included in `100%` of epochs
+  - `619.lbm_s`: `100%`
+  - `secret_compute_int_243`: `100%`
+  - `437.leslie3d`: `100%`
+- Mixed or failing criterion cases:
+  - `429.mcf`: exact oracle match `0.900`, but `both off` in `93.3%` of epochs
+  - `secret_compute_fp_105`: oracle included in `98.5%` of nonzero-useful epochs,
+    but exact match only `0.536` and `both off` rate `0.543`
+  - `parsec canneal`: exact oracle match `0.967`, but `both off` in `100%` of
+    epochs under the short-window diagnostic
+
+**Interpretation.** Under a fair predeclared criterion, the router does show
+real routing skill on some complementary traces. But the same criterion set also
+contains clear failures. So the right conclusion is not "the router can never
+pick the right expert" and not "the router works when evaluated fairly". The
+right conclusion is narrower: the current score often identifies the better
+expert, but the action policy still overuses `both off` or fails to translate
+that ranking into a consistently good epoch action.
+
+## 2026-04-17 — Alternate-pair exploratory baselines on held-out traces
+
+**Goal.** Check whether the negative `MoPLite` result is mostly a bad pair
+choice rather than a bad router, using small held-out exploratory batches with
+alternate expert pairs.
+
+**What was run.** Three held-out exploratory batches with the same light
+coordinator set (`MoPLite`, `FixedSplit`, `WinnerTakeAll`, `AthenaMAB`) and
+shorter windows (`5M` warmup + `10M` simulation):
+
+- `MLOP + SMS`
+- `Pythia + SMS`
+- `MLOP + Pythia`
+
+**Observed signal.** `MoPLite` geomean on held-out traces:
+
+- `MLOP + SMS`: `0.999778x` vs no-prefetch, `0.984551x` vs pair-best single
+- `Pythia + SMS`: `0.998842x` vs no-prefetch, `0.913791x` vs pair-best single
+- `MLOP + Pythia`: `1.000381x` vs no-prefetch, `0.923328x` vs pair-best single
+
+**Interpretation.** Pair choice clearly matters: alternate pairs can improve the
+no-prefetch result and move `MoPLite` closer to parity with the pair-best single
+expert. But no tested alternate pair turns `MoPLite` into a winner against its
+own pair-best single. That means the current Stage 1 weakness is not only pair
+selection; the router policy itself still leaves substantial value unrealized.
+
 ## 2026-04-17 — Exploratory alternate-pair baselines on held-out traces
 
 **Goal.** Check whether the current negative `MoPLite` result is mostly a bad

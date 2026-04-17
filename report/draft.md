@@ -171,6 +171,16 @@ So the main failure mode is not simply "wrong expert chosen". The evidence now
 points more toward overuse of `both off`, insufficient isolation of the winning
 expert, and/or budget-sharing behavior that leaves performance on the table.
 
+Under a stricter predeclared criterion, the picture is mixed rather than purely
+negative. On criterion-matching traces where both `Pythia` and `SPP+PPF` beat
+no-prefetch and one clearly wins, the router includes the offline-better expert
+in `100%` of epochs for `602.gcc_s`, `619.lbm_s`, `secret_compute_int_243`, and
+`437.leslie3d`. But the same criterion set also contains clear failures:
+`429.mcf` still spends `93.3%` of epochs in `both off`, `secret_compute_fp_105`
+uses `both off` in `54.3%` of epochs, and `parsec canneal` is effectively `both
+off` throughout the short-window diagnostic. So the current rule has real
+routing skill, but not a reliable action policy.
+
 ### 4.6 What the Stage 1 evidence supports
 
 The current evidence supports three claims and rules out two stronger ones.
