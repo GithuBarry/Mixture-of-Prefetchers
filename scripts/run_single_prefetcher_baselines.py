@@ -13,6 +13,7 @@ import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -312,6 +313,9 @@ def main() -> int:
     traces_dir = root / "artifacts" / "athena_traces"
     output_dir = root / "results" / "single_prefetcher_baselines"
     output_dir.mkdir(parents=True, exist_ok=True)
+    run_group_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    artifact_dir = output_dir / "runs" / run_group_id
+    artifact_dir.mkdir(parents=True, exist_ok=True)
 
     config_module = load_athena_config(athena_home)
     selected_traces = args.traces or DEFAULT_TRACES
@@ -371,7 +375,7 @@ def main() -> int:
                 trace_path=safe_trace_paths[trace_name],
                 trace_name=trace_name,
                 experiment=experiment,
-                output_dir=output_dir,
+                output_dir=artifact_dir,
             )
             future_to_job[future] = (trace_name, experiment)
 

@@ -75,17 +75,52 @@ def load_metrics(metrics_path: Path) -> dict[str, str]:
 
 
 def compute_derived(rows: list[dict]) -> None:
-    by_trace: dict[str, list[dict]] = {}
+    by_trace: dict[tuple[str, str], list[dict]] = {}
+    by_run_group: dict[str, list[dict]] = {}
     for row in rows:
-        by_trace.setdefault(row["trace"], []).append(row)
-    for trace, trace_rows in by_trace.items():
+        run_group_id = row.get("run_group_id") or "legacy"
+        by_trace.setdefault((run_group_id, row["trace"]), []).append(row)
+        by_run_group.setdefault(run_group_id, []).append(row)
+
+    for run_group_id, group_rows in by_run_group.items():
+        traces = sorted({row["trace"] for row in group_rows})
+        expected_experiments = {
+            (row["experiment_kind"], row["experiment"])
+            for row in group_rows
+        }
+        for trace in traces:
+            trace_experiments = {
+                (row["experiment_kind"], row["experiment"])
+                for row in group_rows
+                if row["trace"] == trace
+            }
+            missing = expected_experiments - trace_experiments
+            assert not missing, (
+                f"Run group {run_group_id} is incomplete for trace {trace}; missing experiments: {sorted(missing)}"
+            )
+
+    for (_, trace), trace_rows in by_trace.items():
         baseline_candidates = [r for r in trace_rows if r["experiment_kind"] == "baseline"]
         assert baseline_candidates, f"No Baseline run found for trace {trace}"
-        # Deduplicate if a trace was run more than once (later run wins).
         baseline = baseline_candidates[-1]
         baseline_ipc = float(baseline["ipc"])
+        coord_rows = [r for r in trace_rows if r["experiment_kind"] in {"router", "builtin"}]
+        reference_experts: set[str] = set()
+        for row in coord_rows:
+            if row.get("expert_0"):
+                reference_experts.add(row["expert_0"])
+            if row.get("expert_1"):
+                reference_experts.add(row["expert_1"])
         single_rows = [r for r in trace_rows if r["experiment_kind"] == "single"]
-        best_single_ipc = max((float(r["ipc"]) for r in single_rows), default=baseline_ipc)
+        if reference_experts:
+            ref_single_rows = [r for r in single_rows if r["experiment"] in reference_experts]
+            missing_experts = reference_experts - {r["experiment"] for r in ref_single_rows}
+            assert not missing_experts, (
+                f"Trace {trace} is missing single-expert reference rows for {sorted(missing_experts)}"
+            )
+            best_single_ipc = max(float(r["ipc"]) for r in ref_single_rows)
+        else:
+            best_single_ipc = max((float(r["ipc"]) for r in single_rows), default=baseline_ipc)
         for row in trace_rows:
             ipc = float(row["ipc"])
             row["speedup_vs_baseline"] = ipc / baseline_ipc if baseline_ipc else float("nan")
@@ -126,6 +161,7 @@ def build_rows(manifest_rows: list[dict], split_side: dict[str, str], root: Path
             f"Trace {record['trace']} is missing from the frozen split artifact; refusing to admit off-protocol data"
         )
         row = dict(record)  # copy
+        row["run_group_id"] = record.get("run_group_id") or "legacy"
         row["split_side"] = split_side[record["trace"]]
         row["benchmark_family"] = benchmark_family(record["trace"])
         # Pull a few useful derived metrics directly from the metrics file.
@@ -141,6 +177,15 @@ def build_rows(manifest_rows: list[dict], split_side: dict[str, str], root: Path
         row["branch_pred_mpki"] = pick_metric(metrics, "Core_0_branch_pred_mpki")
         row["cycles"] = pick_metric(metrics, "Core_0_cycles")
         row["total_instructions"] = pick_metric(metrics, "Core_0_total_instructions")
+        if row["experiment_kind"] in {"router", "builtin"} and float(row["l2c_prefetch_issued"]) == 0.0:
+            coordinator_issue_proxy = float(row["pref0_issued_total"]) + float(row["pref1_issued_total"])
+            if coordinator_issue_proxy > 0.0:
+                row["l2c_prefetch_issued"] = coordinator_issue_proxy
+        downstream_prefetch_useful = float(row.get("l2c_prefetch_useful") or 0.0) + float(row.get("llc_prefetch_useful") or 0.0)
+        if float(row["l2c_prefetch_issued"]):
+            row["downstream_prefetch_accuracy"] = downstream_prefetch_useful / float(row["l2c_prefetch_issued"])
+        else:
+            row["downstream_prefetch_accuracy"] = 0.0
         # Expert utilisation ratios (0 if router didn't issue, nan if no signal).
         for i in (0, 1):
             issued = float(record[f"pref{i}_issued_total"])
@@ -154,7 +199,7 @@ def write_csv(rows: list[dict], path: Path) -> None:
     assert rows, "Nothing to write"
     # Stable column order: identity first, metrics next, config last.
     priority = [
-        "trace", "benchmark_family", "split_side", "experiment", "experiment_kind", "router",
+        "run_group_id", "trace", "benchmark_family", "split_side", "experiment", "experiment_kind", "router",
         "builtin_coordinator", "expert_0", "expert_1", "seed",
         "ipc", "speedup_vs_baseline", "speedup_vs_best_single",
         "baseline_ipc", "best_single_ipc", "traffic_overhead_vs_baseline",
@@ -191,15 +236,18 @@ def write_summary_md(rows: list[dict], path: Path) -> None:
     total = len(rows)
     by_kind: dict[str, int] = {}
     by_split: dict[str, int] = {}
+    run_groups = set()
     traces = set()
     for row in rows:
         by_kind[row["experiment_kind"]] = by_kind.get(row["experiment_kind"], 0) + 1
         by_split[row["split_side"]] = by_split.get(row["split_side"], 0) + 1
+        run_groups.add(row["run_group_id"])
         traces.add(row["trace"])
     lines = [
         "# runs.csv summary",
         "",
         f"Total runs: {total}",
+        f"Run groups: {len(run_groups)}",
         f"Distinct traces: {len(traces)}",
         "",
         "## By experiment kind",
@@ -216,8 +264,8 @@ def write_summary_md(rows: list[dict], path: Path) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--manifest", type=Path,
-                        default=repo_root() / "results" / "mop_lite" / "manifest.jsonl")
+    parser.add_argument("--manifest", type=Path, action="append",
+                        help="Manifest JSONL to include. Repeat to merge multiple result directories.")
     parser.add_argument("--split",    type=Path,
                         default=repo_root() / "data" / "splits" / "official_v1.json")
     parser.add_argument("--out-csv",  type=Path,
@@ -230,7 +278,10 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     root = repo_root()
-    manifest_rows = load_manifest(args.manifest)
+    manifest_paths = args.manifest or [repo_root() / "results" / "mop_lite" / "manifest.jsonl"]
+    manifest_rows: list[dict] = []
+    for manifest_path in manifest_paths:
+        manifest_rows.extend(load_manifest(manifest_path))
     split_side = load_split(args.split)
     rows = build_rows(manifest_rows, split_side, root)
     compute_derived(rows)

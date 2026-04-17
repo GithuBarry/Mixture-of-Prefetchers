@@ -45,7 +45,7 @@ That order reflects the actual data flow.
 | Step | Producer | Main outputs |
 | --- | --- | --- |
 | Build | `make -C external/athena -j$(nproc)` | `external/athena/bin/champsim` |
-| Raw runs | `scripts/run_mop_lite.py` | `results/mop_lite/logs/`, `results/mop_lite/metrics/`, `results/mop_lite/epoch_logs/`, `results/mop_lite/manifest.jsonl` |
+| Raw runs | `scripts/run_mop_lite.py` | `results/mop_lite/runs/<run_group_id>/`, `results/mop_lite/manifest.jsonl` |
 | Dataset | `scripts/build_dataset.py` | `data/processed/runs.csv`, `data/processed/runs_summary.md` |
 | Figures/tables | `scripts/make_figures.py` | `report/figures/*.png`, `report/tables/*.md` |
 
@@ -60,7 +60,8 @@ The current workspace already contains a smoke-mode analysis snapshot.
   `docs/experiment_setup.md` and `configs/*.json`.
 
 Treat `data/processed/runs.csv` as the analysis entry point for the current
-snapshot. Treat `results/mop_lite/` as the place to inspect per-run evidence.
+snapshot. Treat `results/mop_lite/runs/<run_group_id>/` as the place to inspect
+per-run evidence.
 
 ## Trace handling
 
@@ -94,6 +95,7 @@ run set.
 
 Each run record written by `scripts/run_mop_lite.py` includes:
 
+- `run_group_id`
 - `git_revision`
 - `host`
 - `seed`

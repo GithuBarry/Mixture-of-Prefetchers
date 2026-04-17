@@ -2,9 +2,9 @@
 """Run the MoP-lite evaluation matrix on Athena (two-expert L2 coordinator).
 
 Produces, under results/mop_lite/:
-  logs/<trace>__<experiment>.{out,err}   raw simulator stdout/stderr
-  metrics/<trace>__<experiment>.json     parsed metric key/value dictionary
-  epoch_logs/<trace>__<experiment>.csv   per-epoch MoP trace (when requested)
+  runs/<run_group_id>/logs/*.out,*.err   raw simulator stdout/stderr
+  runs/<run_group_id>/metrics/*.json     parsed metric key/value dictionary
+  runs/<run_group_id>/epoch_logs/*.csv   per-epoch MoP trace (when requested)
   manifest.jsonl                         one JSON record per run (append-only)
   summary.csv / summary.md               human-readable roll-up
 
@@ -230,7 +230,12 @@ def collect_result(trace: str, experiment: str, kind: str, run_result) -> MopRes
     l2c_load_miss = metric_float(metrics, "Core_0_L2C_load_miss")
     total_instructions = metric_float(metrics, "Core_0_total_instructions")
     l2c_mpki = 1000.0 * l2c_load_miss / total_instructions if total_instructions else 0.0
+    pref0_issued_total = metric_float(metrics, "Core_0_mop_pref_0_issued_total", default=0.0)
+    pref1_issued_total = metric_float(metrics, "Core_0_mop_pref_1_issued_total", default=0.0)
+    coordinator_issue_proxy = pref0_issued_total + pref1_issued_total
     l2c_prefetch_issued_effective = run_result.l2c_prefetch_issued
+    if kind in {"router", "builtin"} and l2c_prefetch_issued_effective == 0.0 and coordinator_issue_proxy > 0.0:
+        l2c_prefetch_issued_effective = coordinator_issue_proxy
     downstream_prefetch_useful = (
         metric_float(metrics, "Core_0_L2C_prefetch_useful", default=0.0)
         + metric_float(metrics, "Core_0_LLC_prefetch_useful", default=0.0)
@@ -253,8 +258,8 @@ def collect_result(trace: str, experiment: str, kind: str, run_result) -> MopRes
         llc_load_miss=metric_float(metrics, "Core_0_LLC_load_miss", default=0.0),
         downstream_prefetch_useful=downstream_prefetch_useful,
         downstream_prefetch_accuracy=downstream_prefetch_accuracy,
-        pref0_issued_total=metric_float(metrics, "Core_0_mop_pref_0_issued_total", default=0.0),
-        pref1_issued_total=metric_float(metrics, "Core_0_mop_pref_1_issued_total", default=0.0),
+        pref0_issued_total=pref0_issued_total,
+        pref1_issued_total=pref1_issued_total,
         pref0_useful_total=metric_float(metrics, "Core_0_mop_pref_0_useful_total", default=0.0),
         pref1_useful_total=metric_float(metrics, "Core_0_mop_pref_1_useful_total", default=0.0),
         pref0_budget_total=metric_float(metrics, "Core_0_mop_pref_0_budget_total", default=0.0),
@@ -426,15 +431,23 @@ def main() -> int:
         requested_singles = mode.get("single_prefetcher_baselines", {}).get("experiments", [])
         mode_singles = [s for s in requested_singles if s in EXPERTS]
         single_baselines = single_baselines or mode_singles
-        warmup = warmup or mode["warmup_instructions"]
-        sim = sim or mode["simulation_instructions"]
-        expert_0 = expert_0 or mode["mop_lite"].get("expert_0")
-        expert_1 = expert_1 or mode["mop_lite"].get("expert_1")
+        if warmup is None:
+            warmup = mode["warmup_instructions"]
+        if sim is None:
+            sim = mode["simulation_instructions"]
+        if expert_0 is None:
+            expert_0 = mode["mop_lite"].get("expert_0")
+        if expert_1 is None:
+            expert_1 = mode["mop_lite"].get("expert_1")
 
-    warmup = warmup or 5_000_000
-    sim = sim or 10_000_000
-    expert_0 = expert_0 or "Pythia"
-    expert_1 = expert_1 or "SPP+PPF"
+    if warmup is None:
+        warmup = 5_000_000
+    if sim is None:
+        sim = 10_000_000
+    if expert_0 is None:
+        expert_0 = "Pythia"
+    if expert_1 is None:
+        expert_1 = "SPP+PPF"
     routers = routers or []
     builtins = builtins or []
 
@@ -450,6 +463,9 @@ def main() -> int:
     output_dir = args.results_dir or (root / "results" / "mop_lite")
     output_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = output_dir / "manifest.jsonl"
+    run_group_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    artifact_dir = output_dir / "runs" / run_group_id
+    artifact_dir.mkdir(parents=True, exist_ok=True)
 
     config_module = load_athena_config(athena_home)
 
@@ -499,7 +515,7 @@ def main() -> int:
                 flags = single_expert_flags(config_module, athena_home, warmup, sim, experiment)
             elif kind == "router":
                 if args.epoch_trace:
-                    epoch_trace_prefix = output_dir / "epoch_logs" / f"{trace_name}__{experiment}"
+                    epoch_trace_prefix = artifact_dir / "epoch_logs" / f"{trace_name}__{experiment}"
                     epoch_trace_prefix.parent.mkdir(parents=True, exist_ok=True)
                 flags = mop_flags(
                     config_module, athena_home, warmup, sim,
@@ -533,7 +549,7 @@ def main() -> int:
             trace_path=plan.trace_path,
             trace_name=plan.trace,
             experiment=plan.experiment,
-            output_dir=output_dir,
+            output_dir=artifact_dir,
         )
         end = datetime.now(timezone.utc)
         return run_result, start, end
@@ -559,6 +575,7 @@ def main() -> int:
             print(f"Finished {plan.trace} + {plan.experiment} [{plan.kind}]", flush=True)
 
             manifest_record = {
+                "run_group_id": run_group_id,
                 "trace": plan.trace,
                 "experiment": plan.experiment,
                 "experiment_kind": plan.kind,

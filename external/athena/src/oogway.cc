@@ -416,9 +416,7 @@ void Oogway::train_and_take_action(og_state_t *_state) {
 
 float Oogway::mop_score(og_state_t *state, uint32_t id) {
   assert(id < 2);
-  if (knob::mop_score_weights.size() < 3) {
-    return 0.0f;
-  }
+  assert(knob::mop_score_weights.size() >= 3);
 
   const float issued = static_cast<float>(state->pref_issued[id]);
   const float useful = static_cast<float>(state->pref_useful[id]);

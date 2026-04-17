@@ -39,9 +39,10 @@ held-out traces, that:
 1. Improves geomean `speedup_vs_best_single` on the **train** split
    over the Stage 1 MoPLite baseline.
 2. Respects the 20% L2 traffic cap relative to Baseline
-   (`l2c_prefetch_issued` per run).
+   (`l2c_prefetch_issued` per run, using the current coordinator fallback proxy
+   when the raw cache-issued counter stays at zero).
 3. Respects the 30% accuracy floor (`downstream_prefetch_accuracy`) on the
-   train split.
+   train split, using the same traffic denominator as item 2.
 4. Survives the held-out evaluation **only once**, as the final confirmation
    run. That single held-out evaluation is the only permissible use of the
    held-out traces in Stage 2.

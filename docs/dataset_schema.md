@@ -13,6 +13,7 @@ CSV before using it for analysis or report updates.
 
 | Column                | Type    | Description                                                                 |
 | --------------------- | ------- | --------------------------------------------------------------------------- |
+| `run_group_id`        | string  | Per-invocation identifier used to isolate reruns inside append-only manifests. |
 | `trace`               | string  | Athena trace name (see `external/athena/scripts/config.py`).                |
 | `benchmark_family`    | string  | `SPEC`, `PARSEC`, `LIGRA`, or `CVP`, inferred from the trace name.          |
 | `split_side`          | string  | `train` / `heldout` / `search_subset` / `other` / `unknown`.                |
@@ -42,7 +43,7 @@ CSV before using it for analysis or report updates.
 | `l2c_load_miss`                 | `Core_0_L2C_load_miss`                                        |
 | `l2c_mpki`                      | 1000 × `l2c_load_miss / total_instructions`                   |
 | `l2c_prefetch_issued_raw`       | Raw `Core_0_L2C_prefetch_issued` from the simulator           |
-| `l2c_prefetch_issued`           | Issued-traffic proxy used for analysis. At the moment this matches `l2c_prefetch_issued_raw`; coordinator-specific traffic interpretation should also look at downstream DRAM and queue/congestion proxies. |
+| `l2c_prefetch_issued`           | Issued-traffic proxy used for analysis. For single-expert runs this matches `l2c_prefetch_issued_raw`. For coordinator runs it falls back to `pref0_issued_total + pref1_issued_total` when the raw cache-issued counter is zero but the coordinator's per-expert issue counters are nonzero. |
 | `l2c_prefetch_useful`           | `Core_0_L2C_prefetch_useful`                                  |
 | `l2c_prefetch_useless`          | `Core_0_L2C_prefetch_useless`                                 |
 | `l2c_prefetch_late`             | `Core_0_L2C_prefetch_late`                                    |
@@ -87,6 +88,11 @@ after the configs evolve:
 ## Invariants
 
 - Every run is reproducible from `flags` alone (given the same binary at `git_revision`).
+- `run_group_id` partitions reruns of the same trace/experiment matrix so derived
+  speedups are computed within a single invocation, not across mixed batches.
+- `speedup_vs_best_single` uses the better of the two coordinated experts
+  (`expert_0`, `expert_1`) for that run group and trace, not the best of every
+  single-prefetcher baseline that happened to be included in the batch.
 - `experiment == "Baseline"` rows have `experiment_kind == "baseline"`; all other
   kinds have non-empty `l2c_prefetcher_types` in `flags`.
 - For every `(trace)` there is at least one `Baseline` row before the CSV is

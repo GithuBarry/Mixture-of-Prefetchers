@@ -80,12 +80,13 @@ parts Stage 2 should keep fixed and lists the router knobs Stage 2 may search.
 
 ### Raw and derived artifacts
 
-- `results/mop_lite/logs/`: Athena stdout/stderr per run.
-- `results/mop_lite/metrics/`: parsed metric dictionaries per run.
-- `results/mop_lite/epoch_logs/`: per-epoch CSV traces for router runs when
-  `--epoch-trace` is enabled.
+- `results/mop_lite/runs/<run_group_id>/logs/`: Athena stdout/stderr per run.
+- `results/mop_lite/runs/<run_group_id>/metrics/`: parsed metric dictionaries
+  per run.
+- `results/mop_lite/runs/<run_group_id>/epoch_logs/`: per-epoch CSV traces for
+  router runs when `--epoch-trace` is enabled.
 - `results/mop_lite/manifest.jsonl`: one JSON record per completed run from the
-  runner that produced the current raw artifact set.
+  runner. It is append-only and is partitioned by `run_group_id`.
 - `data/processed/runs.csv`: analysis-ready dataset built from raw artifacts.
 - `report/tables/` and `report/figures/`: report views generated from
   `data/processed/runs.csv`.
@@ -104,7 +105,7 @@ parts Stage 2 should keep fixed and lists the router knobs Stage 2 may search.
 The evidence path has three stages.
 
 1. `scripts/run_mop_lite.py` runs Athena and writes raw outputs under
-   `results/mop_lite/`.
+   `results/mop_lite/runs/<run_group_id>/`.
 2. `scripts/build_dataset.py` reads those outputs and writes
    `data/processed/runs.csv`.
 3. `scripts/make_figures.py` reads `data/processed/runs.csv` and writes the
@@ -126,8 +127,8 @@ The current materialized evidence is a **smoke-mode batch**.
 - `data/processed/runs_summary.md` reports **10 runs** over **2 traces**.
 - Both traces are in the **train** side of the official split.
 - The coordinator comparison in `report/tables/router_ablation.md` shows:
-  - `AthenaMAB`: geomean `speedup_vs_best_single = 0.9639`
-  - `MoPLite`: geomean `speedup_vs_best_single = 0.9635`
+  - `AthenaMAB`: geomean `speedup_vs_best_single = 0.9599`
+  - `MoPLite`: geomean `speedup_vs_best_single = 0.9587`
 - The expert-pair table in `report/tables/expert_pair_ablation.md` covers one
   pair so far: `Pythia + SPP+PPF`.
 
@@ -184,7 +185,9 @@ The current smoke batch gives an early answer.
   pair, as shown in `report/tables/router_ablation.md`.
 - The current coordinator behavior looks conservative in the smoke snapshot: the
   MoPLite rows in `data/processed/runs.csv` show limited selected epochs and low
-  effective traffic relative to the stronger single expert.
+  effectiveness relative to the stronger single expert. The traffic accounting
+  for coordinator rows currently uses a documented fallback proxy when the raw
+  cache-issued counter stays at zero.
 
 That pattern says the current Stage 1 settings are more successful at keeping
 control explicit than at extracting extra performance on these two traces. The
