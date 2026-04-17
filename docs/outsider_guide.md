@@ -57,17 +57,20 @@ The run lengths come from `configs/run_modes.json`.
 - `final_mode`: `20M` warmup + `50M` simulation = `70M` total instructions
   = `140` total epochs, of which `100` are measured simulation epochs.
 
-The current checked-in dataset is small because the committed evidence is still
-the smoke batch:
-
-- `data/processed/runs_summary.md` reports `10` runs over `2` traces.
-- That is `2 traces x 5 experiments`: `Baseline`, `Pythia`, `SPP+PPF`,
-  `MoPLite`, and `AthenaMAB`.
-
-The official planned evaluation is much larger:
+The official suite is:
 
 - `24` traces total in `configs/trace_suites.json`
 - `17` train traces and `7` held-out traces
+
+The currently materialized Stage 1 evidence is:
+
+- `10` train-side search traces
+- `7` held-out traces
+- `167` completed runs in `data/processed/runs.csv`
+
+So the finished Stage 1 snapshot is larger than smoke, but smaller than a full
+24-trace sweep. That is intentional: Stage 1 used the official `search_mode`
+subset on the training side and the full held-out split for the final readout.
 
 ## The Two Experts And The Main Baselines
 
@@ -296,53 +299,81 @@ be speculation at this point.
 
 ## What The Current Evidence Shows
 
-The committed evidence is the smoke batch under `results/mop_lite/`,
-`data/processed/runs.csv`, and `report/tables/router_ablation.md`.
+The committed evidence now includes:
 
-The committed smoke result is simple:
+- the 10-trace training-side `search_mode` batch under `results/mop_lite_search/`
+- the 7-trace held-out batch under `results/mop_lite_final/`
+- the merged processed dataset `data/processed/runs.csv`
+- the regenerated figures and tables under `report/`
 
-- `SPP+PPF` is the best single expert on both smoke traces.
-- `AthenaMAB` and `MoPLite` both trail that best-single reference.
-- The geomean `speedup_vs_best_single` in
-  `report/tables/router_ablation.md` is:
-  - `AthenaMAB = 0.9599`
-  - `MoPLite = 0.9587`
+The main Stage 1 conclusion is simple: some coordinators beat no-prefetch, but
+no tested coordinator beats the pair-best single expert in geomean on either
+split.
 
-The epoch traces also answer one review question directly: **yes, the "both
-experts off" action really does happen in the current smoke runs**.
+That result is easiest to read through two comparisons.
 
-- In `data/processed/runs.csv`, the committed `MoPLite` row for `fluidanimate`
-  shows `pref0_selected_epochs = 0` and `pref1_selected_epochs = 1`.
-- The committed `MoPLite` row for `429.mcf-192B` shows
-  `pref0_selected_epochs = 1` and `pref1_selected_epochs = 2`.
-- The detailed epoch CSVs under `results/mop_lite/epoch_logs/` contain many rows
-  with action `0`, meaning neither expert was enabled for that epoch.
+### Against no-prefetch
+
+- On the 10-trace train-side search subset, several coordinators are slightly
+  above `1.0x` geomean IPC vs no-prefetch:
+  - `WinnerTakeAll = 1.0111x`
+  - `AthenaMAB = 1.0047x`
+  - `FixedSplit = 1.0042x`
+  - `MoPLite = 1.0009x`
+- On the 7-trace held-out split:
+  - `AthenaMAB = 1.0378x`
+  - `OneShotFit = 1.0032x`
+  - `WinnerTakeAll = 0.9997x`
+  - `MoPLite = 0.9974x`
+
+### Against the best of the coordinated pair (`Pythia`, `SPP+PPF`)
+
+- On the train-side search subset:
+  - `WinnerTakeAll = 0.9750x`
+  - `AthenaMAB = 0.9689x`
+  - `FixedSplit = 0.9684x`
+  - `MoPLite = 0.9652x`
+- On the held-out split:
+  - `AthenaMAB = 0.9560x`
+  - `OneShotFit = 0.9242x`
+  - `WinnerTakeAll = 0.9209x`
+  - `MoPLite = 0.9188x`
+
+The epoch traces still answer one useful review question directly: **yes, the
+controller really does use the "both experts off" action, and the current
+weakness is not only choosing the wrong expert**.
+
+- Historical smoke epoch traces show repeated action `0` rows.
+- The focused epoch diagnostic under `results/mop_lite_epoch_diag/` shows that
+  `MoPLite` often includes the offline-better expert for the epoch even when it
+  still loses overall. For example, on `459.GemsFDTD` and `437.leslie3d` the
+  chosen action includes the offline-better expert in every epoch of that
+  diagnostic, yet `MoPLite` is not the best overall coordinator in the merged
+  Stage 1 result.
 
 So the current local result is not "the router made two experts stronger." The
 current local result is closer to this:
 
 - the pipeline works end to end
 - the router logic is implemented and observable
-- on the two committed smoke traces, the current rule often becomes too
-  conservative and loses to the strongest single expert
+- some coordinators achieve small `1+x` gains over no-prefetch
+- the current `Pythia + SPP+PPF` coordination rules still lose in geomean to the
+  better single expert from that pair on both train-side and held-out evidence
 
 That does **not** invalidate the method. It does mean the current tracked result
 is a negative or at least cautionary performance result, not a success claim.
 
 ## What Is Still Open
 
-The current repo still needs broader committed evidence for stronger scientific
-claims.
+The current repo now has a complete Stage 1 baseline, but several scientific
+questions remain open:
 
-In particular, the following remain open:
-
-- whether the same rule helps on a broader train-side batch
-- whether a tuned version helps on held-out traces
-- whether other expert pairs are more complementary than `Pythia + SPP+PPF`
+- whether Stage 2 tuning over the frozen control surface can turn the current
+  negative-vs-best-single result into a positive held-out result
+- whether a different expert pair is more complementary than `Pythia + SPP+PPF`
 - whether the current floor and score weights are too aggressive
-
-Those are real open questions. The current committed smoke batch does not answer
-them.
+- whether the coordinator traffic proxy should be replaced by a simulator-side
+  issued-traffic counter in a future measurement-only patch
 
 ## Where To Verify Claims
 
@@ -351,14 +382,17 @@ them.
 - Local router implementation: `external/athena/src/oogway.cc`
 - Local MoP-lite config: `external/athena/config/mop_lite.ini`
 - Current processed dataset: `data/processed/runs.csv`
-- Current smoke summary: `data/processed/runs_summary.md`
+- Current merged summary: `data/processed/runs_summary.md`
 - Current coordinator table: `report/tables/router_ablation.md`
-- Raw smoke epoch traces: `results/mop_lite/epoch_logs/*.csv`
+- Raw epoch traces: `results/mop_lite_search/runs/*/epoch_logs/*.csv` and
+  `results/mop_lite_final/runs/*/epoch_logs/*.csv`
 
 ## Bottom Line
 
-The repository already has a reproducible pipeline for running a two-expert L2
-router, capturing per-epoch telemetry, and turning the outputs into dataset rows
-and report tables. The current committed evidence shows that this first
-`Pythia + SPP+PPF` MoP-lite rule is easy to inspect but does not yet beat the
-best single expert on the smoke traces.
+The repository already has a reproducible Stage 1 baseline: a two-expert L2
+router, per-epoch telemetry, a fixed split, append-only manifests, a processed
+dataset, and regenerated report artifacts. The committed evidence shows that the
+current rules can deliver small wins over no-prefetch, but the first
+`Pythia + SPP+PPF` MoP-lite rule does not yet beat the strongest single expert
+from that pair in geomean on either the train-side search subset or the held-out
+split.

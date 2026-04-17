@@ -31,8 +31,7 @@ If you want the shortest path, read these in order:
 
 ## Current project state
 
-The repository currently sits at the smoke-test milestone. Broader search-mode
-and final-mode evaluation comes next.
+The repository now has the finished Stage 1 evidence package.
 
 - The project question is documented in `docs/outsider_guide.md`.
 - The charter-level source of truth for Stage 1 is
@@ -40,10 +39,10 @@ and final-mode evaluation comes next.
 - The official full evaluation design is frozen in
   `configs/trace_suites.json`, `configs/run_modes.json`, and
   `docs/operational/experiment_setup.md`.
-- The currently materialized analysis artifacts summarize a smoke-mode batch:
-  `data/processed/runs_summary.md` reports 10 runs over 2 traces, and
-  `report/tables/router_ablation.md` reports coordinator geomeans for that
-  smoke batch.
+- The merged analysis artifacts summarize 167 completed runs over 17 traces
+  (`10` search-side training traces + `7` held-out traces).
+  `data/processed/runs_summary.md` and `report/tables/router_ablation.md`
+  reflect that finished Stage 1 snapshot.
 - Stage 2 search has a frozen boundary in `docs/operational/stage2_memo.md`.
 
 ## Which file answers which question?

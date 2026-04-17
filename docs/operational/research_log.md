@@ -121,6 +121,8 @@ adjustment before any final-mode evidence is generated.
 
 ## 2026-04-17 — Smoke-mode pipeline materialized
 
+_Superseded by the hardened smoke rerun above; kept here only as historical context._
+
 **Goal.** Validate the full Stage 1 evidence chain on the smoke subset and get a
 first read on whether the current coordinator settings help on two quick traces.
 
@@ -137,7 +139,8 @@ the standard Stage 1 chain:
 - `data/processed/runs_summary.md` reports **10 runs** over **2 traces**.
 - Both smoke traces fall on the **train** side of the official split.
 - `report/tables/router_ablation.md` reports geomean `speedup_vs_best_single`
-  of **0.9639** for `AthenaMAB` and **0.9635** for `MoPLite`.
+  of **0.959924x** for `AthenaMAB` and **0.958711x** for `MoPLite` in the
+  hardened smoke rerun.
 - The best single expert on both smoke traces is `SPP+PPF`, according to the
   per-trace rows in `data/processed/runs.csv`.
 - `MoPLite` lands close to baseline IPC on `fluidanimate` and slightly below
@@ -153,3 +156,187 @@ smoke subset.
 **Next batch.** Run the documented `search_mode` matrix on the broader training
 subset, rebuild `data/processed/runs.csv`, and inspect whether any traces show
 the cross-expert complementarity the Stage 1 method is designed to capture.
+
+## 2026-04-17 — Search-side batch on the training subset
+
+**Goal.** Run the official `search_mode` matrix on the 10-trace training-side
+search subset and get a first real router ablation beyond smoke.
+
+**What was run.**
+
+```bash
+python3 scripts/run_mop_lite.py --mode search_mode --workers 15 \
+  --results-dir results/mop_lite_search
+python3 scripts/build_dataset.py \
+  --manifest results/mop_lite_search/manifest.jsonl \
+  --out-csv data/processed/search_runs.csv \
+  --out-summary data/processed/search_runs_summary.md
+```
+
+**Completed artifacts.**
+
+- `results/mop_lite_search/manifest.jsonl` with 90 rows
+- 90 raw logs, 90 stderr files, and 90 metrics files
+- `data/processed/search_runs.csv`
+
+**Main findings.**
+
+- Geomean IPC vs no-prefetch on the 10-trace training-side subset:
+  - `WinnerTakeAll`: `1.011080x`
+  - `AthenaMAB`: `1.004727x`
+  - `FixedSplit`: `1.004193x`
+  - `MoPLite`: `1.000874x`
+- Geomean IPC vs the better of the coordinated pair (`Pythia`, `SPP+PPF`):
+  - `WinnerTakeAll`: `0.975024x`
+  - `AthenaMAB`: `0.968898x`
+  - `FixedSplit`: `0.968383x`
+  - `MoPLite`: `0.965182x`
+- `MoPLite` beats the pair-best single expert on 4 of the 10 search traces:
+  `450.soplex`, `605.mcf_s`, `ligra_CF`, and `secret_compute_int_568`.
+
+**Interpretation.**
+
+The search-side result shows real complementarity pockets, but not enough to
+overcome the best single expert in geomean. This is a scientifically useful
+negative result: coordination can help on selected traces, yet the current
+default MoP-lite rule is not the best policy over the search subset.
+
+**Next action.**
+
+Run the held-out batch without touching the held-out traces during tuning, then
+rebuild the merged dataset and figures.
+
+## 2026-04-17 — Held-out final batch and final Stage 1 readout
+
+**Goal.** Run the untouched held-out split once, merge the search + held-out
+manifests, and produce the final Stage 1 analysis artifacts.
+
+**What was run.**
+
+```bash
+python3 scripts/run_mop_lite.py \
+  --trace 437.leslie3d-134B \
+  --trace 459.GemsFDTD-1169B \
+  --trace 471.omnetpp-188B \
+  --trace parsec_2.1.canneal.simlarge.prebuilt.drop_4750M.length_250M \
+  --trace parsec_2.1.streamcluster.simlarge.prebuilt.drop_0M.length_250M \
+  --trace ligra_BC.com-lj.ungraph.gcc_6.3.0_O3.drop_500M.length_250M \
+  --trace secret_compute_fp_105 \
+  --warmup-instructions 20000000 \
+  --simulation-instructions 50000000 \
+  --expert-0 Pythia --expert-1 SPP+PPF \
+  --router FixedSplit --router WinnerTakeAll --router RandomRouter \
+  --router OneShotFit --router MoPLite \
+  --builtin AthenaMAB \
+  --single-baseline MLOP --single-baseline SMS \
+  --workers 15 --skip-download \
+  --results-dir results/mop_lite_final
+
+python3 scripts/build_dataset.py \
+  --manifest results/mop_lite_search/manifest.jsonl \
+  --manifest results/mop_lite_final/manifest.jsonl \
+  --out-csv data/processed/runs.csv \
+  --out-summary data/processed/runs_summary.md
+
+python3 scripts/make_figures.py
+```
+
+**Completed artifacts.**
+
+- `results/mop_lite_final/manifest.jsonl` with 77 rows
+- merged `data/processed/runs.csv` with 167 rows across 17 traces
+- regenerated `report/figures/*.png` and `report/tables/*.md`
+
+**Main findings.**
+
+- Held-out geomean IPC vs no-prefetch:
+  - `AthenaMAB`: `1.037783x`
+  - `OneShotFit`: `1.003241x`
+  - `WinnerTakeAll`: `0.999658x`
+  - `MoPLite`: `0.997413x`
+  - `RandomRouter`: `0.998269x`
+  - `FixedSplit`: `0.995448x`
+- Held-out geomean IPC vs pair-best single (`Pythia` / `SPP+PPF`):
+  - `AthenaMAB`: `0.956029x`
+  - `OneShotFit`: `0.924208x`
+  - `WinnerTakeAll`: `0.920907x`
+  - `RandomRouter`: `0.919627x`
+  - `MoPLite`: `0.918839x`
+  - `FixedSplit`: `0.917028x`
+- `MoPLite` beats the pair-best single expert on only 1 of 7 held-out traces
+  (`459.GemsFDTD`) and is effectively tied on `ligra_BC` and `streamcluster`.
+- `MoPLite` beats no-prefetch on 3 of 7 held-out traces and loses on the rest.
+
+**Important caveat.**
+
+For coordinator rows, Athena's raw `Core_0_L2C_prefetch_issued` counter can stay
+at zero while the per-expert MoP issue counters move. The final Stage 1 dataset
+therefore uses a documented fallback traffic proxy for coordinator rows:
+`pref0_issued_total + pref1_issued_total` when the raw cache-issued counter is
+zero. This keeps the traffic and accuracy analyses from collapsing to hidden
+zeros, but it also means coordinator traffic is measured by a different, more
+conservative proxy than single-expert traffic.
+
+**Interpretation.**
+
+Stage 1 is scientifically complete as a baseline. The code, split, manifest,
+dataset, figures, and report foundation are all real and reproducible. The
+performance story is negative but clear: the current `Pythia + SPP+PPF`
+MoP-lite rule does not beat the strongest single expert in geomean on either the
+search-side subset or the held-out split. Against no-prefetch, some coordinators
+do deliver `1+x` gains, but the pair-best single expert remains the stronger
+reference. That means Stage 2 should search the control surface rather than
+restate Stage 1 as a success claim.
+
+## 2026-04-17 — Focused epoch-trace diagnostic for routing behavior
+
+**Goal.** Answer the obvious follow-up question the merged batch cannot answer
+by itself: how often does `MoPLite` route to the offline-better expert at the
+epoch level on a few representative traces?
+
+**What was run.**
+
+```bash
+python3 scripts/run_mop_lite.py \
+  --trace 450.soplex-92B \
+  --trace 605.mcf_s-472B \
+  --trace 459.GemsFDTD-1169B \
+  --trace 437.leslie3d-134B \
+  --expert-0 Pythia --expert-1 SPP+PPF \
+  --router MoPLite \
+  --workers 4 --epoch-trace --skip-download \
+  --warmup-instructions 5000000 --simulation-instructions 10000000 \
+  --results-dir results/mop_lite_epoch_diag
+```
+
+**Working definition.** The offline oracle for an epoch is the expert with the
+higher realized `useful` count in that same epoch. When both experts have zero
+useful prefetches, the oracle action is "both off". Two match metrics are
+useful:
+
+- **exact oracle match**: chosen action equals the oracle action
+- **oracle included**: the chosen action contains the oracle expert, so `both on`
+  counts as including the better expert even when it is not exact
+
+**Observed signal.**
+
+- `450.soplex-92B`
+  - exact oracle match: `0.633`
+  - oracle included: `0.967`
+- `605.mcf_s-472B`
+  - exact oracle match: `0.900`
+  - oracle included: `0.933`
+- `459.GemsFDTD-1169B`
+  - exact oracle match: `0.000`
+  - oracle included: `1.000`
+- `437.leslie3d-134B`
+  - exact oracle match: `0.000`
+  - oracle included: `1.000`
+
+**Interpretation.** The current `MoPLite` rule often **includes** the better
+expert, but does not necessarily isolate it. On `GemsFDTD` and `leslie3d` it
+includes the better expert every epoch in this diagnostic, yet still fails to be
+the best overall coordinator on the merged Stage 1 result. That is strong
+evidence that the current weakness is not only "choosing the wrong expert"; it
+also involves how aggressively the router shares budget or keeps both experts
+enabled.

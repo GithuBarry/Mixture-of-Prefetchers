@@ -20,8 +20,9 @@ questions:
 
 ## Main terms
 
-- **Raw artifacts**: run-specific outputs under `results/mop_lite/`, such as
-  logs, parsed metrics, and epoch traces.
+- **Raw artifacts**: run-specific outputs under result roots such as
+  `results/mop_lite_search/`, `results/mop_lite_final/`, or another explicit
+  `--results-dir`, including logs, parsed metrics, and epoch traces.
 - **Derived artifacts**: cross-run outputs built from raw artifacts, such as
   `data/processed/runs.csv` and `report/tables/*.md`.
 - **Smoke mode**: the fastest end-to-end validation mode. It runs two traces
@@ -33,19 +34,20 @@ questions:
 
 ```bash
 make -C external/athena -j$(nproc)
-python3 scripts/run_mop_lite.py --mode smoke_mode --epoch-trace
-python3 scripts/build_dataset.py
+python3 scripts/run_mop_lite.py --mode search_mode --workers 15 --results-dir results/mop_lite_search
+python3 scripts/run_mop_lite.py <heldout trace list and flags> --workers 15 --results-dir results/mop_lite_final
+python3 scripts/build_dataset.py --manifest results/mop_lite_search/manifest.jsonl --manifest results/mop_lite_final/manifest.jsonl
 python3 scripts/make_figures.py
 ```
 
-That order reflects the actual data flow.
+That order reflects the full Stage 1 data flow.
 
 ## What each step produces
 
 | Step | Producer | Main outputs |
 | --- | --- | --- |
 | Build | `make -C external/athena -j$(nproc)` | `external/athena/bin/champsim` |
-| Raw runs | `scripts/run_mop_lite.py` | `results/mop_lite/runs/<run_group_id>/`, `results/mop_lite/manifest.jsonl` |
+| Raw runs | `scripts/run_mop_lite.py` | `<results-dir>/runs/<run_group_id>/`, `<results-dir>/manifest.jsonl` |
 | Dataset | `scripts/build_dataset.py` | `data/processed/runs.csv`, `data/processed/runs_summary.md` |
 | Figures/tables | `scripts/make_figures.py` | `report/figures/*.png`, `report/tables/*.md` |
 
@@ -62,17 +64,18 @@ Athena.
 
 ## Current materialized snapshot
 
-The current workspace already contains a smoke-mode analysis snapshot.
+The current workspace contains merged search-side and held-out Stage 1 results.
 
-- `data/processed/runs_summary.md` reports 10 runs over 2 traces.
-- `report/tables/router_ablation.md` and
-  `report/tables/expert_pair_ablation.md` summarize that smoke batch.
-- The official broader evaluation design still lives in
-  `docs/operational/experiment_setup.md` and `configs/*.json`.
+- `data/processed/runs_summary.md` reports 167 runs over 17 traces.
+- `report/tables/router_ablation.md` summarizes coordinator geomeans for the
+  train-side search subset and the held-out split.
+- `report/tables/expert_pair_ablation.md` summarizes the committed
+  `Pythia + SPP+PPF` pair across those runs.
 
 Treat `data/processed/runs.csv` as the analysis entry point for the current
-snapshot. Treat `results/mop_lite/runs/<run_group_id>/` as the place to inspect
-per-run evidence.
+snapshot. Treat `results/mop_lite_search/runs/<run_group_id>/` and
+`results/mop_lite_final/runs/<run_group_id>/` as the places to inspect the
+committed per-run evidence.
 
 ## Trace handling
 
@@ -87,16 +90,19 @@ The runner also creates a per-file symlink under `/tmp/mop_athena_traces/`
 because ChampSim handles simpler local paths more reliably than long paths with
 special characters.
 
-Both project runners default to `--workers 8`, so up to eight simulator
-processes may execute concurrently. Use `--workers 1` when a serial run is more
-appropriate for debugging or constrained hosts.
+Both project runners default to `--workers 8`, but the completed Stage 1 search
+and held-out batches were run with `--workers 15` on this host to reduce wall-
+clock time. Use `--workers 1` when a serial run is more appropriate for
+debugging or constrained hosts.
 
 ## Artifact alignment rule
 
 Keep the three artifact layers in sync.
 
-1. Run `scripts/run_mop_lite.py` to refresh raw artifacts.
-2. Run `scripts/build_dataset.py` to refresh `data/processed/runs.csv`.
+1. Run one or more `scripts/run_mop_lite.py` batches, each with its own
+   `--results-dir`, to refresh raw artifacts.
+2. Run `scripts/build_dataset.py` with the manifests you want merged to refresh
+   `data/processed/runs.csv`.
 3. Run `scripts/make_figures.py` to refresh `report/`.
 
 That sequence keeps advisor-facing tables and figures tied to the current raw
@@ -119,6 +125,10 @@ Each run record written by `scripts/run_mop_lite.py` includes:
 - `mop_score_weights`
 - full simulator `flags`
 - `start_utc`, `end_utc`, and `duration_s`
+
+`run_group_id` identifies one invocation of `run_mop_lite.py`. The dataset
+builder computes speedups within each complete `run_group_id` and rejects
+incomplete run groups instead of silently mixing partial reruns.
 
 The frozen split artifact lives in `data/splits/official_v1.json`, with a sha256
 stamp in `data/splits/official_v1.sha256`.

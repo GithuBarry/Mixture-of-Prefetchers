@@ -1,16 +1,18 @@
 # runs.csv summary
 
-Total runs: 10
-Distinct traces: 2
+Total runs: 230
+Run groups: 3
+Distinct traces: 24
 
 ## By experiment kind
 
-- baseline: 2
-- builtin: 2
-- router: 2
-- single: 4
+- baseline: 24
+- builtin: 24
+- router: 86
+- single: 96
 
 ## By split side
 
-- train: 10
+- heldout: 77
+- train: 153
 

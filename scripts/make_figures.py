@@ -4,10 +4,9 @@
 Produces under report/figures/ and report/tables/:
 
   figures/
-    ipc_speedup_vs_nopref.png            per-trace speedup vs Baseline
-    ipc_speedup_vs_best_single.png       per-trace speedup vs best single expert
+    ipc_speedup_summary.png              combined speedup summary figure
     win_loss_mop_vs_best_single.png      MoP-lite delta vs best single (bar, sorted)
-    accuracy_vs_traffic.png              downstream accuracy vs L2 prefetch issued (scatter)
+    accuracy_vs_traffic.png              split-level traffic/accuracy operating points
 
   tables/
     router_ablation.md                   per-router geomean speedups (train + heldout)
@@ -34,8 +33,177 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 
+PALETTE = {
+    "amber": "#ffb000",
+    "orange": "#fe6100",
+    "magenta": "#dc267f",
+    "purple": "#785ef0",
+    "blue": "#648fff",
+    "black": "#000000",
+    "light_grey": "#d9d9d9",
+    "mid_grey": "#8f8f8f",
+    "white": "#ffffff",
+}
+
+EXPERIMENT_COLORS = {
+    "AthenaMAB": PALETTE["amber"],
+    "OneShotFit": PALETTE["orange"],
+    "MoPLite": PALETTE["magenta"],
+    "WinnerTakeAll": PALETTE["purple"],
+    "FixedSplit": PALETTE["blue"],
+    "RandomRouter": PALETTE["light_grey"],
+    "SPP+PPF": PALETTE["purple"],
+    "Pythia": PALETTE["blue"],
+    "MLOP": PALETTE["mid_grey"],
+    "SMS": PALETTE["light_grey"],
+}
+
+SPLIT_ORDER = {"train": 0, "search_subset": 0, "heldout": 1, "other": 2, "unknown": 3}
+SPLIT_LABEL = {"train": "Search-side subset", "heldout": "Held-out"}
+
+plt.rcParams.update(
+    {
+        "figure.facecolor": PALETTE["white"],
+        "axes.facecolor": PALETTE["white"],
+        "axes.edgecolor": PALETTE["black"],
+        "axes.labelcolor": PALETTE["black"],
+        "xtick.color": PALETTE["black"],
+        "ytick.color": PALETTE["black"],
+        "grid.color": PALETTE["light_grey"],
+        "grid.linewidth": 0.6,
+    }
+)
+
+
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
+
+
+def experiment_color(name: str) -> str:
+    return EXPERIMENT_COLORS.get(name, PALETTE["black"])
+
+
+def ordered_traces(rows: list[dict]) -> list[str]:
+    split_for_trace = {r["trace"]: r.get("split_side", "unknown") for r in rows}
+    return sorted(split_for_trace, key=lambda t: (SPLIT_ORDER.get(split_for_trace[t], 99), t))
+
+
+def draw_split_separator(ax, traces: list[str], rows: list[dict]) -> None:
+    split_for_trace = {r["trace"]: r.get("split_side", "unknown") for r in rows}
+    for idx in range(1, len(traces)):
+        if split_for_trace[traces[idx - 1]] != split_for_trace[traces[idx]]:
+            ax.axvline(idx - 0.5, color=PALETTE["light_grey"], linewidth=1.0)
+
+
+def split_summary(rows: list[dict], experiments: list[str], metric: str) -> dict[str, dict[str, float]]:
+    out: dict[str, dict[str, float]] = {}
+    for split in ["train", "heldout"]:
+        split_rows = [r for r in rows if r.get("split_side") == split]
+        if not split_rows:
+            continue
+        out[split] = {}
+        for experiment in experiments:
+            vals = [r[metric] for r in split_rows if r["experiment"] == experiment and not math.isnan(r[metric])]
+            if vals:
+                out[split][experiment] = geomean(vals)
+    return out
+
+
+def experiment_order(experiments: list[str]) -> list[str]:
+    preferred = [
+        "Pythia",
+        "SPP+PPF",
+        "MLOP",
+        "SMS",
+        "AthenaMAB",
+        "FixedSplit",
+        "WinnerTakeAll",
+        "RandomRouter",
+        "OneShotFit",
+        "MoPLite",
+    ]
+    rank = {name: i for i, name in enumerate(preferred)}
+    return sorted(experiments, key=lambda name: (rank.get(name, 999), name))
+
+
+def draw_split_bars(ax, summaries: dict[str, dict[str, float]], experiments: list[str], xlabel: str, title: str) -> None:
+    width = 0.34
+    ys = list(range(len(experiments)))
+    for offset, split in [(-width / 2, "train"), (width / 2, "heldout")]:
+        for j, experiment in enumerate(experiments):
+            if split not in summaries or experiment not in summaries[split]:
+                continue
+            face = experiment_color(experiment) if split == "train" else PALETTE["white"]
+            value = summaries[split][experiment]
+            ax.barh(
+                j + offset,
+                value,
+                height=width,
+                color=face,
+                edgecolor=experiment_color(experiment),
+                linewidth=1.2,
+                hatch="" if split == "train" else "//",
+                label=SPLIT_LABEL.get(split, split) if j == 0 else None,
+            )
+            ax.text(value + 0.002, j + offset, f"{value:.3f}", va="center", ha="left", fontsize=7, color=PALETTE["black"])
+    ax.axvline(1.0, color=PALETTE["black"], linestyle=":", linewidth=1.0)
+    ax.set_yticks(ys)
+    ax.set_yticklabels(experiments)
+    ax.set_xlabel(xlabel)
+    ax.set_title(title)
+    ax.grid(True, axis="x", linestyle=":")
+
+
+def fig_speedup_summary(rows: list[dict], out_path: Path) -> None:
+    plot_rows = [r for r in rows if r["experiment_kind"] != "baseline"]
+    if not plot_rows:
+        skip_output(out_path, "no non-baseline runs")
+        return
+    experiments = experiment_order(list({r["experiment"] for r in plot_rows}))
+    nopref = split_summary(plot_rows, experiments, "speedup_vs_baseline")
+    pairbest = split_summary(plot_rows, experiments, "speedup_vs_best_single")
+
+    traces = ordered_traces(plot_rows)
+    split_for_trace = {r["trace"]: r.get("split_side", "unknown") for r in plot_rows}
+    mop_by_trace = {}
+    pairbest_by_trace = {}
+    best_by_trace = {}
+    for trace in traces:
+        trace_rows = [r for r in plot_rows if r["trace"] == trace]
+        mop = [r for r in trace_rows if r["experiment"] == "MoPLite"]
+        if mop:
+            mop_by_trace[trace] = mop[0]["speedup_vs_baseline"]
+        singles = [r for r in trace_rows if r["experiment_kind"] == "single" and r["experiment"] in {"Pythia", "SPP+PPF"}]
+        if singles:
+            pairbest_by_trace[trace] = max(r["speedup_vs_baseline"] for r in singles)
+        best_by_trace[trace] = max(r["speedup_vs_baseline"] for r in trace_rows)
+
+    fig, axes = plt.subplots(3, 1, figsize=(10, 13), gridspec_kw={"height_ratios": [1.3, 1.3, 1.8]})
+    draw_split_bars(axes[0], nopref, experiments, "Geomean IPC vs no-prefetch", "How much do methods beat no-prefetch?")
+    axes[0].legend(fontsize=8, ncols=2, title="Split")
+    draw_split_bars(axes[1], pairbest, experiments, "Fraction of pair-best-single IPC", "How far are methods from the pair-best ceiling?")
+
+    y = list(range(len(traces)))
+    axes[2].barh(y, [mop_by_trace.get(t, math.nan) for t in traces], color=PALETTE["magenta"], edgecolor=PALETTE["black"], linewidth=0.4, label="MoPLite")
+    axes[2].scatter([pairbest_by_trace.get(t, math.nan) for t in traces], y, color=PALETTE["purple"], edgecolors=PALETTE["black"], linewidths=0.4, s=36, label="Pair-best single")
+    axes[2].scatter([best_by_trace.get(t, math.nan) for t in traces], y, color=PALETTE["white"], edgecolors=PALETTE["black"], linewidths=1.0, s=42, label="Best method in batch")
+    axes[2].axvline(1.0, color=PALETTE["black"], linestyle=":", linewidth=1.0)
+    for idx in range(1, len(traces)):
+        if split_for_trace[traces[idx - 1]] != split_for_trace[traces[idx]]:
+            axes[2].axhline(idx - 0.5, color=PALETTE["light_grey"], linewidth=1.0)
+    axes[2].set_yticks(y)
+    axes[2].set_yticklabels([t[:30] for t in traces])
+    axes[2].set_xlabel("IPC vs no-prefetch")
+    axes[2].set_title("Per-trace reference rows: MoPLite, pair-best single, and best available method")
+    axes[2].grid(True, axis="x", linestyle=":")
+    axes[2].legend(fontsize=8, ncols=3)
+    if any(split_for_trace[t] == "heldout" for t in traces):
+        axes[2].text(0.01, -0.08, "Rows above the separator are the search-side subset; rows below are held-out.", transform=axes[2].transAxes, fontsize=8, color=PALETTE["black"])
+
+    fig.text(0.01, 0.01, "Caption: Filled bars are the search-side subset; hatched white bars are held-out. The bottom panel keeps no-prefetch as the only normalization and shows where MoPLite sits relative to the pair-best single expert and the best method available on each trace.", ha="left", va="bottom", fontsize=8, color=PALETTE["black"], wrap=True)
+    fig.tight_layout(rect=(0, 0.06, 1, 1))
+    fig.savefig(out_path, dpi=160)
+    plt.close(fig)
 
 
 def load_rows(csv_path: Path) -> list[dict]:
@@ -49,6 +217,7 @@ def load_rows(csv_path: Path) -> list[dict]:
         "ipc", "speedup_vs_baseline", "speedup_vs_best_single",
         "l2c_prefetch_issued", "l2c_prefetch_useful",
         "downstream_prefetch_accuracy", "l2c_mpki",
+        "traffic_overhead_vs_baseline",
         "pref0_accuracy", "pref1_accuracy",
         "pref0_budget_total", "pref1_budget_total",
         "pref0_issued_total", "pref1_issued_total",
@@ -84,27 +253,37 @@ def fig_speedup_vs_nopref(rows: list[dict], out_path: Path) -> None:
     if not plot_rows:
         skip_output(out_path, "no non-baseline runs")
         return
-    traces = sorted({r["trace"] for r in plot_rows})
-    experiments = sorted({r["experiment"] for r in plot_rows})
-    fig, ax = plt.subplots(figsize=(max(6, len(traces) * 0.9), 4))
-    width = 0.8 / max(1, len(experiments))
-    for i, experiment in enumerate(experiments):
-        xs = []
-        ys = []
-        for j, trace in enumerate(traces):
-            match = [r for r in plot_rows if r["trace"] == trace and r["experiment"] == experiment]
-            if not match:
+    experiments = experiment_order(list({r["experiment"] for r in plot_rows}))
+    summaries = split_summary(plot_rows, experiments, "speedup_vs_baseline")
+    fig, ax = plt.subplots(figsize=(9, max(5, len(experiments) * 0.45)))
+    width = 0.34
+    ys = list(range(len(experiments)))
+    for offset, split in [(-width / 2, "train"), (width / 2, "heldout")]:
+        for j, experiment in enumerate(experiments):
+            if split not in summaries or experiment not in summaries[split]:
                 continue
-            xs.append(j + (i - len(experiments) / 2) * width + width / 2)
-            ys.append(match[-1]["speedup_vs_baseline"])
-        ax.bar(xs, ys, width=width, label=experiment)
-    ax.axhline(1.0, color="k", linestyle=":", linewidth=0.8)
-    ax.set_xticks(range(len(traces)))
-    ax.set_xticklabels([t[:22] for t in traces], rotation=45, ha="right")
-    ax.set_ylabel("IPC speedup vs no-prefetch")
-    ax.set_title("IPC speedup vs no-prefetch baseline")
-    ax.legend(fontsize=7, ncols=2)
-    fig.tight_layout()
+            face = experiment_color(experiment) if split == "train" else PALETTE["white"]
+            value = summaries[split][experiment]
+            ax.barh(
+                j + offset,
+                summaries[split][experiment],
+                height=width,
+                color=face,
+                edgecolor=experiment_color(experiment),
+                linewidth=1.2,
+                hatch="" if split == "train" else "//",
+                label=split if j == 0 else None,
+            )
+            ax.text(value + 0.002, j + offset, f"{value:.3f}", va="center", ha="left", fontsize=7, color=PALETTE["black"])
+    ax.axvline(1.0, color=PALETTE["black"], linestyle=":", linewidth=1.0)
+    ax.set_yticks(ys)
+    ax.set_yticklabels(experiments)
+    ax.set_xlabel("Geomean IPC vs no-prefetch")
+    ax.set_title("How much do methods beat no-prefetch?")
+    ax.legend(fontsize=8, ncols=2, title="Split")
+    ax.grid(True, axis="x", linestyle=":")
+    fig.text(0.01, 0.01, "Caption: This summary asks only one question: which methods improve IPC over no-prefetch, and by how much on the search-side subset versus held-out traces?", ha="left", va="bottom", fontsize=8, color=PALETTE["black"], wrap=True)
+    fig.tight_layout(rect=(0, 0.06, 1, 1))
     fig.savefig(out_path, dpi=160)
     plt.close(fig)
 
@@ -112,30 +291,41 @@ def fig_speedup_vs_nopref(rows: list[dict], out_path: Path) -> None:
 # -- Figure 2: IPC speedup vs best single expert ---------------------------------
 
 def fig_speedup_vs_best_single(rows: list[dict], out_path: Path) -> None:
-    coord_rows = [r for r in rows if r["experiment_kind"] in {"router", "builtin"}]
-    if not coord_rows:
+    plot_rows = [r for r in rows if r["experiment_kind"] != "baseline"]
+    if not plot_rows:
         skip_output(out_path, "no coordinator runs")
         return
-    traces = sorted({r["trace"] for r in coord_rows})
-    experiments = sorted({r["experiment"] for r in coord_rows})
-    fig, ax = plt.subplots(figsize=(max(6, len(traces) * 0.9), 4))
-    width = 0.8 / max(1, len(experiments))
-    for i, experiment in enumerate(experiments):
-        xs, ys = [], []
-        for j, trace in enumerate(traces):
-            match = [r for r in coord_rows if r["trace"] == trace and r["experiment"] == experiment]
-            if not match:
+    experiments = experiment_order(list({r["experiment"] for r in plot_rows}))
+    summaries = split_summary(plot_rows, experiments, "speedup_vs_best_single")
+    fig, ax = plt.subplots(figsize=(9, max(5, len(experiments) * 0.45)))
+    width = 0.34
+    ys = list(range(len(experiments)))
+    for offset, split in [(-width / 2, "train"), (width / 2, "heldout")]:
+        for j, experiment in enumerate(experiments):
+            if split not in summaries or experiment not in summaries[split]:
                 continue
-            xs.append(j + (i - len(experiments) / 2) * width + width / 2)
-            ys.append(match[-1]["speedup_vs_best_single"])
-        ax.bar(xs, ys, width=width, label=experiment)
-    ax.axhline(1.0, color="k", linestyle=":", linewidth=0.8)
-    ax.set_xticks(range(len(traces)))
-    ax.set_xticklabels([t[:22] for t in traces], rotation=45, ha="right")
-    ax.set_ylabel("IPC speedup vs best single expert")
-    ax.set_title("Coordinator speedup over best single expert per trace")
-    ax.legend(fontsize=7, ncols=2)
-    fig.tight_layout()
+            face = experiment_color(experiment) if split == "train" else PALETTE["white"]
+            value = summaries[split][experiment]
+            ax.barh(
+                j + offset,
+                summaries[split][experiment],
+                height=width,
+                color=face,
+                edgecolor=experiment_color(experiment),
+                linewidth=1.2,
+                hatch="" if split == "train" else "//",
+                label=split if j == 0 else None,
+            )
+            ax.text(value + 0.002, j + offset, f"{value:.3f}", va="center", ha="left", fontsize=7, color=PALETTE["black"])
+    ax.axvline(1.0, color=PALETTE["black"], linestyle=":", linewidth=1.0)
+    ax.set_yticks(ys)
+    ax.set_yticklabels(experiments)
+    ax.set_xlabel("Fraction of pair-best-single IPC")
+    ax.set_title("How far are methods from the pair-best ceiling?")
+    ax.legend(fontsize=8, ncols=2, title="Split")
+    ax.grid(True, axis="x", linestyle=":")
+    fig.text(0.01, 0.01, "Caption: This summary measures distance from the pair-best single ceiling. Values below 1.0 mean the coordinator is still slower than the better of Pythia and SPP+PPF on that split.", ha="left", va="bottom", fontsize=8, color=PALETTE["black"], wrap=True)
+    fig.tight_layout(rect=(0, 0.06, 1, 1))
     fig.savefig(out_path, dpi=160)
     plt.close(fig)
 
@@ -150,13 +340,14 @@ def fig_win_loss(rows: list[dict], out_path: Path) -> None:
     mop.sort(key=lambda r: r["speedup_vs_best_single"])
     labels = [r["trace"][:28] for r in mop]
     deltas = [(r["speedup_vs_best_single"] - 1.0) * 100.0 for r in mop]
-    colors = ["#2a9d8f" if d >= 0 else "#e76f51" for d in deltas]
+    colors = [PALETTE["blue"] if d >= 0 else PALETTE["magenta"] for d in deltas]
     fig, ax = plt.subplots(figsize=(7, max(3, 0.3 * len(labels))))
-    ax.barh(labels, deltas, color=colors)
-    ax.axvline(0.0, color="k", linewidth=0.6)
+    ax.barh(labels, deltas, color=colors, edgecolor=PALETTE["black"], linewidth=0.4)
+    ax.axvline(0.0, color=PALETTE["black"], linewidth=0.8)
     ax.set_xlabel("Δ IPC vs best single expert (%)")
     ax.set_title("MoP-lite per-trace win/loss vs best single expert")
-    fig.tight_layout()
+    fig.text(0.01, 0.01, "Caption: Blue bars are trace-level wins, magenta bars are losses. This figure shows whether localized MoPLite wins are broad enough to outweigh the losses in aggregate.", ha="left", va="bottom", fontsize=8, color=PALETTE["black"], wrap=True)
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     fig.savefig(out_path, dpi=160)
     plt.close(fig)
 
@@ -168,20 +359,33 @@ def fig_accuracy_vs_traffic(rows: list[dict], out_path: Path) -> None:
     if not plot_rows:
         skip_output(out_path, "no prefetcher runs with issued traffic")
         return
-    fig, ax = plt.subplots(figsize=(6, 4))
-    experiments = sorted({r["experiment"] for r in plot_rows})
-    for experiment in experiments:
-        subset = [r for r in plot_rows if r["experiment"] == experiment]
-        xs = [r["l2c_prefetch_issued"] for r in subset]
-        ys = [r["downstream_prefetch_accuracy"] * 100.0 for r in subset]
-        ax.scatter(xs, ys, label=experiment, alpha=0.8, s=32)
-    ax.set_xscale("log")
-    ax.set_xlabel("L2 prefetches issued (log, per run)")
-    ax.set_ylabel("Downstream prefetch accuracy (%)")
-    ax.set_title("Accuracy vs traffic per run")
-    ax.legend(fontsize=7, ncols=2)
-    ax.grid(True, which="both", linestyle=":", linewidth=0.4)
-    fig.tight_layout()
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.5), sharey=True)
+    for ax, split in zip(axes, ["train", "heldout"]):
+        subset = [r for r in plot_rows if r.get("split_side") == split]
+        experiments = sorted({r["experiment"] for r in subset})
+        for experiment in experiments:
+            pts = [r for r in subset if r["experiment"] == experiment]
+            if not pts:
+                continue
+            x = statistics.fmean(r["l2c_prefetch_issued"] for r in pts)
+            y = statistics.fmean(r["downstream_prefetch_accuracy"] * 100.0 for r in pts)
+            ax.scatter(
+                [x],
+                [y],
+                s=64,
+                color=experiment_color(experiment),
+                edgecolors=PALETTE["black"],
+                linewidths=0.5,
+            )
+            ax.annotate(experiment, (x, y), xytext=(4, 4), textcoords="offset points", fontsize=8, color=PALETTE["black"])
+        ax.set_xscale("log")
+        ax.set_title(f"{SPLIT_LABEL.get(split, split)} operating points")
+        ax.set_xlabel("Mean L2 prefetches issued (log scale)")
+        ax.grid(True, linestyle=":", linewidth=0.6)
+    axes[0].set_ylabel("Mean downstream accuracy (%)")
+    fig.suptitle("Traffic / accuracy operating points by method")
+    fig.text(0.01, 0.01, "Caption: Each point is one method summarized over a split, not one run. The x-axis uses actual issued prefetch traffic on a log scale; coordinator rows may use the documented fallback traffic proxy when Athena's raw cache-issued counter is zero.", ha="left", va="bottom", fontsize=8, color=PALETTE["black"], wrap=True)
+    fig.tight_layout(rect=(0, 0.08, 1, 0.96))
     fig.savefig(out_path, dpi=160)
     plt.close(fig)
 
@@ -189,31 +393,35 @@ def fig_accuracy_vs_traffic(rows: list[dict], out_path: Path) -> None:
 # -- Table: router ablation ------------------------------------------------------
 
 def table_router_ablation(rows: list[dict], out_path: Path) -> None:
-    by_experiment: dict[tuple[str, str], list[float]] = defaultdict(list)
+    by_experiment: dict[tuple[str, str], dict[str, list[float]]] = defaultdict(lambda: {"vs_base": [], "vs_single": []})
     for r in rows:
         if r["experiment_kind"] not in {"router", "builtin"}:
             continue
         split = r["split_side"]
-        by_experiment[(r["experiment"], split)].append(r["speedup_vs_best_single"])
+        by_experiment[(r["experiment"], split)]["vs_base"].append(r["speedup_vs_baseline"])
+        by_experiment[(r["experiment"], split)]["vs_single"].append(r["speedup_vs_best_single"])
 
     lines = [
         "# Router / coordinator ablation",
         "",
-        "Geometric mean of IPC speedup vs best single expert, by split side.",
+        "Geometric mean of IPC speedup vs no-prefetch and vs the pair-best single expert, by split side.",
         "Reported only for (experiment, split) cells that contain runs.",
         "",
-        "| Coordinator | Split | Runs | Geomean vs best single | Min | Max |",
-        "| --- | --- | ---: | ---: | ---: | ---: |",
+        "| Coordinator | Split | Runs | Geomean vs no-pref | Geomean vs pair-best single | Min vs pair-best | Max vs pair-best |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: |",
     ]
     if not by_experiment:
-        lines.append("| _(no coordinator runs yet)_ | - | 0 | - | - | - |")
-    for (experiment, split), values in sorted(by_experiment.items()):
-        gmean = geomean(values)
-        lo = min(values) if values else float("nan")
-        hi = max(values) if values else float("nan")
+        lines.append("| _(no coordinator runs yet)_ | - | 0 | - | - | - | - |")
+    for (experiment, split), payload in sorted(by_experiment.items()):
+        values_base = payload["vs_base"]
+        values_single = payload["vs_single"]
+        gmean_base = geomean(values_base)
+        gmean_single = geomean(values_single)
+        lo = min(values_single) if values_single else float("nan")
+        hi = max(values_single) if values_single else float("nan")
         lines.append(
-            f"| {experiment} | {split} | {len(values)} | "
-            f"{gmean:.4f} | {lo:.4f} | {hi:.4f} |"
+            f"| {experiment} | {split} | {len(values_single)} | "
+            f"{gmean_base:.4f} | {gmean_single:.4f} | {lo:.4f} | {hi:.4f} |"
         )
     out_path.write_text("\n".join(lines) + "\n")
 
@@ -223,22 +431,25 @@ def table_router_ablation(rows: list[dict], out_path: Path) -> None:
 def table_expert_pair(rows: list[dict], out_path: Path) -> None:
     # Currently only one pair is in scope (Pythia + SPP+PPF). We emit a placeholder
     # row per pair observed, ready to extend when additional pairs are added.
-    pairs: dict[tuple[str, str], list[float]] = defaultdict(list)
+    pairs: dict[tuple[str, str], dict[str, list[float]]] = defaultdict(lambda: {"vs_base": [], "vs_single": []})
     for r in rows:
         if r["experiment"] != "MoPLite":
             continue
         key = (r.get("expert_0") or "?", r.get("expert_1") or "?")
-        pairs[key].append(r["speedup_vs_best_single"])
+        pairs[key]["vs_base"].append(r["speedup_vs_baseline"])
+        pairs[key]["vs_single"].append(r["speedup_vs_best_single"])
     lines = [
         "# Expert-pair ablation (MoP-lite router only)",
         "",
-        "| Expert 0 | Expert 1 | Runs | Geomean speedup vs best single |",
-        "| --- | --- | ---: | ---: |",
+        "| Expert 0 | Expert 1 | Runs | Geomean vs no-pref | Geomean vs pair-best single |",
+        "| --- | --- | ---: | ---: | ---: |",
     ]
     if not pairs:
-        lines.append("| - | - | 0 | - |")
-    for (e0, e1), values in sorted(pairs.items()):
-        lines.append(f"| {e0} | {e1} | {len(values)} | {geomean(values):.4f} |")
+        lines.append("| - | - | 0 | - | - |")
+    for (e0, e1), payload in sorted(pairs.items()):
+        lines.append(
+            f"| {e0} | {e1} | {len(payload['vs_single'])} | {geomean(payload['vs_base']):.4f} | {geomean(payload['vs_single']):.4f} |"
+        )
     out_path.write_text("\n".join(lines) + "\n")
 
 
@@ -282,8 +493,9 @@ def main() -> int:
     args.figures_dir.mkdir(parents=True, exist_ok=True)
     args.tables_dir.mkdir(parents=True, exist_ok=True)
     rows = load_rows(args.csv)
-    fig_speedup_vs_nopref     (rows, args.figures_dir / "ipc_speedup_vs_nopref.png")
-    fig_speedup_vs_best_single(rows, args.figures_dir / "ipc_speedup_vs_best_single.png")
+    fig_speedup_summary       (rows, args.figures_dir / "ipc_speedup_summary.png")
+    (args.figures_dir / "ipc_speedup_vs_nopref.png").unlink(missing_ok=True)
+    (args.figures_dir / "ipc_speedup_vs_best_single.png").unlink(missing_ok=True)
     fig_win_loss              (rows, args.figures_dir / "win_loss_mop_vs_best_single.png")
     fig_accuracy_vs_traffic   (rows, args.figures_dir / "accuracy_vs_traffic.png")
     table_router_ablation     (rows, args.tables_dir / "router_ablation.md")

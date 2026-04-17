@@ -1,82 +1,143 @@
 # Mixture-of-Prefetchers
 
-Project workspace for evaluating L2 prefetcher coordination on top of upstream simulators.
+This repository is a Stage 1 systems-research baseline for **two-expert L2
+prefetcher coordination** on top of the Athena simulator.
 
-## Submodules
+The concrete question is:
 
-- `external/athena`: upstream Athena simulator and scripts from CMU SAFARI
-- `external/openevolve`: upstream OpenEvolve optimizer
+> Can a small epoch-based controller coordinate two strong L2 prefetchers under
+> explicit traffic and usefulness constraints, and beat fair baselines?
 
-Initialize or refresh submodules with:
+The current answer is:
+
+- **yes, sometimes against no-prefetch**
+- **not yet against the strongest single expert of the coordinated pair**
+
+That negative result is still useful. The repo now contains the full baseline
+package needed for Stage 2: working code, fixed splits, manifests, processed
+data, figures, tables, and human-written logs.
+
+## Current readout
+
+Completed Stage 1 evidence currently covers:
+
+- `10` train-side search traces
+- `7` held-out traces
+- `167` total completed runs in `data/processed/runs.csv`
+
+Held-out-first summary:
+
+- against **no-prefetch**, the strongest held-out coordinator is `AthenaMAB` at
+  `1.0378x`
+- against the **pair-best single expert** (`Pythia` / `SPP+PPF`), no coordinator
+  reaches `1.0x`; the strongest is `AthenaMAB` at `0.9560x`
+- `MoPLite` reaches `0.9974x` vs no-prefetch and `0.9188x` vs pair-best single
+  on held-out
+
+Train-side search subset summary:
+
+- vs no-prefetch, `WinnerTakeAll` is strongest at `1.0111x`
+- vs pair-best single, no coordinator reaches `1.0x`; `WinnerTakeAll` is
+  strongest at `0.9750x`
+- `MoPLite` reaches `1.0009x` vs no-prefetch and `0.9652x` vs pair-best single
+
+So the current `MoPLite` rule is **not** the strongest coordinator in this repo,
+and it does **not** beat the pair-best single expert in geomean on either split.
+
+## What this means
+
+Stage 1 succeeds as a **baseline and measurement foundation**, not as a
+headline coordination win.
+
+What is established:
+
+- the simulator path is working and reproducible
+- the two-expert control surface is implemented and logged
+- the split protocol is frozen and respected
+- coordinator baselines are compared under one fair protocol
+- some coordinators deliver small `1+x` wins vs no-prefetch
+- the current `Pythia + SPP+PPF` rules lose in geomean to the pair-best single
+
+That is enough to justify Stage 2 optimization without overselling Stage 1.
+
+## What to look at
+
+Start here:
+
+1. `docs/outsider_guide.md`
+2. `report/draft.md`
+3. `report/figures/ipc_speedup_summary.png`
+5. `report/tables/router_ablation.md`
+
+Key source-of-truth files:
+
+- project guide: `docs/outsider_guide.md`
+- operational index: `docs/README.md`
+- split and run modes: `configs/trace_suites.json`, `configs/run_modes.json`
+- environment and artifact flow: `docs/operational/environment.md`
+- dataset schema: `docs/operational/dataset_schema.md`
+- research log: `docs/operational/research_log.md`
+- transparency log: `docs/operational/transparency_log.md`
+
+## Repository structure
+
+- `external/athena/`: vendored Athena / ChampSim simulator
+- `scripts/run_mop_lite.py`: main experiment runner
+- `scripts/build_dataset.py`: manifest + metrics -> `data/processed/runs.csv`
+- `scripts/make_figures.py`: `runs.csv` -> report figures and tables
+- `data/processed/`: merged Stage 1 dataset
+- `report/`: draft report, figures, and tables
+
+## Artifact flow
+
+The evidence chain is simple and strict:
+
+1. `scripts/run_mop_lite.py` writes raw artifacts and an append-only manifest
+2. `scripts/build_dataset.py` turns manifests + metrics into `runs.csv`
+3. `scripts/make_figures.py` rebuilds all report figures/tables from `runs.csv`
+
+That separation is deliberate:
+
+- `results/` = raw evidence
+- `data/processed/` = analysis entry point
+- `report/` = presentation layer
+
+## Reproducing the completed Stage 1 dataset
 
 ```bash
 git submodule update --init --recursive
+make -C external/athena -j$(nproc)
+
+# search-side batch
+python3 scripts/run_mop_lite.py --mode search_mode --workers 15 --results-dir results/mop_lite_search
+
+# held-out batch
+python3 scripts/run_mop_lite.py --trace 437.leslie3d-134B --trace 459.GemsFDTD-1169B --trace 471.omnetpp-188B --trace parsec_2.1.canneal.simlarge.prebuilt.drop_4750M.length_250M --trace parsec_2.1.streamcluster.simlarge.prebuilt.drop_0M.length_250M --trace ligra_BC.com-lj.ungraph.gcc_6.3.0_O3.drop_500M.length_250M --trace secret_compute_fp_105 --warmup-instructions 20000000 --simulation-instructions 50000000 --expert-0 Pythia --expert-1 SPP+PPF --router FixedSplit --router WinnerTakeAll --router RandomRouter --router OneShotFit --router MoPLite --builtin AthenaMAB --single-baseline MLOP --single-baseline SMS --workers 15 --skip-download --results-dir results/mop_lite_final
+
+# merged dataset + figures
+python3 scripts/build_dataset.py --manifest results/mop_lite_search/manifest.jsonl --manifest results/mop_lite_final/manifest.jsonl
+python3 scripts/make_figures.py
 ```
 
-## Single-Prefetcher Baselines
+## Upstream vs local work
 
-The smallest local workflow is the project-side runner below. It builds Athena once, downloads only the requested official Athena traces from Zenodo, runs a small baseline suite locally, and writes a flat summary.
+Upstream Athena provides:
 
-```bash
-python3 scripts/run_single_prefetcher_baselines.py
-```
+- the simulator foundation
+- single-expert prefetchers such as `Pythia`, `SPP+PPF`, `MLOP`, `SMS`
+- Athena's builtin `AthenaMAB` coordinator
 
-Defaults:
+This repository adds:
 
-- Traces: `fluidanimate` and `streamcluster` Athena traces
-- Experiments: `Baseline`, `Pythia`, `SPP+PPF`, `MLOP`, `SMS`
-- Window: `20M` warmup + `50M` simulation instructions
+- the scoped Stage 1 protocol
+- local `oogway.cc` changes for the MoP-lite study
+- simple router baselines (`FixedSplit`, `WinnerTakeAll`, `RandomRouter`, `OneShotFit`, `MoPLite`)
+- manifests, dataset building, figure generation, and advisor-facing docs
 
-Outputs:
+## Bottom line
 
-- raw logs: `results/single_prefetcher_baselines/logs/`
-- parsed CSV: `results/single_prefetcher_baselines/summary.csv`
-- short Markdown report: `results/single_prefetcher_baselines/summary.md`
+If you want the shortest honest summary:
 
-Both experiment runners launch up to `8` simulator processes by default. Use
-`--workers <N>` to tune concurrency or `--workers 1` for serial execution.
-
-Use `--help` to override traces, experiments, or instruction counts.
-
-## MoP-lite
-
-Athena is vendored in-tree under `external/athena` because this project expects substantial local simulator edits.
-The original upstream is documented in [external/athena/UPSTREAM.md](external/athena/UPSTREAM.md).
-
-The pre-OpenEvolve path is wired through:
-
-```bash
-python3 scripts/run_mop_lite.py
-```
-
-Defaults:
-
-- Experts: `Pythia` + `SPP+PPF`
-- Routers: `FixedSplit`, `WinnerTakeAll`, `RandomRouter`, `OneShotFit`, `MoPLite`
-- Traces: two small Athena PARSEC traces
-- Window: `5M` warmup + `10M` simulation instructions
-
-Outputs:
-
-- raw logs: `results/mop_lite/logs/`
-- parsed metrics: `results/mop_lite/metrics/`
-- summary: `results/mop_lite/summary.csv`
-- optional epoch traces: `results/mop_lite/epoch_logs/` with `--epoch-trace`
-
-This stage intentionally stops before OpenEvolve. It only exercises the hand-written MoP-lite routers and the single-prefetcher baselines needed to compare against them.
-
-## Experiment configuration (trace suite and run modes)
-
-The repo defines an **official 24-trace suite**, a **train / held-out split**, a **search subset**, and **search vs final** instruction windows in:
-
-- `configs/trace_suites.json` — trace sets and recommended routers
-- `configs/run_modes.json` — warmup/simulation lengths per mode
-
-Human-readable documentation: [docs/outsider_guide.md](docs/outsider_guide.md). Operational experiment details: [docs/operational/experiment_setup.md](docs/operational/experiment_setup.md). Candidate pool and sources: [docs/operational/trace_inventory.md](docs/operational/trace_inventory.md).
-
-**Generate example commands** (includes all `--trace` flags):
-
-```bash
-python3 scripts/print_run_commands.py search_mode
-python3 scripts/print_run_commands.py final_mode
-```
+- **the baseline is real and reproducible**
+- **the current `MoPLite` rule is not yet better than the strongest single expert**
+- **Stage 2 should optimize the control surface, not re-litigate the measurement setup**

@@ -2,8 +2,8 @@
 
 Tidy long-form table. **One row = one simulator run** (one trace × one
 experiment). Produced by `scripts/build_dataset.py` from
-`results/mop_lite/manifest.jsonl` joined with `results/mop_lite/metrics/*.json`
-and annotated with `data/splits/official_v1.json`.
+one or more manifest files joined with the referenced metrics JSON files and
+annotated with `data/splits/official_v1.json`.
 
 `runs.csv` is a derived artifact. The canonical schema lives in this document
 and in `scripts/build_dataset.py`. After any new raw run batch, regenerate the
@@ -16,7 +16,7 @@ CSV before using it for analysis or report updates.
 | `run_group_id`        | string  | Per-invocation identifier used to isolate reruns inside append-only manifests. |
 | `trace`               | string  | Athena trace name (see `external/athena/scripts/config.py`).                |
 | `benchmark_family`    | string  | `SPEC`, `PARSEC`, `LIGRA`, or `CVP`, inferred from the trace name.          |
-| `split_side`          | string  | `train` / `heldout` / `search_subset` / `other` / `unknown`.                |
+| `split_side`          | string  | `train` / `heldout` / `search_subset` / `other`.                            |
 | `experiment`          | string  | `Baseline`, single-expert name, router name, or builtin coordinator name.   |
 | `experiment_kind`     | string  | `baseline` / `single` / `router` / `builtin`.                               |
 | `router`              | string  | Router name if `experiment_kind == "router"`, else empty.                   |
@@ -50,7 +50,7 @@ CSV before using it for analysis or report updates.
 | `l2c_total_miss`                | `Core_0_L2C_total_miss`                                       |
 | `l1d_load_miss`                 | `Core_0_L1D_load_miss`                                        |
 | `llc_prefetch_useful`           | `Core_0_LLC_prefetch_useful`                                  |
-| `downstream_prefetch_accuracy`  | `(L2C + LLC useful) / L2C_prefetch_issued`                    |
+| `downstream_prefetch_accuracy`  | `(L2C + LLC useful) / l2c_prefetch_issued`, using the dataset's effective traffic column rather than always the raw simulator counter |
 | `l2c_rq_full`                   | `Core_0_L2C_rq_full` queue-pressure proxy                     |
 | `l2c_wq_full`                   | `Core_0_L2C_wq_full` queue-pressure proxy                     |
 | `l2c_pq_full`                   | `Core_0_L2C_pq_full` prefetch-queue pressure proxy            |
@@ -90,11 +90,13 @@ after the configs evolve:
 - Every run is reproducible from `flags` alone (given the same binary at `git_revision`).
 - `run_group_id` partitions reruns of the same trace/experiment matrix so derived
   speedups are computed within a single invocation, not across mixed batches.
+- incomplete `run_group_id` batches are rejected by `build_dataset.py`; partial
+  reruns do not silently contribute rows to the merged analysis dataset.
 - `speedup_vs_best_single` uses the better of the two coordinated experts
   (`expert_0`, `expert_1`) for that run group and trace, not the best of every
   single-prefetcher baseline that happened to be included in the batch.
 - `experiment == "Baseline"` rows have `experiment_kind == "baseline"`; all other
   kinds have non-empty `l2c_prefetcher_types` in `flags`.
-- For every `(trace)` there is at least one `Baseline` row before the CSV is
-  considered complete (`build_dataset.py` fails otherwise).
+- For every `(run_group_id, trace)` there must be a complete experiment matrix
+  before the CSV is considered valid (`build_dataset.py` fails otherwise).
 - `heldout` rows are never generated during search / development runs.

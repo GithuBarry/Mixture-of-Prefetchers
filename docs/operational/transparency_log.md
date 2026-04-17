@@ -128,7 +128,60 @@ Format:
   issued counter introduced a regression and was reverted. The current Athena
   metric surface still provides `Core_0_L2C_prefetch_issued`,
   `Channel_0_dbus_congested`, `Channel_0_RQ_row_buffer_miss`, queue-full
-  counters, and the per-expert MoP telemetry. That evidence supports a clean
-  smoke batch with an explicit caveat, while leaving room for a future metrics-
-  only patch that does not destabilize the coordinator path.
+  counters, and the per-expert MoP telemetry. Stage 1 now uses a documented
+  fallback traffic proxy for coordinator rows when the raw cache-issued counter
+  is zero but the per-expert issue counters are nonzero. That preserves a usable
+  accuracy/traffic analysis with an explicit caveat, while leaving room for a
+  future measurement-only simulator patch.
+- AI-assisted: yes.
+
+### 2026-04-17 — Primary report baseline = no-prefetch; pair-best single = secondary comparator
+- Options: (a) keep the strongest single expert as the headline baseline,
+  (b) treat no-prefetch as the primary baseline and the pair-best single as a
+  stricter secondary comparator.
+- Choice: (b).
+- Confidence: high.
+- Evidence: No-prefetch is deployable and protocol-stable; the pair-best single
+  expert is a postmortem pair-local reference. The completed data support
+  useful claims against both. On the training-side subset, `WinnerTakeAll`
+  reaches `1.011080x` vs no-prefetch while still landing at `0.975024x` vs the
+  pair-best single. That distinction matters for honest reporting.
+- AI-assisted: yes.
+
+### 2026-04-17 — Rerun safety via run-group isolation
+- Options: (a) keep one flat artifact directory and hope users avoid reruns,
+  (b) isolate each invocation under a unique `run_group_id` and reject
+  incomplete run groups during dataset construction.
+- Choice: (b).
+- Confidence: high.
+- Evidence: Append-only manifests are only trustworthy if the referenced logs
+  and metrics are not overwritten in place. The final Stage 1 workflow now uses
+  per-invocation artifact subdirectories plus within-`run_group_id` comparisons
+  in `build_dataset.py`, so partial reruns cannot silently corrupt the analysis.
+- AI-assisted: yes.
+
+### 2026-04-17 — Best-single reference scoped to the coordinated pair only
+- Options: (a) compare each coordinator to the best of every single-prefetcher
+  baseline present in the batch, (b) compare to the better of `expert_0` and
+  `expert_1` only.
+- Choice: (b).
+- Confidence: high.
+- Evidence: The project question is about coordinating a fixed two-expert pair,
+  not about beating an unrelated single-prefetcher skyline. Search and held-out
+  batches include `MLOP` and `SMS` for context, but using them inside
+  `speedup_vs_best_single` would change the meaning of the central claim.
+- AI-assisted: yes.
+
+### 2026-04-17 — Final Stage 1 interpretation after search + held-out batches
+- Options: (a) call Stage 1 a performance success because some coordinators are
+  above `1.0x` vs no-prefetch, (b) call Stage 1 a baseline success but a
+  negative performance result vs the strongest single expert.
+- Choice: (b).
+- Confidence: high.
+- Evidence: On the held-out split, `AthenaMAB` reaches `1.037783x` vs no-
+  prefetch, and `OneShotFit` reaches `1.003241x`, but all coordinators remain
+  below `1.0x` vs the pair-best single. `MoPLite` lands at `0.997413x` vs
+  no-prefetch and `0.918839x` vs pair-best single, winning only 1 of 7 held-out
+  traces on the stricter comparator. The infrastructure and measurement story
+  are strong; the efficacy story is cautionary.
 - AI-assisted: yes.
