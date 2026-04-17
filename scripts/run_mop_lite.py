@@ -373,18 +373,18 @@ def resolve_routers(root: Path, spec) -> list[str]:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=["smoke_mode", "search_mode", "final_mode"],
-                        help="Named run mode from configs/run_modes.json. Overrides --trace/--router if set.")
+                        help="Named run mode from configs/run_modes.json. Supplies defaults for omitted options.")
     parser.add_argument("--trace", dest="traces", action="append")
-    parser.add_argument("--expert-0", choices=sorted(EXPERTS), default="Pythia")
-    parser.add_argument("--expert-1", choices=sorted(EXPERTS), default="SPP+PPF")
+    parser.add_argument("--expert-0", choices=sorted(EXPERTS), default=None)
+    parser.add_argument("--expert-1", choices=sorted(EXPERTS), default=None)
     parser.add_argument("--router", dest="routers", action="append", choices=sorted(ROUTERS))
     parser.add_argument("--builtin", dest="builtins", action="append", choices=sorted(BUILTIN_COORDINATORS))
     parser.add_argument("--single-baseline", dest="single_baselines", action="append",
                         choices=sorted(EXPERTS),
                         help="Additional single-prefetcher baselines beyond expert-0 / expert-1.")
     parser.add_argument("--seed", type=int, default=1)
-    parser.add_argument("--warmup-instructions", type=int, default=5_000_000)
-    parser.add_argument("--simulation-instructions", type=int, default=10_000_000)
+    parser.add_argument("--warmup-instructions", type=int, default=None)
+    parser.add_argument("--simulation-instructions", type=int, default=None)
     parser.add_argument(
         "--workers",
         type=int,
@@ -401,7 +401,6 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    assert args.expert_0 != args.expert_1, "Choose two distinct experts"
     assert args.workers > 0, "--workers must be >= 1"
 
     root = repo_root()
@@ -415,6 +414,8 @@ def main() -> int:
     single_baselines = args.single_baselines
     warmup = args.warmup_instructions
     sim = args.simulation_instructions
+    expert_0 = args.expert_0
+    expert_1 = args.expert_1
 
     if args.mode:
         mode = load_run_mode(root, args.mode)
@@ -425,23 +426,30 @@ def main() -> int:
         requested_singles = mode.get("single_prefetcher_baselines", {}).get("experiments", [])
         mode_singles = [s for s in requested_singles if s in EXPERTS]
         single_baselines = single_baselines or mode_singles
-        warmup = mode["warmup_instructions"]
-        sim = mode["simulation_instructions"]
-        args.expert_0 = mode["mop_lite"].get("expert_0", args.expert_0)
-        args.expert_1 = mode["mop_lite"].get("expert_1", args.expert_1)
+        warmup = warmup or mode["warmup_instructions"]
+        sim = sim or mode["simulation_instructions"]
+        expert_0 = expert_0 or mode["mop_lite"].get("expert_0")
+        expert_1 = expert_1 or mode["mop_lite"].get("expert_1")
+
+    warmup = warmup or 5_000_000
+    sim = sim or 10_000_000
+    expert_0 = expert_0 or "Pythia"
+    expert_1 = expert_1 or "SPP+PPF"
+    routers = routers or []
+    builtins = builtins or []
+
+    assert expert_0 != expert_1, "Choose two distinct experts"
 
     assert traces, "No traces selected. Use --trace or --mode."
-    assert routers, "No routers selected. Use --router or --mode."
 
     # Default single baselines = the two experts themselves (so we always have both
     # reference points for speedup_vs_best_single).
     extra_singles = set(single_baselines or [])
-    extra_singles.update({args.expert_0, args.expert_1})
+    extra_singles.update({expert_0, expert_1})
 
     output_dir = args.results_dir or (root / "results" / "mop_lite")
     output_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = output_dir / "manifest.jsonl"
-    manifest_path.write_text("")
 
     config_module = load_athena_config(athena_home)
 
@@ -495,12 +503,12 @@ def main() -> int:
                     epoch_trace_prefix.parent.mkdir(parents=True, exist_ok=True)
                 flags = mop_flags(
                     config_module, athena_home, warmup, sim,
-                    args.expert_0, args.expert_1, experiment, args.seed, epoch_trace_prefix,
+                    expert_0, expert_1, experiment, args.seed, epoch_trace_prefix,
                 )
             elif kind == "builtin":
                 flags = builtin_flags(
                     config_module, athena_home, warmup, sim,
-                    args.expert_0, args.expert_1, experiment,
+                    expert_0, expert_1, experiment,
                 )
             else:
                 raise AssertionError(f"Unknown experiment kind: {kind}")
@@ -554,8 +562,8 @@ def main() -> int:
                 "trace": plan.trace,
                 "experiment": plan.experiment,
                 "experiment_kind": plan.kind,
-                "expert_0": args.expert_0 if plan.kind in {"router", "builtin"} else None,
-                "expert_1": args.expert_1 if plan.kind in {"router", "builtin"} else None,
+                "expert_0": expert_0 if plan.kind in {"router", "builtin"} else None,
+                "expert_1": expert_1 if plan.kind in {"router", "builtin"} else None,
                 "router": plan.experiment if plan.kind == "router" else None,
                 "builtin_coordinator": plan.experiment if plan.kind == "builtin" else None,
                 "seed": int(active_settings["mop_seed"]) if "mop_seed" in active_settings else None,
@@ -599,7 +607,7 @@ def main() -> int:
             }
             write_manifest_row(manifest_path, manifest_record)
 
-    write_summary(results, output_dir, args.expert_0, args.expert_1)
+    write_summary(results, output_dir, expert_0, expert_1)
     print(f"Wrote {len(results)} runs to {output_dir}")
     print(f"Manifest: {manifest_path}")
     return 0
