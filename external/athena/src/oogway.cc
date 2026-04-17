@@ -71,13 +71,13 @@ Oogway::Oogway(uint32_t _cpu) : cpu(_cpu) {
   if (knob::mop_enable) {
     srand48(knob::mop_seed + cpu);
     initialize_mop_epoch();
-    if (!knob::mop_epoch_trace.empty()) {
-      std::string filename = knob::mop_epoch_trace + ".core" + std::to_string(cpu) + ".csv";
-      mop_epoch_trace = fopen(filename.c_str(), "w");
-      assert(mop_epoch_trace);
-      fprintf(mop_epoch_trace,
-              "epoch,action,pref0_enabled,pref1_enabled,budget0,budget1,budget_share0,budget_share1,retired_insts,issued0,issued1,useful0,useful1,accuracy0,accuracy1,coverage0,coverage1,score0,score1,overall_bw,pref_bw,pref_pollution\n");
-    }
+  }
+  if (!knob::mop_epoch_trace.empty()) {
+    std::string filename = knob::mop_epoch_trace + ".core" + std::to_string(cpu) + ".csv";
+    mop_epoch_trace = fopen(filename.c_str(), "w");
+    assert(mop_epoch_trace);
+    fprintf(mop_epoch_trace,
+            "epoch,action,pref0_enabled,pref1_enabled,budget0,budget1,budget_share0,budget_share1,retired_insts,issued0,issued1,useful0,useful1,accuracy0,accuracy1,coverage0,coverage1,score0,score1,overall_bw,pref_bw,pref_pollution\n");
   }
 }
 

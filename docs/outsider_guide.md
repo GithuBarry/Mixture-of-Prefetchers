@@ -375,6 +375,13 @@ current local result is closer to this:
   on some complementary traces, but still fails because its action policy is not
   reliable across the whole criterion set
 
+The report figures now separate those questions cleanly:
+
+- `ipc_speedup_summary.png` is only about beating prefetch-off
+- `single_expert_profiles.png` is about whether the experts genuinely differ
+- `win_loss_mop_vs_best_single.png` is about per-trace losses to the pair-best single
+- `router_compare_criterion.png` is about what the routers actually predicted and whether those actions included the better expert
+
 That does **not** invalidate the method. It does mean the current tracked result
 is a negative performance result against the pair-best single baseline, not a
 success claim.

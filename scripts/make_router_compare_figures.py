@@ -36,7 +36,7 @@ ACTION_COLOR = {0: PALETTE["light_grey"], 1: PALETTE["purple"], 2: PALETTE["blue
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
-    p.add_argument("--results-dir", type=Path, required=True)
+    p.add_argument("--results-dir", type=Path, action="append", required=True)
     p.add_argument("--out", type=Path, required=True)
     return p.parse_args()
 
@@ -80,7 +80,9 @@ def summarize_epoch_csv(path: Path) -> tuple[dict[str, float], Counter]:
 
 def main() -> int:
     args = parse_args()
-    files = sorted(args.results_dir.rglob("epoch_logs/*.csv"))
+    files = []
+    for results_dir in args.results_dir:
+        files.extend(sorted(results_dir.rglob("epoch_logs/*.csv")))
     assert files, f"No epoch logs found under {args.results_dir}"
 
     by_method_trace: dict[tuple[str, str], dict[str, float]] = {}

@@ -97,6 +97,7 @@ the later training-side search batch is allowed to tell.
 ### 4.1 Speedup vs no-prefetch
 
 Figure `report/figures/ipc_speedup_summary.png` carries the main baseline story.
+It uses only one normalization: IPC relative to prefetch-off.
 
 ![IPC speedup summary](figures/ipc_speedup_summary.png)
 
@@ -220,7 +221,11 @@ focuses on the same criterion traces and asks a narrower question than the main
 performance plots: when the single-expert ordering is favorable to routing, do
 the compared routers actually choose actions that include the offline-better
 expert, and how much of their action mass is spent on `both off`, single-expert,
-or both-on decisions?
+or both-on decisions? In that figure, `AthenaMAB` is the main prior-method
+comparator and `MoPLite` is the method under study; `WinnerTakeAll` and
+`FixedSplit` remain supporting baselines.
+
+![Router comparison on criterion traces](figures/router_compare_criterion.png)
 
 ### 4.6 What the Stage 1 evidence supports
 
