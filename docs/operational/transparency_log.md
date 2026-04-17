@@ -185,3 +185,64 @@ Format:
   traces on the stricter comparator. The infrastructure and measurement story
   are strong; the efficacy story is cautionary.
 - AI-assisted: yes.
+
+### 2026-04-17 — Fair routing criterion must include failures, not only wins
+- Options: (a) report only traces where the router looks good, (b) predeclare a
+  criterion and report both favorable and unfavorable traces inside it.
+- Choice: (b).
+- Confidence: high.
+- Evidence: The criterion used was: both `Pythia` and `SPP+PPF` individually
+  above no-prefetch, with one clearly better. Within that set, some traces show
+  perfect inclusion of the offline-better expert, while others still fail due to
+  overuse of `both off`. Reporting both sides prevents cherry-picking.
+- AI-assisted: yes.
+
+### 2026-04-17 — Main Stage 1 question reframed as "better than blind fixed choice?"
+- Options: (a) headline MoPLite vs AthenaMAB, (b) headline MoPLite vs the best
+  postmortem single expert, (c) headline whether routing can beat choosing one
+  individually-good expert blindly when two experts win different subsets.
+- Choice: (c), while still reporting AthenaMAB and pair-best-single as context.
+- Confidence: high.
+- Evidence: This framing matches the actual scientific question of coordination
+  under complementarity better than a pure prior-method or skyline framing. The
+  completed data show that even on a fair complementary subset, MoPLite does not
+  yet beat blind fixed choice.
+- AI-assisted: yes.
+
+### 2026-04-17 — Plot design principle: one question per figure
+- Options: (a) dense multipurpose figures, (b) fewer figures with a single clear
+  question each.
+- Choice: (b).
+- Confidence: high.
+- Evidence: The figure set was simplified so `ipc_speedup_summary.png` uses only
+  prefetch-off normalization, `single_expert_profiles.png` answers where experts
+  differ, `mop_vs_reference_rows.png` separates pair-best from full-batch best,
+  and `router_compare_criterion.png` focuses only on router decisions.
+- AI-assisted: yes.
+
+### 2026-04-17 — Simplicity claim vs AthenaMAB phrased qualitatively, not as a byte-count win
+- Options: (a) claim MoPLite is cheaper than AthenaMAB, (b) claim only that
+  MoPLite has a smaller, more transparent control surface unless a careful state
+  accounting proves more.
+- Choice: (b).
+- Confidence: high.
+- Evidence: AthenaMAB maintains per-arm reward/count state and discounted-UCB
+  updates. MoPLite uses fixed rule-based scoring over two experts. That supports
+  a transparency/simplicity claim, but not a precise hardware-byte superiority
+  claim from Stage 1 alone.
+- AI-assisted: yes.
+
+### 2026-04-17 — Presentation constraints from user review were treated as explicit project guidance
+- Options: (a) keep the report/plots as an internal incremental artifact,
+  (b) rewrite the presentation layer so an outsider reader sees a stable,
+  non-incremental story with explicit visual and reporting constraints.
+- Choice: (b).
+- Confidence: high.
+- Evidence: The user repeatedly required that: plots should answer one question
+  each, failures should be shown rather than cherry-picked away, the report
+  markdown itself should embed the key plots, the final story should emphasize
+  "better than blind fixed choice?" over a pure MoPLite-vs-AthenaMAB framing,
+  and the approved color palette should be respected. Those requests materially
+  changed the final figure set and wording, so they belong in the public
+  reasoning ledger rather than only the chat history.
+- AI-assisted: yes.
