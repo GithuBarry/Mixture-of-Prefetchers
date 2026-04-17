@@ -6,7 +6,7 @@ Produces under report/figures/ and report/tables/:
   figures/
     ipc_speedup_summary.png              combined speedup summary figure
     win_loss_mop_vs_best_single.png      MoP-lite delta vs best single (bar, sorted)
-    accuracy_vs_traffic.png              split-level traffic/accuracy operating points
+    single_expert_profiles.png          per-trace winning single-expert profile
 
   tables/
     router_ablation.md                   per-router geomean speedups (train + heldout)
@@ -352,40 +352,62 @@ def fig_win_loss(rows: list[dict], out_path: Path) -> None:
     plt.close(fig)
 
 
-# -- Figure 4: accuracy vs traffic scatter ---------------------------------------
+# -- Figure 4: single-expert winner profile --------------------------------------
 
-def fig_accuracy_vs_traffic(rows: list[dict], out_path: Path) -> None:
-    plot_rows = [r for r in rows if r["experiment_kind"] != "baseline" and r["l2c_prefetch_issued"] > 0]
-    if not plot_rows:
-        skip_output(out_path, "no prefetcher runs with issued traffic")
+def fig_single_expert_profiles(rows: list[dict], out_path: Path) -> None:
+    singles = [r for r in rows if r["experiment_kind"] == "single" and r.get("split_side") in {"train", "heldout"}]
+    if not singles:
+        skip_output(out_path, "no single-expert rows")
         return
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4.5), sharey=True)
-    for ax, split in zip(axes, ["train", "heldout"]):
-        subset = [r for r in plot_rows if r.get("split_side") == split]
-        experiments = sorted({r["experiment"] for r in subset})
-        for experiment in experiments:
-            pts = [r for r in subset if r["experiment"] == experiment]
-            if not pts:
-                continue
-            x = statistics.fmean(r["l2c_prefetch_issued"] for r in pts)
-            y = statistics.fmean(r["downstream_prefetch_accuracy"] * 100.0 for r in pts)
+    traces = ordered_traces(singles)
+    split_for_trace = {r["trace"]: r.get("split_side", "unknown") for r in singles}
+    best = {}
+    runner_up = {}
+    for trace in traces:
+        trace_rows = sorted([r for r in singles if r["trace"] == trace], key=lambda r: r["speedup_vs_baseline"], reverse=True)
+        if not trace_rows:
+            continue
+        best[trace] = trace_rows[0]
+        runner_up[trace] = trace_rows[1] if len(trace_rows) > 1 else None
+
+    fig, ax = plt.subplots(figsize=(10, max(6, len(traces) * 0.35)))
+    y = list(range(len(traces)))
+    ax.scatter(
+        [best[t]["speedup_vs_baseline"] for t in traces],
+        y,
+        s=70,
+        c=[experiment_color(best[t]["experiment"]) for t in traces],
+        edgecolors=PALETTE["black"],
+        linewidths=0.5,
+        zorder=3,
+    )
+    for idx, trace in enumerate(traces):
+        if runner_up[trace] is not None:
             ax.scatter(
-                [x],
-                [y],
-                s=64,
-                color=experiment_color(experiment),
-                edgecolors=PALETTE["black"],
-                linewidths=0.5,
+                [runner_up[trace]["speedup_vs_baseline"]],
+                [idx],
+                s=40,
+                facecolors=PALETTE["white"],
+                edgecolors=experiment_color(runner_up[trace]["experiment"]),
+                linewidths=1.2,
+                zorder=2,
             )
-            ax.annotate(experiment, (x, y), xytext=(4, 4), textcoords="offset points", fontsize=8, color=PALETTE["black"])
-        ax.set_xscale("log")
-        ax.set_title(f"{SPLIT_LABEL.get(split, split)} operating points")
-        ax.set_xlabel("Mean L2 prefetches issued (log scale)")
-        ax.grid(True, linestyle=":", linewidth=0.6)
-    axes[0].set_ylabel("Mean downstream accuracy (%)")
-    fig.suptitle("Traffic / accuracy operating points by method")
-    fig.text(0.01, 0.01, "Caption: Each point is one method summarized over a split, not one run. The x-axis uses actual issued prefetch traffic on a log scale; coordinator rows may use the documented fallback traffic proxy when Athena's raw cache-issued counter is zero.", ha="left", va="bottom", fontsize=8, color=PALETTE["black"], wrap=True)
-    fig.tight_layout(rect=(0, 0.08, 1, 0.96))
+    ax.axvline(1.0, color=PALETTE["black"], linestyle=":", linewidth=1.0)
+    for idx in range(1, len(traces)):
+        if split_for_trace[traces[idx - 1]] != split_for_trace[traces[idx]]:
+            ax.axhline(idx - 0.5, color=PALETTE["light_grey"], linewidth=1.0)
+    ax.set_yticks(y)
+    ax.set_yticklabels([t[:30] for t in traces])
+    ax.set_xlabel("Best single-expert IPC vs no-prefetch")
+    ax.set_title("Which single expert wins where?")
+    ax.grid(True, axis="x", linestyle=":")
+    legend_handles = []
+    for name in ["MLOP", "Pythia", "SMS", "SPP+PPF"]:
+        legend_handles.append(plt.Line2D([0], [0], marker='o', color='none', markerfacecolor=experiment_color(name), markeredgecolor=PALETTE["black"], markersize=8, label=name))
+    legend_handles.append(plt.Line2D([0], [0], marker='o', color='none', markerfacecolor=PALETTE["white"], markeredgecolor=PALETTE["black"], markersize=7, label='Runner-up'))
+    ax.legend(handles=legend_handles, fontsize=8, ncols=3)
+    fig.text(0.01, 0.01, "Caption: Filled markers show the winning single prefetcher on each trace; hollow markers show the runner-up. Distinct winners across traces indicate that the single experts have genuinely different performance profiles, which is the precondition for a meaningful coordination problem.", ha="left", va="bottom", fontsize=8, color=PALETTE["black"], wrap=True)
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     fig.savefig(out_path, dpi=160)
     plt.close(fig)
 
@@ -497,7 +519,8 @@ def main() -> int:
     (args.figures_dir / "ipc_speedup_vs_nopref.png").unlink(missing_ok=True)
     (args.figures_dir / "ipc_speedup_vs_best_single.png").unlink(missing_ok=True)
     fig_win_loss              (rows, args.figures_dir / "win_loss_mop_vs_best_single.png")
-    fig_accuracy_vs_traffic   (rows, args.figures_dir / "accuracy_vs_traffic.png")
+    fig_single_expert_profiles(rows, args.figures_dir / "single_expert_profiles.png")
+    (args.figures_dir / "accuracy_vs_traffic.png").unlink(missing_ok=True)
     table_router_ablation     (rows, args.tables_dir / "router_ablation.md")
     table_expert_pair         (rows, args.tables_dir / "expert_pair_ablation.md")
     table_hardware_budget     (args.tables_dir / "hardware_budget.md")

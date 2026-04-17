@@ -64,16 +64,17 @@ Athena.
 
 ## Current materialized snapshot
 
-The current workspace contains merged search-side and held-out Stage 1 results.
+The current workspace contains the merged full-suite Stage 1 results.
 
-- `data/processed/runs_summary.md` reports 167 runs over 17 traces.
+- `data/processed/runs_summary.md` reports 230 runs over 24 traces.
 - `report/tables/router_ablation.md` summarizes coordinator geomeans for the
-  train-side search subset and the held-out split.
+  full 17-trace training split and the 7-trace held-out split.
 - `report/tables/expert_pair_ablation.md` summarizes the committed
   `Pythia + SPP+PPF` pair across those runs.
 
 Treat `data/processed/runs.csv` as the analysis entry point for the current
-snapshot. Treat `results/mop_lite_search/runs/<run_group_id>/` and
+snapshot. Treat `results/mop_lite_search/runs/<run_group_id>/`,
+`results/mop_lite_train_extra/runs/<run_group_id>/`, and
 `results/mop_lite_final/runs/<run_group_id>/` as the places to inspect the
 committed per-run evidence.
 

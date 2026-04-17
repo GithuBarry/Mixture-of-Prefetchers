@@ -23,7 +23,7 @@ Completed Stage 1 evidence currently covers:
 
 - `17` train-side traces
 - `7` held-out traces
-- `230` total completed runs in `data/processed/runs.csv`
+- the full `24`-trace Stage 1 suite
 
 Held-out-first summary:
 
@@ -67,6 +67,7 @@ Start here:
 1. `docs/outsider_guide.md`
 2. `report/draft.md`
 3. `report/figures/ipc_speedup_summary.png`
+4. `report/figures/single_expert_profiles.png`
 5. `report/tables/router_ablation.md`
 
 Key source-of-truth files:
@@ -111,11 +112,14 @@ make -C external/athena -j$(nproc)
 # search-side batch
 python3 scripts/run_mop_lite.py --mode search_mode --workers 15 --results-dir results/mop_lite_search
 
+# remaining train-side traces
+python3 scripts/run_mop_lite.py <remaining train trace list and flags> --workers 15 --results-dir results/mop_lite_train_extra
+
 # held-out batch
 python3 scripts/run_mop_lite.py --trace 437.leslie3d-134B --trace 459.GemsFDTD-1169B --trace 471.omnetpp-188B --trace parsec_2.1.canneal.simlarge.prebuilt.drop_4750M.length_250M --trace parsec_2.1.streamcluster.simlarge.prebuilt.drop_0M.length_250M --trace ligra_BC.com-lj.ungraph.gcc_6.3.0_O3.drop_500M.length_250M --trace secret_compute_fp_105 --warmup-instructions 20000000 --simulation-instructions 50000000 --expert-0 Pythia --expert-1 SPP+PPF --router FixedSplit --router WinnerTakeAll --router RandomRouter --router OneShotFit --router MoPLite --builtin AthenaMAB --single-baseline MLOP --single-baseline SMS --workers 15 --skip-download --results-dir results/mop_lite_final
 
 # merged dataset + figures
-python3 scripts/build_dataset.py --manifest results/mop_lite_search/manifest.jsonl --manifest results/mop_lite_final/manifest.jsonl
+python3 scripts/build_dataset.py --manifest results/mop_lite_search/manifest.jsonl --manifest results/mop_lite_train_extra/manifest.jsonl --manifest results/mop_lite_final/manifest.jsonl
 python3 scripts/make_figures.py
 ```
 

@@ -244,7 +244,7 @@ python3 scripts/make_figures.py
 **Completed artifacts.**
 
 - `results/mop_lite_final/manifest.jsonl` with 77 rows
-- merged `data/processed/runs.csv` with 167 rows across 17 traces
+- merged `data/processed/runs.csv` with 230 rows across the full 24-trace suite
 - regenerated `report/figures/*.png` and `report/tables/*.md`
 
 **Main findings.**
@@ -283,10 +283,10 @@ Stage 1 is scientifically complete as a baseline. The code, split, manifest,
 dataset, figures, and report foundation are all real and reproducible. The
 performance story is negative but clear: the current `Pythia + SPP+PPF`
 MoP-lite rule does not beat the strongest single expert in geomean on either the
-search-side subset or the held-out split. Against no-prefetch, some coordinators
-do deliver `1+x` gains, but the pair-best single expert remains the stronger
-reference. That means Stage 2 should search the control surface rather than
-restate Stage 1 as a success claim.
+full 17-trace training split or the held-out split. Against no-prefetch, some
+coordinators do deliver `1+x` gains, but the pair-best single expert remains
+the stronger reference. That means Stage 2 should search the control surface
+rather than restate Stage 1 as a success claim.
 
 ## 2026-04-17 — Focused epoch-trace diagnostic for routing behavior
 
@@ -340,3 +340,41 @@ the best overall coordinator on the merged Stage 1 result. That is strong
 evidence that the current weakness is not only "choosing the wrong expert"; it
 also involves how aggressively the router shares budget or keeps both experts
 enabled.
+
+## 2026-04-17 — Failure-case epoch diagnostics
+
+**Goal.** Test whether the strongest MoPLite losses are primarily caused by
+choosing the wrong expert, or by other control decisions such as overuse of the
+`both off` action or weak isolation of the winning expert.
+
+**What was run.**
+
+```bash
+python3 scripts/run_mop_lite.py --trace 602.gcc_s-734B \
+  --expert-0 Pythia --expert-1 SPP+PPF \
+  --router MoPLite --workers 2 --epoch-trace --skip-download \
+  --warmup-instructions 5000000 --simulation-instructions 10000000 \
+  --results-dir results/mop_lite_epoch_diag_602
+
+python3 scripts/run_mop_lite.py --trace secret_compute_fp_105 \
+  --expert-0 Pythia --expert-1 SPP+PPF \
+  --router MoPLite --workers 2 --epoch-trace --skip-download \
+  --warmup-instructions 20000000 --simulation-instructions 50000000 \
+  --results-dir results/mop_lite_epoch_diag_fp105
+```
+
+**Observed signal.**
+
+- `602.gcc_s-734B`
+  - oracle-better expert included: `1.000`
+  - exact oracle action match: `0.000`
+- `secret_compute_fp_105`
+  - oracle-better expert included: `0.993` overall / `0.985` on nonzero-useful epochs
+  - exact oracle action match: `0.536`
+  - `both off` action rate: `0.543`
+
+**Interpretation.** These failure diagnostics sharpen the mechanism claim. The
+current MoPLite losses are not mainly caused by choosing the wrong expert.
+Instead, the rule often includes the right expert but still loses because it
+fails to isolate that expert, turns both experts off too often, or shares budget
+in a way that gives up too much IPC.

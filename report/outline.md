@@ -34,24 +34,24 @@ lean on (which figure, which table, which CSV column).
 
 ### 4.1 Are we faster than no-prefetch?
 
-Evidence: `report/figures/ipc_speedup_vs_nopref.png`.
-Claim line: "Every non-baseline experiment strictly dominates no-prefetch
-on geomean, by trace-family."
+Evidence: `report/figures/ipc_speedup_summary.png`.
+Claim line: "Some coordinators beat no-prefetch in geomean, but the gains are
+small and comparator-dependent."
 
 ### 4.2 Can we beat the best single expert?
 
 Evidence:
-- `report/figures/ipc_speedup_vs_best_single.png`
+- `report/figures/ipc_speedup_summary.png`
 - `report/figures/win_loss_mop_vs_best_single.png`
 - `report/tables/router_ablation.md` (geomean per router × split)
-Claim line: "MoP-lite wins on [X/17] train traces and loses on [Y]; the
-geomean speedup vs best single expert is [Z]."
+Claim line: "No tested coordinator beats the pair-best single expert in geomean
+on either split."
 
-### 4.3 Accuracy vs traffic trade-off
+### 4.3 Do the single experts have distinct win regions?
 
-Evidence: `report/figures/accuracy_vs_traffic.png`.
-Claim line: "Router variants that honor the usefulness floor sit in the
-upper-left quadrant; AthenaMAB trades more traffic for comparable accuracy."
+Evidence: `report/figures/single_expert_profiles.png`.
+Claim line: "Yes. Different single experts win different traces, so the
+coordination problem is real rather than degenerate."
 
 ### 4.4 Router ablation
 
