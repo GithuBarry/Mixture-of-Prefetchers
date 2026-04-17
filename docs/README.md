@@ -101,3 +101,23 @@ Some documents carry more weight than others.
 
 Read the charter first for scope, then the guide for orientation, then the
 setup and environment docs for exact mechanics.
+
+## Update Instruction For Agents
+
+When updating advisor-facing docs in this repository:
+
+- define every project-specific term when it first appears
+- explain settings and design choices, not just list them
+- explain how the router actually works, including signals, actions, and budget
+  behavior
+- distinguish clearly between upstream Athena work and local project work
+- avoid FAQ-style writing when the same answers can appear naturally in the main
+  sections
+- avoid repeated sections and repeated emphasis when one precise explanation is
+  enough
+- quantify scale whenever possible, such as traces, runs, windows, and epoch
+  counts
+- do not present hypotheses as validated results; say explicitly when the repo
+  does not yet contain evidence for a claim
+- merge related explanations so readers do not have to guess where the local C++
+  changes or baselines are described

@@ -36,6 +36,13 @@ evaluation protocol for this study, not inherited Athena defaults.
 - **Train / held-out split**: the fixed boundary between traces that may guide
   development and traces reserved for stronger confirmation.
 
+For scale:
+
+- `smoke_mode` and `search_mode` use `5M + 10M = 15M` total instructions, so
+  each run spans `30` total epochs and `20` measured simulation epochs.
+- `final_mode` uses `20M + 50M = 70M` total instructions, so each run spans
+  `140` total epochs and `100` measured simulation epochs.
+
 ## Why these settings exist
 
 The protocol is designed around three goals: fairness, manageable runtime, and
