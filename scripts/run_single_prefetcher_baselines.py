@@ -6,6 +6,7 @@ import csv
 import importlib.util
 import json
 import re
+import secrets
 import shlex
 import subprocess
 import sys
@@ -33,6 +34,10 @@ EXPERIMENTS = {
 ZENODO_RECORD = "17850673"
 DEFAULT_WORKERS = 8
 SAFE_TRACE_ROOT = Path("/tmp/mop_athena_traces")
+
+
+def new_run_group_id() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ") + f"-{secrets.token_hex(2)}"
 
 
 @dataclass(frozen=True)
@@ -313,7 +318,7 @@ def main() -> int:
     traces_dir = root / "artifacts" / "athena_traces"
     output_dir = root / "results" / "single_prefetcher_baselines"
     output_dir.mkdir(parents=True, exist_ok=True)
-    run_group_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_group_id = new_run_group_id()
     artifact_dir = output_dir / "runs" / run_group_id
     artifact_dir.mkdir(parents=True, exist_ok=True)
 

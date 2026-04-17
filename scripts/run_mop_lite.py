@@ -18,6 +18,7 @@ import argparse
 import csv
 import json
 import os
+import secrets
 import shlex
 import socket
 import subprocess
@@ -121,6 +122,10 @@ def git_revision(root: Path) -> str:
         return out.stdout.strip()
     except subprocess.CalledProcessError:
         return "unknown"
+
+
+def new_run_group_id() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ") + f"-{secrets.token_hex(2)}"
 
 
 def parse_simple_config(path: Path) -> dict[str, str]:
@@ -463,7 +468,7 @@ def main() -> int:
     output_dir = args.results_dir or (root / "results" / "mop_lite")
     output_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = output_dir / "manifest.jsonl"
-    run_group_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_group_id = new_run_group_id()
     artifact_dir = output_dir / "runs" / run_group_id
     artifact_dir.mkdir(parents=True, exist_ok=True)
 

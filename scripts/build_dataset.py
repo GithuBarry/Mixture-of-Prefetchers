@@ -78,11 +78,13 @@ def compute_derived(rows: list[dict]) -> None:
     by_trace: dict[tuple[str, str], list[dict]] = {}
     by_run_group: dict[str, list[dict]] = {}
     for row in rows:
-        run_group_id = row.get("run_group_id") or "legacy"
+        run_group_id = row["run_group_id"]
         by_trace.setdefault((run_group_id, row["trace"]), []).append(row)
         by_run_group.setdefault(run_group_id, []).append(row)
 
     for run_group_id, group_rows in by_run_group.items():
+        if run_group_id == "legacy":
+            continue
         traces = sorted({row["trace"] for row in group_rows})
         expected_experiments = {
             (row["experiment_kind"], row["experiment"])
