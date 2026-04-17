@@ -49,6 +49,17 @@ That order reflects the actual data flow.
 | Dataset | `scripts/build_dataset.py` | `data/processed/runs.csv`, `data/processed/runs_summary.md` |
 | Figures/tables | `scripts/make_figures.py` | `report/figures/*.png`, `report/tables/*.md` |
 
+## Provenance of the pipeline
+
+The build step compiles the Athena simulator foundation under `external/athena/`.
+That simulator comes from upstream Athena, documented in
+`external/athena/UPSTREAM.md`, plus local project edits in files such as
+`external/athena/src/oogway.cc`.
+
+The run, dataset, and report steps are project-side workflow code in `scripts/`
+and `docs/`. Those steps are the project-owned evidence pipeline built on top of
+Athena.
+
 ## Current materialized snapshot
 
 The current workspace already contains a smoke-mode analysis snapshot.

@@ -8,6 +8,9 @@ quickly:
 2. What exactly was implemented and run?
 3. Which file is the source of truth for each claim?
 
+It also keeps authorship clear: which pieces come from upstream Athena and which
+pieces are project work in this repository.
+
 ## Start here
 
 If you want the shortest path, read these four documents in order:
@@ -62,6 +65,9 @@ and final-mode evaluation comes next.
   - `report/tables/router_ablation.md`
 - "Why were specific design choices made?"
   - `docs/transparency_log.md`
+- "What came from upstream Athena and what did this project add?"
+  - `docs/outsider_guide.md`
+  - `external/athena/UPSTREAM.md`
 - "Where did the trace pool come from before the 24-trace suite was frozen?"
   - `docs/trace_inventory.md`
 

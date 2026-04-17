@@ -17,6 +17,49 @@ advisor-facing conclusions.
 - `final_mode` answers the strongest evaluation question: how does the method
   behave on the full official suite under report-style instruction windows?
 
+## Provenance of this protocol
+
+The candidate trace pool and trace metadata come from Athena, mainly through
+`external/athena/scripts/config.py` and the associated Zenodo trace bundle.
+
+The official 24-trace suite, the train/held-out split, the search subset, and
+the three named run modes are project decisions in this repository. They are the
+evaluation protocol for this study, not inherited Athena defaults.
+
+## Basic evaluation terms
+
+- **Trace**: one recorded workload execution stream replayed by Athena.
+- **Warmup**: the initial part of a run that fills caches and predictor state.
+- **Simulation window**: the measured part of a run after warmup.
+- **Epoch**: a fixed chunk inside the measured window. For the Stage 1 MoP-lite
+  path, one epoch is 500,000 retired instructions.
+- **Train / held-out split**: the fixed boundary between traces that may guide
+  development and traces reserved for stronger confirmation.
+
+## Why these settings exist
+
+The protocol is designed around three goals: fairness, manageable runtime, and
+clear interpretation.
+
+- The **24-trace suite** is large enough to cover multiple benchmark families
+  and small enough to remain runnable for a course-scale Stage 1 study.
+- The **17 / 7 train / held-out split** keeps a real untouched evaluation side
+  while preserving enough training-side coverage for iteration.
+- The **10-trace search subset** makes router debugging and train-side sweeps
+  affordable.
+- The **2-trace smoke subset** gives a cheap end-to-end systems check before the
+  larger batches run.
+- The three **run modes** separate system validation, iteration, and final
+  evidence so each activity uses an appropriate runtime budget.
+- The **5M / 10M** search-side windows keep early iteration affordable while
+  preserving a real measured phase.
+- The **20M / 50M** final-mode windows give a stronger report-style evaluation
+  tier and align with the standalone baseline runner defaults in this repo.
+- The **500,000-instruction epoch** gives the coordinator a stable, portable
+  decision cadence inside those windows.
+- The default expert pair **`Pythia + SPP+PPF`** gives Stage 1 one stable,
+  interpretable two-expert baseline before pair search is allowed.
+
 ## Official trace suite
 
 - **24 traces** total (`configs/trace_suites.json` → `trace_sets.full_suite`).
