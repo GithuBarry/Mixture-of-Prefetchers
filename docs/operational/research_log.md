@@ -378,3 +378,30 @@ current MoPLite losses are not mainly caused by choosing the wrong expert.
 Instead, the rule often includes the right expert but still loses because it
 fails to isolate that expert, turns both experts off too often, or shares budget
 in a way that gives up too much IPC.
+
+## 2026-04-17 — Exploratory alternate-pair baselines on held-out traces
+
+**Goal.** Check whether the current negative `MoPLite` result is mostly a bad
+pair choice rather than a bad router, using small held-out exploratory batches
+with alternate expert pairs.
+
+**What was run.** Three held-out exploratory batches with the same light
+coordinator set (`MoPLite`, `FixedSplit`, `WinnerTakeAll`, `AthenaMAB`) and
+shorter windows (`5M` warmup + `10M` simulation):
+
+- `MLOP + SMS`
+- `Pythia + SMS`
+- `MLOP + Pythia`
+
+**Observed signal.** `MoPLite` geomean on held-out traces:
+
+- `MLOP + SMS`: `0.999778x` vs no-prefetch, `0.984551x` vs pair-best single
+- `Pythia + SMS`: `0.998842x` vs no-prefetch, `0.913791x` vs pair-best single
+- `MLOP + Pythia`: `1.000381x` vs no-prefetch, `0.923328x` vs pair-best single
+
+**Interpretation.** Pair choice clearly matters: `MLOP + SMS` and `MLOP + Pythia`
+improve the no-prefetch result relative to the main `Pythia + SPP+PPF` pair,
+and `MLOP + SMS` gets noticeably closer to parity vs its pair-best single.
+But no tested alternate pair turns `MoPLite` into a winner against its own
+pair-best single. That means the current Stage 1 weakness is not only pair
+selection; the router policy itself still leaves substantial value unrealized.

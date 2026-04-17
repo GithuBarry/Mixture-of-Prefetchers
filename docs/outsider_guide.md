@@ -303,6 +303,7 @@ be speculation at this point.
 The committed evidence now includes:
 
 - the 10-trace training-side `search_mode` batch under `results/mop_lite_search/`
+- the 7-trace follow-on training batch under `results/mop_lite_train_extra/`
 - the 7-trace held-out batch under `results/mop_lite_final/`
 - the merged processed dataset `data/processed/runs.csv`
 - the regenerated figures and tables under `report/`
@@ -362,7 +363,8 @@ current local result is closer to this:
   held-out evidence
 
 That does **not** invalidate the method. It does mean the current tracked result
-is a negative or at least cautionary performance result, not a success claim.
+is a negative performance result against the pair-best single baseline, not a
+success claim.
 
 ## What Is Still Open
 
@@ -393,7 +395,6 @@ questions remain open:
 The repository already has a reproducible Stage 1 baseline: a two-expert L2
 router, per-epoch telemetry, a fixed split, append-only manifests, a processed
 dataset, and regenerated report artifacts. The committed evidence shows that the
-current rules can deliver small wins over no-prefetch, but the first
-`Pythia + SPP+PPF` MoP-lite rule does not yet beat the strongest single expert
-from that pair in geomean on either the full training side or the held-out
-split.
+current rules can deliver small wins over no-prefetch, but no tested
+coordinator beats the strongest single expert from the committed pair in
+geomean on either the full training side or the held-out split.

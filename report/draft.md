@@ -194,7 +194,12 @@ Not supported:
 
 Stage 1 still ships with one committed pair only: `Pythia + SPP+PPF`. So the
 expert-pair ablation table is structurally present but scientifically narrow.
-The current data do not justify claims about other pairs.
+The current data do not justify claims about other pairs in the mainline result.
+Supplemental held-out exploratory batches do suggest that pair choice matters:
+`MoPLite` reaches `0.999778x` vs no-prefetch with `MLOP + SMS` and `1.000381x`
+with `MLOP + Pythia`, both better than the main pair. But even those alternate
+pairs stay below `1.0x` vs their own pair-best single expert, so pair choice
+alone does not rescue the current router policy.
 
 ### 4.8 Hardware budget
 See `report/tables/hardware_budget.md`. The Stage 1 control surface fits in
