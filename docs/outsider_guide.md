@@ -64,13 +64,14 @@ The official suite is:
 
 The currently materialized Stage 1 evidence is:
 
-- `10` train-side search traces
+- `17` train-side traces
 - `7` held-out traces
-- `167` completed runs in `data/processed/runs.csv`
+- `230` completed runs in `data/processed/runs.csv`
 
-So the finished Stage 1 snapshot is larger than smoke, but smaller than a full
-24-trace sweep. That is intentional: Stage 1 used the official `search_mode`
-subset on the training side and the full held-out split for the final readout.
+So the finished Stage 1 snapshot now spans the full 24-trace suite: the
+training side was covered by the official `search_mode` subset plus a matching
+follow-on batch for the remaining training traces, and the held-out side was run
+once as the final readout.
 
 ## The Two Experts And The Main Baselines
 
@@ -314,12 +315,11 @@ That result is easiest to read through two comparisons.
 
 ### Against no-prefetch
 
-- On the 10-trace train-side search subset, several coordinators are slightly
-  above `1.0x` geomean IPC vs no-prefetch:
-  - `WinnerTakeAll = 1.0111x`
-  - `AthenaMAB = 1.0047x`
-  - `FixedSplit = 1.0042x`
-  - `MoPLite = 1.0009x`
+- On the 17-trace training side:
+  - `AthenaMAB = 1.0095x`
+  - `WinnerTakeAll = 1.0037x`
+  - `FixedSplit = 1.0017x`
+  - `MoPLite = 0.9986x`
 - On the 7-trace held-out split:
   - `AthenaMAB = 1.0378x`
   - `OneShotFit = 1.0032x`
@@ -328,11 +328,11 @@ That result is easiest to read through two comparisons.
 
 ### Against the best of the coordinated pair (`Pythia`, `SPP+PPF`)
 
-- On the train-side search subset:
-  - `WinnerTakeAll = 0.9750x`
-  - `AthenaMAB = 0.9689x`
-  - `FixedSplit = 0.9684x`
-  - `MoPLite = 0.9652x`
+- On the 17-trace training side:
+  - `AthenaMAB = 0.9619x`
+  - `WinnerTakeAll = 0.9564x`
+  - `FixedSplit = 0.9545x`
+  - `MoPLite = 0.9515x`
 - On the held-out split:
   - `AthenaMAB = 0.9560x`
   - `OneShotFit = 0.9242x`
@@ -358,7 +358,8 @@ current local result is closer to this:
 - the router logic is implemented and observable
 - some coordinators achieve small `1+x` gains over no-prefetch
 - the current `Pythia + SPP+PPF` coordination rules still lose in geomean to the
-  better single expert from that pair on both train-side and held-out evidence
+  better single expert from that pair on both the full training side and the
+  held-out evidence
 
 That does **not** invalidate the method. It does mean the current tracked result
 is a negative or at least cautionary performance result, not a success claim.
@@ -394,5 +395,5 @@ router, per-epoch telemetry, a fixed split, append-only manifests, a processed
 dataset, and regenerated report artifacts. The committed evidence shows that the
 current rules can deliver small wins over no-prefetch, but the first
 `Pythia + SPP+PPF` MoP-lite rule does not yet beat the strongest single expert
-from that pair in geomean on either the train-side search subset or the held-out
+from that pair in geomean on either the full training side or the held-out
 split.

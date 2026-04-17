@@ -39,8 +39,8 @@ The repository now has the finished Stage 1 evidence package.
 - The official full evaluation design is frozen in
   `configs/trace_suites.json`, `configs/run_modes.json`, and
   `docs/operational/experiment_setup.md`.
-- The merged analysis artifacts summarize 167 completed runs over 17 traces
-  (`10` search-side training traces + `7` held-out traces).
+- The merged analysis artifacts summarize 230 completed runs over the full
+  24-trace Stage 1 suite (`17` train-side traces + `7` held-out traces).
   `data/processed/runs_summary.md` and `report/tables/router_ablation.md`
   reflect that finished Stage 1 snapshot.
 - Stage 2 search has a frozen boundary in `docs/operational/stage2_memo.md`.

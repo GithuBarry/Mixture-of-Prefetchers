@@ -21,9 +21,9 @@ data, figures, tables, and human-written logs.
 
 Completed Stage 1 evidence currently covers:
 
-- `10` train-side search traces
+- `17` train-side traces
 - `7` held-out traces
-- `167` total completed runs in `data/processed/runs.csv`
+- `230` total completed runs in `data/processed/runs.csv`
 
 Held-out-first summary:
 
@@ -34,12 +34,12 @@ Held-out-first summary:
 - `MoPLite` reaches `0.9974x` vs no-prefetch and `0.9188x` vs pair-best single
   on held-out
 
-Train-side search subset summary:
+Train-side summary:
 
-- vs no-prefetch, `WinnerTakeAll` is strongest at `1.0111x`
-- vs pair-best single, no coordinator reaches `1.0x`; `WinnerTakeAll` is
-  strongest at `0.9750x`
-- `MoPLite` reaches `1.0009x` vs no-prefetch and `0.9652x` vs pair-best single
+- vs no-prefetch, `AthenaMAB` is strongest at `1.0095x`
+- vs pair-best single, no coordinator reaches `1.0x`; `AthenaMAB` is strongest
+  at `0.9619x`
+- `MoPLite` reaches `0.9986x` vs no-prefetch and `0.9515x` vs pair-best single
 
 So the current `MoPLite` rule is **not** the strongest coordinator in this repo,
 and it does **not** beat the pair-best single expert in geomean on either split.
