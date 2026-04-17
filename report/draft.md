@@ -179,7 +179,9 @@ in `100%` of epochs for `602.gcc_s`, `619.lbm_s`, `secret_compute_int_243`, and
 `429.mcf` still spends `93.3%` of epochs in `both off`, `secret_compute_fp_105`
 uses `both off` in `54.3%` of epochs, and `parsec canneal` is effectively `both
 off` throughout the short-window diagnostic. So the current rule has real
-routing skill, but not a reliable action policy.
+routing skill, but not a reliable action policy. Table
+`report/tables/routing_criterion.md` gives the full criterion set, not only the
+favorable cases.
 
 ### 4.6 What the Stage 1 evidence supports
 
@@ -209,7 +211,9 @@ Supplemental held-out exploratory batches do suggest that pair choice matters:
 `MoPLite` reaches `0.999778x` vs no-prefetch with `MLOP + SMS` and `1.000381x`
 with `MLOP + Pythia`, both better than the main pair. But even those alternate
 pairs stay below `1.0x` vs their own pair-best single expert, so pair choice
-alone does not rescue the current router policy.
+alone does not rescue the current router policy. Table
+`report/tables/alternate_pair_exploration.md` reports the full exploratory
+comparison.
 
 ### 4.8 Hardware budget
 See `report/tables/hardware_budget.md`. The Stage 1 control surface fits in

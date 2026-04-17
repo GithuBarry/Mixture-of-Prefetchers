@@ -361,6 +361,9 @@ current local result is closer to this:
 - the current `Pythia + SPP+PPF` coordination rules still lose in geomean to the
   better single expert from that pair on both the full training side and the
   held-out evidence
+- under a fair predeclared routing criterion, the router has real ranking skill
+  on some complementary traces, but still fails because its action policy is not
+  reliable across the whole criterion set
 
 That does **not** invalidate the method. It does mean the current tracked result
 is a negative performance result against the pair-best single baseline, not a
@@ -387,6 +390,8 @@ questions remain open:
 - Current processed dataset: `data/processed/runs.csv`
 - Current merged summary: `data/processed/runs_summary.md`
 - Current coordinator table: `report/tables/router_ablation.md`
+- Fair routing criterion table: `report/tables/routing_criterion.md`
+- Alternate-pair exploratory table: `report/tables/alternate_pair_exploration.md`
 - Raw epoch traces: `results/mop_lite_search/runs/*/epoch_logs/*.csv` and
   `results/mop_lite_final/runs/*/epoch_logs/*.csv`
 

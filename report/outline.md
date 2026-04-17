@@ -59,10 +59,19 @@ Evidence: `report/tables/router_ablation.md`.
 Claim line: "Dropping the usefulness floor (FixedSplit) regresses [N]% on
 traffic-sensitive traces; dropping the score (RandomRouter) regresses [M]%."
 
-### 4.5 Expert-pair ablation
+### 4.5 Fair routing criterion
+
+Evidence: `report/tables/routing_criterion.md`.
+Claim line: "Under a predeclared complementary-trace criterion, the router shows
+real ranking skill on some traces but still fails because of its action policy
+on others."
+
+### 4.6 Expert-pair ablation
 
 Evidence: `report/tables/expert_pair_ablation.md`.
 Placeholder for now; Stage 1 ships with only (Pythia, SPP+PPF).
+
+Supplemental evidence: `report/tables/alternate_pair_exploration.md`.
 
 ## 5. Limitations and threats to validity
 
