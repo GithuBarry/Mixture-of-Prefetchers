@@ -227,6 +227,8 @@ comparator and `MoPLite` is the method under study; `WinnerTakeAll` and
 
 ![Router comparison on criterion traces](figures/router_compare_criterion.png)
 
+![MoPLite action distribution by trace](figures/moplite_action_distribution.png)
+
 ### 4.6 What the Stage 1 evidence supports
 
 The current evidence supports three claims and rules out two stronger ones.

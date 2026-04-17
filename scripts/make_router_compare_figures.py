@@ -38,6 +38,7 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
     p.add_argument("--results-dir", type=Path, action="append", required=True)
     p.add_argument("--out", type=Path, required=True)
+    p.add_argument("--mop-out", type=Path, required=True)
     return p.parse_args()
 
 
@@ -152,6 +153,41 @@ def main() -> int:
     fig.tight_layout(rect=(0, 0.08, 1, 1))
     args.out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.out, dpi=160)
+
+    # Separate MoPLite-only per-trace action distribution figure.
+    mop_traces = sorted([trace for (method, trace) in by_method_trace if method == "MoPLite"])
+    if mop_traces:
+        fig2, ax2 = plt.subplots(figsize=(10, max(6, len(mop_traces) * 0.45)))
+        for idx, trace in enumerate(mop_traces):
+            total = sum(action_mix["MoPLite"][a] for a in [0, 1, 2, 3])
+            # Use per-trace mix rather than global method mix.
+            rows = list(csv.DictReader(next(p for p in files if p.stem.replace('.core0', '') == f"{trace}__MoPLite").open()))
+            per_trace = Counter(int(r["action"]) for r in rows)
+            total = sum(per_trace.values())
+            left = 0.0
+            for action in [0, 2, 1, 3]:
+                value = per_trace[action] / total if total else 0.0
+                ax2.barh(idx, value, left=left, color=ACTION_COLOR[action], edgecolor=PALETTE["black"], linewidth=0.4)
+                left += value
+        ax2.set_yticks(range(len(mop_traces)))
+        ax2.set_yticklabels(mop_traces)
+        ax2.set_xlabel("MoPLite action share by trace")
+        ax2.set_title("What MoPLite predicts on each criterion trace")
+        ax2.grid(True, axis="x", linestyle=":")
+        ax2.legend(handles=legend_handles, ncols=2, fontsize=8)
+        fig2.text(
+            0.01,
+            0.01,
+            "Caption: Each horizontal bar is one trace and shows how often MoPLite chose both off, Pythia only, SPP+PPF only, or both on. This makes the controller's per-dataset behavior visible instead of only reporting aggregate accuracy.",
+            ha="left",
+            va="bottom",
+            fontsize=8,
+            color=PALETTE["black"],
+            wrap=True,
+        )
+        fig2.tight_layout(rect=(0, 0.08, 1, 1))
+        args.mop_out.parent.mkdir(parents=True, exist_ok=True)
+        fig2.savefig(args.mop_out, dpi=160)
     return 0
 
 
