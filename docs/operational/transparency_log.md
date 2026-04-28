@@ -246,3 +246,19 @@ Format:
   changed the final figure set and wording, so they belong in the public
   reasoning ledger rather than only the chat history.
 - AI-assisted: yes.
+
+### 2026-04-28 — LLC-prefetcher support added as a separate experiment kind
+- Options: (a) modify `Baseline`/`nopref.ini`, (b) add LLC prefetching to the
+  existing L2 coordinator runs, (c) add a separate `experiment_kind = "llc"`
+  with explicit LLC-only flags and matched baselines.
+- Choice: (c).
+- Confidence: high.
+- Evidence: The no-prefetch baseline is a measurement instrument and must stay
+  unchanged. A short local screen showed that naive L2+LLC stacking can regress
+  geomean (`SPP+PPF + LLC-AMPM` at `0.9994x` vs no-prefetch in the 13-trace
+  1M screen). A longer 13-local-trace `5M`/`10M` check then showed `LLC-AMPM`
+  at only `0.9654x` geomean, so LLC support should be treated as an evaluation
+  surface, not a result claim. A separate experiment kind lets the project
+  evaluate the last-level-cache angle without hiding traffic or changing the
+  meaning of existing Stage 1 rows.
+- AI-assisted: yes.

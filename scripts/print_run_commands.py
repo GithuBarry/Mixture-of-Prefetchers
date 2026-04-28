@@ -46,6 +46,10 @@ def router_flags(routers: list[str]) -> str:
     return " ".join(f"--router {json.dumps(r)}" for r in routers)
 
 
+def llc_flags(prefetchers: list[str]) -> str:
+    return " ".join(f"--llc-prefetcher {json.dumps(p)}" for p in prefetchers)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -84,6 +88,7 @@ def main() -> int:
     bl = " ".join(
         f"--experiment {json.dumps(e)}" for e in mode["single_prefetcher_baselines"]["experiments"]
     )
+    llc = llc_flags(mode.get("llc_prefetcher_baselines", []))
 
     print("# Trace set:", set_name, f"({len(traces)} traces)")
     print("# From:", suites_path)
@@ -94,6 +99,7 @@ def main() -> int:
         f"--warmup-instructions {w} --simulation-instructions {s} "
         f"--expert-0 {json.dumps(e0)} --expert-1 {json.dumps(e1)} "
         f"{router_flags(routers)} "
+        f"{llc} "
         f"{trace_flags(traces)}"
     )
     print()

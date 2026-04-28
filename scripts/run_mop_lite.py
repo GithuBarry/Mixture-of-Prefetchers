@@ -49,6 +49,15 @@ EXPERTS = {
     "SMS":     {"type": "sms",          "config": "config/sms.ini"},
 }
 
+LLC_PREFETCHERS = {
+    "LLC-AMPM":     {"type": "ampm",      "config": "config/ampm.ini"},
+    "LLC-BOP":      {"type": "bop",       "config": "config/bop.ini"},
+    "LLC-MLOP":     {"type": "mlop",      "config": "config/mlop.ini"},
+    "LLC-NextLine": {"type": "next_line", "config": "config/next_line.ini"},
+    "LLC-SMS":      {"type": "sms",       "config": "config/sms.ini"},
+    "LLC-Streamer": {"type": "streamer",  "config": "config/streamer.ini"},
+}
+
 # router name -> mop_router_type id in external/athena/inc/knobs.def
 ROUTERS = {
     "FixedSplit":    0,
@@ -86,9 +95,12 @@ class MopResult:
     l2c_prefetch_useful: float
     l2c_prefetch_useless: float
     l2c_prefetch_late: float
+    llc_prefetch_issued: float
+    llc_prefetch_useful: float
     l2c_load_miss: float
     l2c_mpki: float
     llc_load_miss: float
+    downstream_prefetch_issued: float
     downstream_prefetch_useful: float
     downstream_prefetch_accuracy: float
     pref0_issued_total: float
@@ -176,6 +188,16 @@ def single_expert_flags(config_module, athena_home: Path, warmup: int, sim: int,
     )
 
 
+def llc_prefetcher_flags(config_module, athena_home: Path, warmup: int, sim: int, experiment: str) -> str:
+    base = build_base_flags(config_module, athena_home, warmup, sim)
+    spec = LLC_PREFETCHERS[experiment]
+    return (
+        f"{base} "
+        f"--llc_prefetcher_types={spec['type']} "
+        f"--config={shlex.quote(str(athena_home / spec['config']))}"
+    )
+
+
 def mop_flags(
     config_module,
     athena_home: Path,
@@ -245,13 +267,16 @@ def collect_result(trace: str, experiment: str, kind: str, run_result) -> MopRes
     l2c_prefetch_issued_effective = run_result.l2c_prefetch_issued
     if kind in {"router", "builtin"} and l2c_prefetch_issued_effective == 0.0 and coordinator_issue_proxy > 0.0:
         l2c_prefetch_issued_effective = coordinator_issue_proxy
+    llc_prefetch_issued = metric_float(metrics, "Core_0_LLC_prefetch_issued", default=0.0)
+    llc_prefetch_useful = metric_float(metrics, "Core_0_LLC_prefetch_useful", default=0.0)
+    downstream_prefetch_issued = l2c_prefetch_issued_effective + llc_prefetch_issued
     downstream_prefetch_useful = (
         metric_float(metrics, "Core_0_L2C_prefetch_useful", default=0.0)
-        + metric_float(metrics, "Core_0_LLC_prefetch_useful", default=0.0)
+        + llc_prefetch_useful
     )
     downstream_prefetch_accuracy = 0.0
-    if l2c_prefetch_issued_effective:
-        downstream_prefetch_accuracy = downstream_prefetch_useful / l2c_prefetch_issued_effective
+    if downstream_prefetch_issued:
+        downstream_prefetch_accuracy = downstream_prefetch_useful / downstream_prefetch_issued
     return MopResult(
         trace=trace,
         experiment=experiment,
@@ -262,9 +287,12 @@ def collect_result(trace: str, experiment: str, kind: str, run_result) -> MopRes
         l2c_prefetch_useful=metric_float(metrics, "Core_0_L2C_prefetch_useful", default=0.0),
         l2c_prefetch_useless=metric_float(metrics, "Core_0_L2C_prefetch_useless", default=0.0),
         l2c_prefetch_late=metric_float(metrics, "Core_0_L2C_prefetch_late", default=0.0),
+        llc_prefetch_issued=llc_prefetch_issued,
+        llc_prefetch_useful=llc_prefetch_useful,
         l2c_load_miss=l2c_load_miss,
         l2c_mpki=l2c_mpki,
         llc_load_miss=metric_float(metrics, "Core_0_LLC_load_miss", default=0.0),
+        downstream_prefetch_issued=downstream_prefetch_issued,
         downstream_prefetch_useful=downstream_prefetch_useful,
         downstream_prefetch_accuracy=downstream_prefetch_accuracy,
         pref0_issued_total=pref0_issued_total,
@@ -298,7 +326,8 @@ def write_summary(results: list[MopResult], output_dir: Path, expert0: str, expe
         "ipc", "speedup_vs_baseline", "speedup_vs_best_single",
         "l2c_load_miss", "l2c_mpki",
         "l2c_prefetch_issued_raw", "l2c_prefetch_issued", "l2c_prefetch_useful", "l2c_prefetch_useless", "l2c_prefetch_late",
-        "downstream_prefetch_useful", "downstream_prefetch_accuracy",
+        "llc_prefetch_issued", "llc_prefetch_useful",
+        "downstream_prefetch_issued", "downstream_prefetch_useful", "downstream_prefetch_accuracy",
         "pref0_issued_total", "pref1_issued_total",
         "pref0_useful_total", "pref1_useful_total",
         "pref0_budget_total", "pref1_budget_total",
@@ -326,6 +355,9 @@ def write_summary(results: list[MopResult], output_dir: Path, expert0: str, expe
                     f"{item.l2c_prefetch_useful:.0f}",
                     f"{item.l2c_prefetch_useless:.0f}",
                     f"{item.l2c_prefetch_late:.0f}",
+                    f"{item.llc_prefetch_issued:.0f}",
+                    f"{item.llc_prefetch_useful:.0f}",
+                    f"{item.downstream_prefetch_issued:.0f}",
                     f"{item.downstream_prefetch_useful:.0f}",
                     f"{item.downstream_prefetch_accuracy:.6f}",
                     f"{item.pref0_issued_total:.0f}",
@@ -396,6 +428,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--single-baseline", dest="single_baselines", action="append",
                         choices=sorted(EXPERTS),
                         help="Additional single-prefetcher baselines beyond expert-0 / expert-1.")
+    parser.add_argument("--llc-prefetcher", dest="llc_prefetchers", action="append",
+                        choices=sorted(LLC_PREFETCHERS),
+                        help="Additional LLC-only prefetcher baselines to run without L2 prefetching.")
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--warmup-instructions", type=int, default=None)
     parser.add_argument("--simulation-instructions", type=int, default=None)
@@ -426,6 +461,7 @@ def main() -> int:
     routers = args.routers
     builtins = args.builtins or []
     single_baselines = args.single_baselines
+    llc_prefetchers = args.llc_prefetchers
     warmup = args.warmup_instructions
     sim = args.simulation_instructions
     expert_0 = args.expert_0
@@ -440,6 +476,7 @@ def main() -> int:
         requested_singles = mode.get("single_prefetcher_baselines", {}).get("experiments", [])
         mode_singles = [s for s in requested_singles if s in EXPERTS]
         single_baselines = single_baselines or mode_singles
+        llc_prefetchers = llc_prefetchers or mode.get("llc_prefetcher_baselines", [])
         if warmup is None:
             warmup = mode["warmup_instructions"]
         if sim is None:
@@ -459,6 +496,7 @@ def main() -> int:
         expert_1 = "SPP+PPF"
     routers = routers or []
     builtins = builtins or []
+    llc_prefetchers = llc_prefetchers or []
 
     assert expert_0 != expert_1, "Choose two distinct experts"
 
@@ -509,6 +547,8 @@ def main() -> int:
     experiment_plan: list[tuple[str, str]] = [("Baseline", "baseline")]
     for expert in sorted(extra_singles):
         experiment_plan.append((expert, "single"))
+    for llc_prefetcher in llc_prefetchers:
+        experiment_plan.append((llc_prefetcher, "llc"))
     for router in routers:
         experiment_plan.append((router, "router"))
     for coord in builtins:
@@ -522,6 +562,8 @@ def main() -> int:
                 flags = build_base_flags(config_module, athena_home, warmup, sim)
             elif kind == "single":
                 flags = single_expert_flags(config_module, athena_home, warmup, sim, experiment)
+            elif kind == "llc":
+                flags = llc_prefetcher_flags(config_module, athena_home, warmup, sim, experiment)
             elif kind == "router":
                 if args.epoch_trace:
                     epoch_trace_prefix = artifact_dir / "epoch_logs" / f"{trace_name}__{experiment}"
@@ -591,6 +633,7 @@ def main() -> int:
                 "trace": plan.trace,
                 "experiment": plan.experiment,
                 "experiment_kind": plan.kind,
+                "llc_prefetcher": plan.experiment if plan.kind == "llc" else None,
                 "expert_0": expert_0 if plan.kind in {"router", "builtin"} else None,
                 "expert_1": expert_1 if plan.kind in {"router", "builtin"} else None,
                 "router": plan.experiment if plan.kind == "router" else None,
@@ -623,6 +666,9 @@ def main() -> int:
                 "l2c_prefetch_useful": result.l2c_prefetch_useful,
                 "l2c_prefetch_useless": result.l2c_prefetch_useless,
                 "l2c_prefetch_late": result.l2c_prefetch_late,
+                "llc_prefetch_issued": result.llc_prefetch_issued,
+                "llc_prefetch_useful": result.llc_prefetch_useful,
+                "downstream_prefetch_issued": result.downstream_prefetch_issued,
                 "downstream_prefetch_useful": result.downstream_prefetch_useful,
                 "downstream_prefetch_accuracy": result.downstream_prefetch_accuracy,
                 "pref0_issued_total": result.pref0_issued_total,

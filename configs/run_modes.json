@@ -14,6 +14,7 @@
         "routers": "recommended_routers_search_fast"
       },
       "builtin_coordinators": ["AthenaMAB"],
+      "llc_prefetcher_baselines": ["LLC-AMPM", "LLC-SMS"],
       "single_prefetcher_baselines": {
         "experiments": ["Baseline", "Pythia", "SPP+PPF", "MLOP", "SMS"]
       }
@@ -28,6 +29,7 @@
         "routers": "recommended_routers_all"
       },
       "builtin_coordinators": ["AthenaMAB"],
+      "llc_prefetcher_baselines": ["LLC-AMPM"],
       "single_prefetcher_baselines": {
         "experiments": ["Baseline", "Pythia", "SPP+PPF", "MLOP", "SMS"]
       }
@@ -42,6 +44,7 @@
         "routers": ["MoPLite"]
       },
       "builtin_coordinators": ["AthenaMAB"],
+      "llc_prefetcher_baselines": ["LLC-AMPM"],
       "single_prefetcher_baselines": {
         "experiments": ["Baseline", "Pythia", "SPP+PPF"]
       }

@@ -441,3 +441,55 @@ no-prefetch result and move `MoPLite` closer to parity with the pair-best single
 expert. But no tested alternate pair turns `MoPLite` into a winner against its
 own pair-best single. That means the current Stage 1 weakness is not only pair
 selection; the router policy itself still leaves substantial value unrealized.
+
+## 2026-04-28 — LLC-prefetcher experiment surface
+
+**Goal.** Explore the user's suggested "last-level cache" angle without
+weakening the prefetch-off baseline or relabeling the current MoPLite router as
+a win.
+
+**What changed.** Added an explicit `llc` experiment kind to
+`scripts/run_mop_lite.py`. These runs use the same baseline flags and same trace
+protocol, but add `--llc_prefetcher_types=<candidate>` without enabling any L2
+prefetcher. The dataset builder now records `llc_prefetch_issued`,
+`llc_prefetch_useful`, `downstream_prefetch_issued`, and
+`downstream_prefetch_useful`, so LLC-only traffic is not hidden behind L2C
+counters.
+
+**Exploratory screen.** A local, short-window screen was run on the 13 traces
+already present under `artifacts/athena_traces` using `0.5M` warmup and `1M`
+simulation instructions. This was a candidate search, not final evidence.
+
+- `LLC-AMPM`: `1.0083x` geomean vs no-prefetch, `7/13` per-trace wins.
+- `SPP+PPF`: `1.0453x` geomean vs no-prefetch, `9/13` per-trace wins in the
+  same screen.
+- `SPP+PPF + LLC-AMPM`: `0.9994x` geomean vs no-prefetch, showing that naive
+  L2+LLC stacking can interfere rather than help.
+
+**End-to-end smoke check.** `python3 scripts/run_mop_lite.py --mode smoke_mode
+--workers 6 --skip-download --results-dir results/_dev_llc_smoke` completed
+with 12 runs. `LLC-AMPM` beat no-prefetch on both smoke traces (`1.0215x` on
+`fluidanimate`, `1.0001x` on `429.mcf`) but did not beat the stronger L2 single
+expert on those traces.
+
+**Longer local check.** A second local run used all 13 currently downloaded
+traces and the search-window length (`5M` warmup + `10M` simulation):
+`python3 scripts/run_mop_lite.py --warmup-instructions 5000000
+--simulation-instructions 10000000 --workers 8 --skip-download --results-dir
+results/_dev_llc_local_10m --llc-prefetcher LLC-AMPM ...`. Because one local
+PARSEC canneal trace is a short dev trace not in `official_v1`, this remains a
+local stress check rather than an official dataset row.
+
+- `LLC-AMPM`: `0.9654x` geomean vs no-prefetch, `5/13` per-trace wins.
+- `Pythia`: `0.9825x` geomean vs no-prefetch, `7/13` per-trace wins.
+- `SPP+PPF`: `0.9991x` geomean vs no-prefetch, `6/13` per-trace wins.
+
+**Interpretation.** The defensible angle is now a broader cache-level portfolio
+measurement: LLC-only prefetching can be evaluated fairly and sometimes helps,
+but the longer local check does not justify claiming that LLC assistance fixes
+the current routing weakness. The stronger evidence remains the existing
+official Stage 1 result: some coordinators and L2 single experts beat
+no-prefetch in split geomean, while the current MoPLite routing rule does not
+beat the pair-best single. The next evidence-producing run should include the
+full official suite, matched L2 singles, matched LLC-only candidates, and the
+existing coordinators.

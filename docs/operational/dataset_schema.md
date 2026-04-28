@@ -17,9 +17,10 @@ CSV before using it for analysis or report updates.
 | `trace`               | string  | Athena trace name (see `external/athena/scripts/config.py`).                |
 | `benchmark_family`    | string  | `SPEC`, `PARSEC`, `LIGRA`, or `CVP`, inferred from the trace name.          |
 | `split_side`          | string  | `train` / `heldout` / `search_subset` / `other`.                            |
-| `experiment`          | string  | `Baseline`, single-expert name, router name, or builtin coordinator name.   |
-| `experiment_kind`     | string  | `baseline` / `single` / `router` / `builtin`.                               |
+| `experiment`          | string  | `Baseline`, single-expert name, LLC-prefetcher name, router name, or builtin coordinator name. |
+| `experiment_kind`     | string  | `baseline` / `single` / `llc` / `router` / `builtin`.                       |
 | `router`              | string  | Router name if `experiment_kind == "router"`, else empty.                   |
+| `llc_prefetcher`      | string  | LLC-prefetcher name if `experiment_kind == "llc"`, else empty.              |
 | `builtin_coordinator` | string  | Name if `experiment_kind == "builtin"`, else empty.                         |
 | `expert_0`            | string  | Expert 0 name for router/builtin runs.                                      |
 | `expert_1`            | string  | Expert 1 name for router/builtin runs.                                      |
@@ -34,7 +35,7 @@ CSV before using it for analysis or report updates.
 | `speedup_vs_best_single`       | float | `ipc / max(ipc of expert-0 or expert-1 runs on same trace)`        |
 | `baseline_ipc`                 | float | Convenience column (same for every row of the same trace)          |
 | `best_single_ipc`              | float | Convenience column                                                 |
-| `traffic_overhead_vs_baseline` | float | `(l2c_prefetch_issued - Baseline.l2c_prefetch_issued) / Baseline.l2c_prefetch_issued`; when baseline has zero traffic, this degenerates to a 0/1 indicator for whether traffic was introduced at all. |
+| `traffic_overhead_vs_baseline` | float | `(downstream_prefetch_issued - Baseline.downstream_prefetch_issued) / Baseline.downstream_prefetch_issued`; when baseline has zero traffic, this degenerates to a 0/1 indicator for whether traffic was introduced at all. |
 
 ## Cache / prefetch traffic
 
@@ -49,8 +50,11 @@ CSV before using it for analysis or report updates.
 | `l2c_prefetch_late`             | `Core_0_L2C_prefetch_late`                                    |
 | `l2c_total_miss`                | `Core_0_L2C_total_miss`                                       |
 | `l1d_load_miss`                 | `Core_0_L1D_load_miss`                                        |
+| `llc_prefetch_issued`           | `Core_0_LLC_prefetch_issued`                                  |
 | `llc_prefetch_useful`           | `Core_0_LLC_prefetch_useful`                                  |
-| `downstream_prefetch_accuracy`  | `(L2C + LLC useful) / l2c_prefetch_issued`, using the dataset's effective traffic column rather than always the raw simulator counter |
+| `downstream_prefetch_issued`    | Effective L2C issued traffic plus LLC-issued traffic.          |
+| `downstream_prefetch_useful`    | `l2c_prefetch_useful + llc_prefetch_useful`                    |
+| `downstream_prefetch_accuracy`  | `downstream_prefetch_useful / downstream_prefetch_issued`      |
 | `l2c_rq_full`                   | `Core_0_L2C_rq_full` queue-pressure proxy                     |
 | `l2c_wq_full`                   | `Core_0_L2C_wq_full` queue-pressure proxy                     |
 | `l2c_pq_full`                   | `Core_0_L2C_pq_full` prefetch-queue pressure proxy            |
@@ -95,8 +99,9 @@ after the configs evolve:
 - `speedup_vs_best_single` uses the better of the two coordinated experts
   (`expert_0`, `expert_1`) for that run group and trace, not the best of every
   single-prefetcher baseline that happened to be included in the batch.
-- `experiment == "Baseline"` rows have `experiment_kind == "baseline"`; all other
-  kinds have non-empty `l2c_prefetcher_types` in `flags`.
+- `experiment == "Baseline"` rows have `experiment_kind == "baseline"`; `single`,
+  `router`, and `builtin` rows have non-empty `l2c_prefetcher_types` in `flags`,
+  while `llc` rows have non-empty `llc_prefetcher_types`.
 - For every `(run_group_id, trace)` there must be a complete experiment matrix
   before the CSV is considered valid (`build_dataset.py` fails otherwise).
 - `heldout` rows are never generated during search / development runs.

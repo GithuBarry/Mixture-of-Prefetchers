@@ -129,10 +129,11 @@ def compute_derived(rows: list[dict]) -> None:
             row["speedup_vs_best_single"] = ipc / best_single_ipc if best_single_ipc else float("nan")
             row["baseline_ipc"] = baseline_ipc
             row["best_single_ipc"] = best_single_ipc
-            baseline_traffic = float(baseline["l2c_prefetch_issued"])
+            baseline_traffic = float(baseline.get("downstream_prefetch_issued") or baseline["l2c_prefetch_issued"])
+            row_traffic = float(row.get("downstream_prefetch_issued") or row["l2c_prefetch_issued"])
             row["traffic_overhead_vs_baseline"] = (
-                (float(row["l2c_prefetch_issued"]) - baseline_traffic) / baseline_traffic
-                if baseline_traffic else float(row["l2c_prefetch_issued"] > 0)
+                (row_traffic - baseline_traffic) / baseline_traffic
+                if baseline_traffic else float(row_traffic > 0)
             )
 
 
@@ -168,6 +169,7 @@ def build_rows(manifest_rows: list[dict], split_side: dict[str, str], root: Path
         row["benchmark_family"] = benchmark_family(record["trace"])
         # Pull a few useful derived metrics directly from the metrics file.
         row["l1d_load_miss"] = pick_metric(metrics, "Core_0_L1D_load_miss")
+        row["llc_prefetch_issued"] = pick_metric(metrics, "Core_0_LLC_prefetch_issued") or 0.0
         row["llc_prefetch_useful"] = pick_metric(metrics, "Core_0_LLC_prefetch_useful")
         row["l2c_total_miss"] = pick_metric(metrics, "Core_0_L2C_total_miss")
         row["l2c_rq_full"] = pick_metric(metrics, "Core_0_L2C_rq_full")
@@ -183,11 +185,16 @@ def build_rows(manifest_rows: list[dict], split_side: dict[str, str], root: Path
             coordinator_issue_proxy = float(row["pref0_issued_total"]) + float(row["pref1_issued_total"])
             if coordinator_issue_proxy > 0.0:
                 row["l2c_prefetch_issued"] = coordinator_issue_proxy
+        downstream_prefetch_issued = float(row.get("downstream_prefetch_issued") or 0.0)
+        if downstream_prefetch_issued == 0.0:
+            downstream_prefetch_issued = float(row["l2c_prefetch_issued"]) + float(row["llc_prefetch_issued"] or 0.0)
+        row["downstream_prefetch_issued"] = downstream_prefetch_issued
         downstream_prefetch_useful = float(row.get("l2c_prefetch_useful") or 0.0) + float(row.get("llc_prefetch_useful") or 0.0)
-        if float(row["l2c_prefetch_issued"]):
-            row["downstream_prefetch_accuracy"] = downstream_prefetch_useful / float(row["l2c_prefetch_issued"])
+        if downstream_prefetch_issued:
+            row["downstream_prefetch_accuracy"] = downstream_prefetch_useful / downstream_prefetch_issued
         else:
             row["downstream_prefetch_accuracy"] = 0.0
+        row["downstream_prefetch_useful"] = downstream_prefetch_useful
         # Expert utilisation ratios (0 if router didn't issue, nan if no signal).
         for i in (0, 1):
             issued = float(record[f"pref{i}_issued_total"])
@@ -202,19 +209,22 @@ def write_csv(rows: list[dict], path: Path) -> None:
     # Stable column order: identity first, metrics next, config last.
     priority = [
         "run_group_id", "trace", "benchmark_family", "split_side", "experiment", "experiment_kind", "router",
+        "llc_prefetcher",
         "builtin_coordinator", "expert_0", "expert_1", "seed",
         "ipc", "speedup_vs_baseline", "speedup_vs_best_single",
         "baseline_ipc", "best_single_ipc", "traffic_overhead_vs_baseline",
         "l2c_load_miss", "l2c_mpki",
         "l2c_prefetch_issued_raw", "l2c_prefetch_issued", "l2c_prefetch_useful",
         "l2c_prefetch_useless", "l2c_prefetch_late",
+        "llc_prefetch_issued", "llc_prefetch_useful",
+        "downstream_prefetch_issued", "downstream_prefetch_useful",
         "downstream_prefetch_accuracy",
         "pref0_issued_total", "pref1_issued_total",
         "pref0_useful_total", "pref1_useful_total",
         "pref0_budget_total", "pref1_budget_total",
         "pref0_selected_epochs", "pref1_selected_epochs",
         "pref0_accuracy", "pref1_accuracy",
-        "l1d_load_miss", "llc_prefetch_useful", "l2c_total_miss",
+        "l1d_load_miss", "l2c_total_miss",
         "l2c_rq_full", "l2c_wq_full", "l2c_pq_full",
         "dram_rq_row_buffer_miss", "dram_bus_congested", "dram_mshr_full",
         "branch_pred_mpki", "cycles", "total_instructions",
