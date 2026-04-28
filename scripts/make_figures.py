@@ -50,6 +50,7 @@ EXPERIMENT_COLORS = {
     "AthenaMAB": PALETTE["amber"],
     "OneShotFit": PALETTE["orange"],
     "MoPLite": PALETTE["magenta"],
+    "MoPLiteGuarded": PALETTE["black"],
     "WinnerTakeAll": PALETTE["purple"],
     "FixedSplit": PALETTE["blue"],
     "RandomRouter": PALETTE["light_grey"],
@@ -122,6 +123,7 @@ def experiment_order(experiments: list[str]) -> list[str]:
         "RandomRouter",
         "OneShotFit",
         "MoPLite",
+        "MoPLiteGuarded",
     ]
     rank = {name: i for i, name in enumerate(preferred)}
     return sorted(experiments, key=lambda name: (rank.get(name, 999), name))

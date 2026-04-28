@@ -133,11 +133,12 @@ void Oogway::print_config() {
     cout << "mop_router_type " << knob::mop_router_type << endl
          << "mop_total_budget " << knob::mop_total_budget << endl
          << "mop_fixed_split_ratio " << knob::mop_fixed_split_ratio << endl
-         << "mop_accuracy_floor " << knob::mop_accuracy_floor << endl
-         << "mop_score_weights " << array_to_string(knob::mop_score_weights) << endl
-         << "mop_one_shot_epochs " << knob::mop_one_shot_epochs << endl
-         << "mop_seed " << knob::mop_seed << endl
-         << "mop_epoch_trace " << knob::mop_epoch_trace << endl;
+       << "mop_accuracy_floor " << knob::mop_accuracy_floor << endl
+       << "mop_score_weights " << array_to_string(knob::mop_score_weights) << endl
+       << "mop_one_shot_epochs " << knob::mop_one_shot_epochs << endl
+       << "mop_guarded_min_budget_share " << knob::mop_guarded_min_budget_share << endl
+       << "mop_seed " << knob::mop_seed << endl
+       << "mop_epoch_trace " << knob::mop_epoch_trace << endl;
   }
 }
 
@@ -460,9 +461,10 @@ uint32_t Oogway::mop_decision(og_state_t *state) {
     }
     return mop.one_shot_winner == 0 ? 2 : 1;
   case 4:
+  case 5:
   default:
     if (score0 <= 0.0f && score1 <= 0.0f) {
-      return 0;
+      return knob::mop_router_type == 5 ? 3 : 0;
     }
     if (score0 <= 0.0f) {
       return 1;
@@ -537,6 +539,31 @@ void Oogway::configure_mop_epoch(og_state_t *state) {
         set_mop_budget(0, total_budget / 2);
         set_mop_budget(1, total_budget - prefetch_budget[0]);
       }
+    }
+    break;
+  }
+  case 5: {
+    const float score_sum = score0 + score1;
+    if (curr_action == 0) {
+      break;
+    }
+    if (curr_action == 2) {
+      set_prefetch_enabled(0, true);
+      set_mop_budget(0, total_budget);
+    } else if (curr_action == 1) {
+      set_prefetch_enabled(1, true);
+      set_mop_budget(1, total_budget);
+    } else {
+      set_prefetch_enabled(0, true);
+      set_prefetch_enabled(1, true);
+      uint64_t budget0 = total_budget / 2;
+      if (score_sum > 0.0f) {
+        budget0 = static_cast<uint64_t>(std::llround(total_budget * (score0 / score_sum)));
+      }
+      const uint64_t min_budget = (total_budget * std::min<uint32_t>(knob::mop_guarded_min_budget_share, 50)) / 100;
+      budget0 = std::max<uint64_t>(min_budget, std::min<uint64_t>(budget0, total_budget - min_budget));
+      set_mop_budget(0, budget0);
+      set_mop_budget(1, total_budget - prefetch_budget[0]);
     }
     break;
   }

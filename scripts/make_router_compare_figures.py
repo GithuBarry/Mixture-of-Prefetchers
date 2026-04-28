@@ -28,6 +28,7 @@ METHOD_COLOR = {
     "WinnerTakeAll": PALETTE["purple"],
     "FixedSplit": PALETTE["blue"],
     "MoPLite": PALETTE["magenta"],
+    "MoPLiteGuarded": PALETTE["black"],
 }
 
 ACTION_LABEL = {0: "both off", 1: "SPP+PPF only", 2: "Pythia only", 3: "both on"}
@@ -100,7 +101,7 @@ def main() -> int:
         methods.add(method)
 
     traces = sorted(traces)
-    methods = [m for m in ["AthenaMAB", "WinnerTakeAll", "FixedSplit", "MoPLite"] if m in methods]
+    methods = [m for m in ["AthenaMAB", "WinnerTakeAll", "FixedSplit", "MoPLite", "MoPLiteGuarded"] if m in methods]
 
     fig, axes = plt.subplots(2, 1, figsize=(10, max(8, len(traces) * 0.45 + 3)), gridspec_kw={"height_ratios": [1.8, 1.2]})
 

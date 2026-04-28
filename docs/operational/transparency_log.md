@@ -262,3 +262,16 @@ Format:
   evaluate the last-level-cache angle without hiding traffic or changing the
   meaning of existing Stage 1 rows.
 - AI-assisted: yes.
+
+### 2026-04-28 — `MoPLiteGuarded` kept explicit, not promoted to defaults
+- Options: (a) add `MoPLiteGuarded` to recommended/default run modes
+  immediately, (b) keep it available only through explicit `--router
+  MoPLiteGuarded` until the Stage 2 seed decision is cleaner.
+- Choice: (b).
+- Confidence: high.
+- Evidence: Search-side data show a modest improvement over old `MoPLite`
+  (`1.002849x` relative geomean) and a small no-prefetch gain (`1.004932x`),
+  but the candidate remains below pair-best single (`0.970158x`). That makes it
+  a reasonable Stage 2 seed, not a new default result. Keeping it explicit
+  avoids silently changing the Stage 1 reproduction path.
+- AI-assisted: yes.

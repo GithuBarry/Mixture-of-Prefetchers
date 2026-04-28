@@ -65,6 +65,7 @@ ROUTERS = {
     "RandomRouter":  2,
     "OneShotFit":    3,
     "MoPLite":       4,
+    "MoPLiteGuarded": 5,
 }
 
 # Builtin multi-expert coordinators that pre-date MoP-lite; used as baselines.
@@ -77,6 +78,7 @@ INTERESTING_CONFIG_KEYS = {
     "mop_total_budget",
     "mop_accuracy_floor",
     "mop_fixed_split_ratio",
+    "mop_guarded_min_budget_share",
     "mop_score_weights",
     "mop_seed",
     "mop_router_type",
@@ -646,6 +648,7 @@ def main() -> int:
                 "mop_total_budget": int(active_settings["mop_total_budget"]) if "mop_total_budget" in active_settings else None,
                 "mop_accuracy_floor": int(active_settings["mop_accuracy_floor"]) if "mop_accuracy_floor" in active_settings else None,
                 "mop_fixed_split_ratio": int(active_settings["mop_fixed_split_ratio"]) if "mop_fixed_split_ratio" in active_settings else None,
+                "mop_guarded_min_budget_share": int(active_settings["mop_guarded_min_budget_share"]) if "mop_guarded_min_budget_share" in active_settings else None,
                 "mop_score_weights": active_settings.get("mop_score_weights"),
                 "git_revision": revision,
                 "host": hostname,

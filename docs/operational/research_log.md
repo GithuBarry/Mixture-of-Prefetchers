@@ -493,3 +493,37 @@ no-prefetch in split geomean, while the current MoPLite routing rule does not
 beat the pair-best single. The next evidence-producing run should include the
 full official suite, matched L2 singles, matched LLC-only candidates, and the
 existing coordinators.
+
+## 2026-04-28 — Stage 2 guarded router seed
+
+**Goal.** Prepare a Stage 2 implementation seed that directly targets the
+documented Stage 1 failure mode: `MoPLite` often has useful ranking signal but
+overuses `both off` or starves one expert through score-proportional budget
+splitting.
+
+**Implementation.** Added explicit router `MoPLiteGuarded`
+(`mop_router_type=5`) without changing old `MoPLite` (`mop_router_type=4`).
+The guarded variant:
+
+- maps both nonpositive scores to `both on` instead of `both off`
+- applies a configurable per-expert budget floor,
+  `mop_guarded_min_budget_share`, when both experts are enabled
+- is available only through explicit `--router MoPLiteGuarded`; it is not in
+  default or recommended run modes yet
+
+**Development evidence.**
+
+- two-trace smoke: `MoPLiteGuarded` `1.0205x` vs no-prefetch, old `MoPLite`
+  approximately neutral
+- 13-local-trace 1M scout: `MoPLiteGuarded` `1.0115x` vs no-prefetch and
+  `1.0018x` vs old `MoPLite`
+- official 10-trace search subset, `5M` warmup + `10M` simulation:
+  - `MoPLiteGuarded`: `1.004932x` vs no-prefetch
+  - old `MoPLite`: `1.002077x` vs no-prefetch
+  - `MoPLiteGuarded / MoPLite`: `1.002849x`
+  - `MoPLiteGuarded` vs pair-best single: `0.970158x`
+
+**Interpretation.** The guarded policy is a modest but real train-side
+improvement over old `MoPLite`. It does not solve the pair-best-single problem.
+Treat it as a Stage 2 seed family for train-side structural search, not as the
+final result.
