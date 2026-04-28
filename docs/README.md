@@ -31,26 +31,45 @@ If you want the shortest path, read these in order:
 
 ## Current project state
 
-The repository now has the finished Stage 1 evidence package.
+The repository contains the complete Stage 1 baseline and finished Stage 2
+policy optimization.
 
-- The project question is documented in `docs/outsider_guide.md`.
-- The charter-level source of truth for Stage 1 is
-  `docs/operational/mop_stage1_instruction.md`.
-- The official full evaluation design is frozen in
-  `configs/trace_suites.json`, `configs/run_modes.json`, and
-  `docs/operational/experiment_setup.md`.
-- The merged analysis artifacts summarize 230 completed runs over the full
-  24-trace Stage 1 suite (`17` train-side traces + `7` held-out traces).
-  `data/processed/runs_summary.md` and `report/tables/router_ablation.md`
-  reflect that finished Stage 1 snapshot.
-- Stage 2 search has a frozen boundary in `docs/operational/stage2_memo.md`.
+**Stage 1** — complete.
+- 230 runs across the full 24-trace suite (17 train + 7 held-out).
+- `MoPLite` does not beat pair-best single expert in geomean on either split
+  (held-out: 0.919×). Failure modes identified: both-off overuse and weak
+  winner isolation.
+- Artifacts: `data/processed/runs.csv`, `report/tables/router_ablation.md`,
+  `report/figures/`.
+
+**Stage 2** — complete.
+- `OpenEvolve` (router type 5, `external/athena/src/oogway.cc`) implements
+  E1 Anti-Off Gate, E2 Winner Isolation, E3 Squared-Score Budget Split.
+- Search subset (10 tr, 5M/10M): MoPLite 0.968× → OpenEvolve **0.978×** (+0.98 pp).
+- Held-out (7 tr, 20M/50M): MoPLite 0.919× → OpenEvolve **0.924×** (+0.46 pp),
+  crossing 1.0× on 3 of 7 traces.
+- 40-iteration automated OpenEvolve search run (CMU AI Gateway); best evolved
+  candidate overfit to scout set (0.972× vs manual seed 0.978×).
+- Freeze memo: `docs/decisions/stage2_seed_freeze.md`.
+- Full results and mechanism analysis: `report/draft.md` §7–§9.
+- OpenEvolve artifacts: `openevolve/` (seed, evaluator, config, best evolved program,
+  candidate ledger).
 
 ## Which file answers which question?
 
 - "What is MoP-lite and what is in scope?"
   - `docs/outsider_guide.md`
-  - `docs/operational/mop_stage1_instruction.md`
-  - `docs/operational/stage2_memo.md`
+  - `docs/operational/mop_stage1_instruction_v2.md`
+  - `docs/operational/mop_stage2_instruction_v2.md`
+  - `docs/decisions/stage2_seed_freeze.md`
+- "What is OpenEvolve and how does it differ from MoPLite?"
+  - `report/draft.md` §7
+  - `external/athena/src/oogway.cc` (case 5)
+  - `openevolve/initial_program.py` (policy as Python)
+- "What did the automated OpenEvolve search find?"
+  - `openevolve/candidate_ledger.jsonl`
+  - `openevolve/best_evolved_program.py`
+  - `report/draft.md` §9
 - "Which traces and instruction windows count as official?"
   - `docs/operational/experiment_setup.md`
   - `configs/trace_suites.json`
