@@ -1,0 +1,17 @@
+{
+  "id": "ffca3913-b895-4337-a2c8-5668cda16c4b",
+  "generation": 2,
+  "iteration": 24,
+  "timestamp": 1777410213.593496,
+  "parent_id": "5bfcb64a-6f98-4c4a-afe7-f241f94a16f9",
+  "metrics": {
+    "score": 1.088003,
+    "score_vs_best_single": 1.087343,
+    "score_vs_noprefetch": 1.013199,
+    "both_off_rate": 0.0,
+    "run_id": "7ebf5136",
+    "valid": true
+  },
+  "language": "python",
+  "saved_at": 1777413210.257608
+}

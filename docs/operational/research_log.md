@@ -658,6 +658,62 @@ fully transparent, yet matches `AthenaMAB` geomean on the search subset.
 Run the held-out 7-trace evaluation with final-mode instruction windows
 (`20M` warmup + `50M` simulation) to get the definitive Stage 2 result.
 
+## 2026-04-28 — OpenEvolve automated search (40 iterations)
+
+**Goal.** Run the automated OpenEvolve search using the CMU AI Gateway
+(claude-haiku-4-5 primary, gpt-5-mini fallback) to discover a better
+coordination policy than the manual `OpenEvolve` seed.
+
+**Search configuration.**
+
+- Evaluator: 3-trace scout set (`429.mcf`, `605.mcf_s`, `450.soplex`),
+  2M warmup + 4M simulation (~2.5 min per evaluation)
+- LLM: claude-haiku-4-5-20251001-v1:0 (CMU AI Gateway)
+- Iterations: 40 (completed in ~1.7 hours)
+- Fitness: geomean `speedup_vs_best_single` on scout + small bonuses
+
+**Search outcome.**
+
+- 39 of 40 iterations evaluated successfully (1 LLM 401 error recovered)
+- Best candidate: `ffca3913` at iteration 24, scout score `1.088x`
+- Key changes from seed: `accuracy_floor` 30→18, `isolation_threshold`
+  3.0→1.8, `coverage_weight` 0.25→0.5, `traffic_weight` 1.0→0.75
+
+**Full 10-trace validation (5M/10M windows):**
+
+| Method | Geomean vs best single |
+| --- | ---: |
+| OpenEvolve seed (manual) | 0.9781x |
+| WinnerTakeAll | 0.9780x |
+| AthenaMAB | 0.9776x |
+| **OpenEvolve evolved** | **0.9722x** |
+| Stage 1 MoPLite | 0.9683x |
+
+**Interpretation.**
+
+The evolved candidate improves over Stage 1 MoPLite by +0.4 pp but
+regresses from the manual seed by -0.6 pp on the full 10-trace evaluation.
+This is a **generalization failure**: the 3-trace scout with short windows
+(2M/4M) was too small to prevent overfitting. The evolved policy found by
+OpenEvolve (lower accuracy_floor=18, lower isolation_threshold=1.8) scores
+well on the scout set but those settings do not transfer to the broader
+evaluation set with longer windows.
+
+The honest conclusion is: the manual seed (`OpenEvolve` type 5 with
+`isolation_threshold=3.0`, `accuracy_floor=30`) remains the strongest
+fixed-rule coordinator on the full search subset. The automated search
+demonstrates the correct infrastructure is in place, but the scout set
+needs to be larger and the windows longer for the search signal to
+generalize. This is documented as a known limitation.
+
+**Artifacts.**
+
+- `openevolve/openevolve_output/best/best_program.py` — best evolved policy
+- `openevolve/openevolve_output/best/best_program_info.json` — metadata
+- `openevolve/candidate_ledger.jsonl` — all evaluated candidates
+- `openevolve/openevolve_output/logs/` — full search logs
+- `results/openevolve_search/` — per-candidate evaluation directories
+
 ## 2026-04-28 — OpenEvolve held-out evaluation (7 traces, final-mode windows)
 
 **Goal.** Run `OpenEvolve` against `MoPLite`, `WinnerTakeAll`, and `AthenaMAB`

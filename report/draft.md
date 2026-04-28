@@ -643,3 +643,24 @@ online reward estimator handles that trace and `437.leslie3d` far better than
 any fixed-rule approach. Closing the remaining gap requires either online
 adaptation or a better score signal for strong-dominance traces, not a
 further routing policy fix.
+
+Stage 2 also ran a 40-iteration automated OpenEvolve search (claude-haiku-4-5,
+CMU AI Gateway) over the policy parameter space. The best evolved candidate
+(`accuracy_floor`=18, `isolation_threshold`=1.8) scored `1.088x` on the
+3-trace scout set used during search but **0.972x** on the full 10-trace
+evaluation — a regression of −0.6 pp from the manual seed. This is a
+generalization failure: the 3-trace scout with short simulation windows
+(2M/4M) was insufficient to prevent overfitting. The manual seed remains
+the strongest fixed-rule result. The infrastructure for automated search
+is in place; a larger scout set with full-length windows is needed for
+the search signal to generalize.
+
+Full comparison (10-trace search subset, 5M/10M windows):
+
+| Method | Geomean vs best single |
+| --- | ---: |
+| OpenEvolve seed (manual) | **0.978x** |
+| WinnerTakeAll | 0.978x |
+| AthenaMAB | 0.978x |
+| OpenEvolve evolved (automated) | 0.972x |
+| Stage 1 MoPLite | 0.968x |

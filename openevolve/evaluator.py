@@ -41,17 +41,16 @@ CANDIDATE_LEDGER = REPO_ROOT / "openevolve" / "candidate_ledger.jsonl"
 # Use conda Python (has all deps) rather than system Python
 PYTHON = "/opt/anaconda3/bin/python3"
 
-# Fast 4-trace scout set — covers both failure-mode traces and two win-region traces.
-# ~4-6 min per evaluation, fast enough for 40 iterations in a few hours.
+# Fast 3-trace scout — covers failure-mode, win-region, and a hard trace.
+# 2M warmup + 4M sim keeps each evaluation under 4 min → 40 iters ≈ 2.5 hours.
 SCOUT_TRACES = [
-    "429.mcf-192B",                  # both-off failure trace
-    "parsec_2.1.fluidanimate.simlarge.prebuilt.drop_9500M.length_250M",  # both-off trace
-    "605.mcf_s-472B",                # win-region trace (OpenEvolve beats baseline here)
-    "450.soplex-92B",                # mixed trace
+    "429.mcf-192B",                  # primary both-off failure trace
+    "605.mcf_s-472B",                # strong win-region trace
+    "450.soplex-92B",                # mixed/complementary trace
 ]
 
-SMOKE_WARMUP = 5_000_000
-SMOKE_SIM = 10_000_000
+SMOKE_WARMUP = 2_000_000
+SMOKE_SIM    = 4_000_000
 
 BASE_INI_TEMPLATE = """og_enable=true
 og_multi_prefetcher_enable=true
@@ -112,11 +111,10 @@ def run_batch(traces: list[str], results_dir: Path, warmup: int, sim: int,
     cmd = [
         PYTHON, str(SCRIPTS / "run_mop_lite.py"),
         "--expert-0", "Pythia", "--expert-1", "SPP+PPF",
-        "--router", "OpenEvolve", "--router", "MoPLite",
-        "--builtin", "AthenaMAB",
+        "--router", "OpenEvolve",
         "--warmup-instructions", str(warmup),
         "--simulation-instructions", str(sim),
-        "--workers", "4",
+        "--workers", "6",
         "--skip-download",
         "--results-dir", str(results_dir),
     ]
