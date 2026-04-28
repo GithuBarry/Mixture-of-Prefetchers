@@ -81,9 +81,10 @@ after the configs evolve:
 
 `warmup_instructions`, `simulation_instructions`, `epoch_len_instructions`,
 `mop_total_budget`, `mop_accuracy_floor`, `mop_fixed_split_ratio`,
-`mop_score_weights`, `mode`, `host`, `git_revision`, `duration_s`, `start_utc`,
-`end_utc`, `trace_path`, `log_path`, `stderr_path`, `metrics_path`,
-`epoch_trace_prefix`, `flags`.
+`mop_score_weights`, `mop_winner_isolation_threshold` (present for OpenEvolve
+runs; absent/null for all other routers), `mode`, `host`, `git_revision`,
+`duration_s`, `start_utc`, `end_utc`, `trace_path`, `log_path`, `stderr_path`,
+`metrics_path`, `epoch_trace_prefix`, `flags`.
 
 ## Invariants
 

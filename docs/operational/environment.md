@@ -1,6 +1,6 @@
 # Environment
 
-This document records the Stage 1 reproduction path. It answers four practical
+This document records the Stage 1 and Stage 2 reproduction path. It answers four practical
 questions:
 
 1. Which toolchain produced the current artifacts?
@@ -29,8 +29,15 @@ questions:
   with short instruction windows.
 - **Search mode**: the wider train-side mode used for iteration.
 - **Final mode**: the full-suite mode used for stronger evidence.
+- **Open Evolve mode**: Stage 2 evaluation mode. Runs `OpenEvolve` (router
+  type 5), `MoPLite`, and `WinnerTakeAll` on the `search_subset` traces at
+  search-mode instruction windows. Produces manifests under
+  `results/open_evolve_search/` intended for comparison against Stage 1
+  MoPLite results.
 
 ## Canonical command order
+
+**Stage 1 (baseline):**
 
 ```bash
 make -C external/athena -j$(nproc)
@@ -40,7 +47,31 @@ python3 scripts/build_dataset.py --manifest results/mop_lite_search/manifest.jso
 python3 scripts/make_figures.py
 ```
 
-That order reflects the full Stage 1 data flow.
+**Stage 2 / Open Evolve:**
+
+```bash
+make -C external/athena -j$(nproc)
+python3 scripts/run_mop_lite.py --mode open_evolve_mode --workers 15 --results-dir results/open_evolve_search
+# After reviewing search-side results, run held-out:
+python3 scripts/run_mop_lite.py \
+  --trace 437.leslie3d-134B --trace 459.GemsFDTD-1169B --trace 471.omnetpp-188B \
+  --trace parsec_2.1.canneal.simlarge.prebuilt.drop_4750M.length_250M \
+  --trace parsec_2.1.streamcluster.simlarge.prebuilt.drop_0M.length_250M \
+  --trace ligra_BC.com-lj.ungraph.gcc_6.3.0_O3.drop_500M.length_250M \
+  --trace secret_compute_fp_105 \
+  --warmup-instructions 20000000 --simulation-instructions 50000000 \
+  --expert-0 Pythia --expert-1 "SPP+PPF" \
+  --router OpenEvolve --router MoPLite --builtin AthenaMAB \
+  --workers 15 --skip-download --epoch-trace \
+  --results-dir results/open_evolve_final
+python3 scripts/build_dataset.py \
+  --manifest results/mop_lite_search/manifest.jsonl \
+  --manifest results/mop_lite_train_extra/manifest.jsonl \
+  --manifest results/mop_lite_final/manifest.jsonl \
+  --manifest results/open_evolve_search/manifest.jsonl \
+  --manifest results/open_evolve_final/manifest.jsonl
+python3 scripts/make_figures.py
+```
 
 ## What each step produces
 
@@ -124,6 +155,7 @@ Each run record written by `scripts/run_mop_lite.py` includes:
 - `mop_accuracy_floor`
 - `mop_fixed_split_ratio`
 - `mop_score_weights`
+- `mop_winner_isolation_threshold` (OpenEvolve only; absent for other routers)
 - full simulator `flags`
 - `start_utc`, `end_utc`, and `duration_s`
 

@@ -532,3 +532,4 @@ DEF_KNOB(mop_score_weights, mop_score_weights, vector<float>, floatv, vector<flo
 DEF_KNOB(mop_one_shot_epochs, mop_one_shot_epochs, uint32_t, uint32, 4)
 DEF_KNOB(mop_seed, mop_seed, uint32_t, uint32, 1)
 DEF_KNOB(mop_epoch_trace, mop_epoch_trace, string, string, "")
+DEF_KNOB(mop_winner_isolation_threshold, mop_winner_isolation_threshold, float, float, 3.0f)

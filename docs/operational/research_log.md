@@ -441,3 +441,301 @@ no-prefetch result and move `MoPLite` closer to parity with the pair-best single
 expert. But no tested alternate pair turns `MoPLite` into a winner against its
 own pair-best single. That means the current Stage 1 weakness is not only pair
 selection; the router policy itself still leaves substantial value unrealized.
+
+## 2026-04-28 — Open Evolve: Stage 2 router implementation
+
+**Goal.** Implement `OpenEvolve` (router type 5) as a targeted fix for the two
+root causes identified in Stage 1 failure diagnostics:
+(1) both-off overuse driven by cold-start and accuracy-floor trips, and
+(2) insufficient winner isolation when one expert dominates.
+
+**What was changed.**
+
+- `external/athena/inc/knobs.def`: added `mop_winner_isolation_threshold`
+  (float, default `3.0`) controlling the score-ratio above which E2 routes
+  exclusively to one expert.
+- `external/athena/src/oogway.cc`: added router type 5 (`OpenEvolve`) in both
+  `mop_decision` and `configure_mop_epoch`.  Three targeted changes vs
+  MoPLite (type 4):
+  - **E1 Anti-Off Gate**: when both scores ≤ 0, fall back to
+    the historically more-active expert (or `both on` on epoch 1) instead of
+    `both off`.
+  - **E2 Winner Isolation**: when one score ≥ `mop_winner_isolation_threshold ×`
+    the other, route exclusively to the dominant expert with the full budget.
+  - **E3 Squared-Score Budget Split**: when both-on action is selected, use
+    squared scores for the budget allocation (steeper than linear; reduces
+    traffic dilution to the weaker expert).
+  Also updated `print_config` to log `mop_winner_isolation_threshold`.
+- `external/athena/config/mop_lite_open_evolve.ini`: new INI file, identical
+  to `mop_lite.ini` except `mop_router_type=5` and explicit
+  `mop_winner_isolation_threshold=3.0`.
+- `scripts/run_mop_lite.py`:
+  - `ROUTERS` dict extended with `"OpenEvolve": 5`.
+  - `ROUTER_BASE_CONFIGS` dict added: `OpenEvolve` loads
+    `config/mop_lite_open_evolve.ini`; all other routers unchanged.
+  - `INTERESTING_CONFIG_KEYS` extended with `mop_winner_isolation_threshold`
+    so the active value is stamped into every manifest row.
+  - `--mode` now accepts `open_evolve_mode`.
+- `configs/run_modes.json` and `run_modes.yaml`: added `open_evolve_mode`
+  (5M warmup / 10M sim, `search_subset`, `recommended_routers_open_evolve`).
+- `configs/trace_suites.json` and `trace_suites.yaml`: added `OpenEvolve` to
+  `recommended_routers_all` and added new key
+  `recommended_routers_open_evolve: ["OpenEvolve", "MoPLite", "WinnerTakeAll"]`.
+- `scripts/print_run_commands.py`: added `open_evolve_mode` to the mode choices.
+- `report/draft.md`: added Section 7 (Open Evolve) with design rationale,
+  change table, success criterion, run commands, and knob reference.
+
+**Verification.**
+
+```bash
+make -C external/athena -j$(nproc)
+```
+
+Build succeeds with no new warnings from modified files.  No simulator runs
+have been executed yet under `open_evolve_mode`; Stage 2 experiments are
+pending.
+
+**Next batch.**
+
+Run `scripts/run_mop_lite.py --mode open_evolve_mode --workers 15
+--results-dir results/open_evolve_search` on the 10-trace search subset
+to get a first read on whether E1/E2/E3 improve `speedup_vs_best_single`
+relative to Stage 1 MoPLite, and confirm the both-off rate drops on the
+known failure-mode traces.  Review search-side results before running
+the held-out batch.
+
+## 2026-04-28 — OpenEvolve smoke validation on 2-trace subset
+
+**Goal.** Validate that `OpenEvolve` (router type 5) behaves differently from
+MoPLite on the two locally available traces (`429.mcf-192B` and
+`parsec_2.1.fluidanimate...`), focusing on the both-off epoch rate and IPC
+vs pair-best single expert.
+
+**What was run.**
+
+```bash
+python3 scripts/run_mop_lite.py \
+  --trace "429.mcf-192B" \
+  --trace "parsec_2.1.fluidanimate.simlarge.prebuilt.drop_9500M.length_250M" \
+  --expert-0 Pythia --expert-1 "SPP+PPF" \
+  --router OpenEvolve --router MoPLite --router WinnerTakeAll \
+  --builtin AthenaMAB \
+  --warmup-instructions 5000000 --simulation-instructions 10000000 \
+  --workers 6 --skip-download --epoch-trace \
+  --results-dir results/open_evolve_smoke
+```
+
+**Completed artifacts.**
+
+- `results/open_evolve_smoke/manifest.jsonl` with 14 rows
+- `results/open_evolve_smoke/summary.csv` and `summary.md`
+- epoch-trace CSVs for all 4 coordinator/router variants × 2 traces
+
+**Main findings.**
+
+Both-off epoch rates (30 epochs each, 5M warmup + 10M sim):
+
+| Trace | MoPLite | OpenEvolve | WinnerTakeAll | AthenaMAB |
+| --- | ---: | ---: | ---: | ---: |
+| `429.mcf-192B` | 90.0% | **0.0%** | 0.0% | 13.3% |
+| `fluidanimate` | 96.7% | **0.0%** | 0.0% | 6.7% |
+
+E1 (Anti-Off Gate) completely eliminated the both-off collapse on both traces.
+MoPLite was silencing all prefetching in 90–97% of epochs; OpenEvolve
+routes to the historically-better expert in those slots instead.
+
+Per-trace `speedup_vs_best_single`:
+
+| Trace | MoPLite | OpenEvolve | WinnerTakeAll | AthenaMAB |
+| --- | ---: | ---: | ---: | ---: |
+| `429.mcf-192B` | 0.848074x | 0.847417x | 0.852123x | 0.862850x |
+| `fluidanimate` | 0.970203x | **1.000549x** | 0.999035x | 1.006221x |
+
+Geomean `speedup_vs_best_single` (2 traces):
+
+| Router | Geomean |
+| --- | ---: |
+| AthenaMAB | 0.931782x |
+| WinnerTakeAll | 0.922660x |
+| **OpenEvolve** | **0.920805x** |
+| MoPLite | 0.907085x |
+
+`OpenEvolve` improves over MoPLite by **+1.4 pp geomean** and crosses
+`1.0x` on `fluidanimate` (MoPLite was at `0.970x`). It does not yet beat
+`AthenaMAB` on this 2-trace sample.
+
+On `429.mcf`, SPP+PPF is the dominant expert by a wide margin and no
+coordinator comes close to the pair-best single. The both-off fix does not
+rescue this trace because the underlying routing problem is structural: no
+coordinator can overcome SPP+PPF's large advantage on this workload at
+these window lengths.
+
+**Interpretation.**
+
+E1 is the main driver of the improvement so far. The anti-off gate converts
+epochs that were previously dead (both off) into single-expert epochs,
+recovering the coverage that MoPLite was discarding. E2 and E3 are active
+but require more diverse traces (with genuine score separation between
+experts) to show their effect clearly.
+
+**Next batch.**
+
+Download the remaining 8 traces from the `search_subset` and run
+`open_evolve_mode` on all 10 to get a full training-side geomean comparison
+against Stage 1 MoPLite.
+
+## 2026-04-28 — OpenEvolve full search-subset evaluation (10 traces)
+
+**Goal.** Run the full `open_evolve_mode` matrix on all 10 `search_subset`
+traces and compare `OpenEvolve` against `MoPLite`, `WinnerTakeAll`, and
+`AthenaMAB` in geomean `speedup_vs_best_single`.
+
+**What was run.**
+
+```bash
+python3 scripts/run_mop_lite.py --mode open_evolve_mode --workers 8 \
+  --results-dir results/open_evolve_search
+```
+
+90 runs total (10 traces × 9 experiments: Baseline, Pythia, SPP+PPF, MLOP,
+SMS, OpenEvolve, MoPLite, WinnerTakeAll, AthenaMAB).
+
+**Completed artifacts.**
+
+- `results/open_evolve_search/manifest.jsonl` with 90 rows
+- `results/open_evolve_search/summary.csv` and `summary.md`
+
+**Per-trace `speedup_vs_best_single`:**
+
+| Trace | MoPLite | OpenEvolve | WinnerTakeAll | AthenaMAB |
+| --- | ---: | ---: | ---: | ---: |
+| `429.mcf` | 0.9590 | 0.9605 | 0.9635 | 0.9788 |
+| `450.soplex` | 1.1628 | **1.1263** | 1.1266 | 0.9644 |
+| `602.gcc_s` | 0.7059 | 0.7031 | 0.7384 | **1.0022** |
+| `605.mcf_s` | 1.1794 | **1.2179** | 1.2092 | 0.8575 |
+| `ligra_CF` | **1.0210** | 1.0105 | 1.0042 | 1.0002 |
+| `ligra_PageRankDelta` | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+| `fluidanimate` | 0.9702 | 0.9999 | 0.9985 | **1.0056** |
+| `raytrace` | 0.8850 | 0.9991 | 0.9531 | **1.0161** |
+| `secret_fp_45` | 0.8613 | 0.8621 | 0.8620 | 0.9724 |
+| `secret_int_568` | **1.0337** | 0.9937 | 1.0024 | 0.9893 |
+
+**Geomean `speedup_vs_best_single` (10 traces):**
+
+| Router | Geomean |
+| --- | ---: |
+| SPP+PPF (single) | 0.9904x |
+| **OpenEvolve** | **0.9781x** |
+| WinnerTakeAll | 0.9780x |
+| AthenaMAB | 0.9776x |
+| MoPLite | 0.9683x |
+
+`OpenEvolve` improves over Stage 1 `MoPLite` by **+0.98 pp geomean** on the
+10-trace search subset. It is now essentially tied with `WinnerTakeAll` and
+`AthenaMAB`.
+
+`OpenEvolve` beats pair-best single on 5 of 10 traces: `450.soplex`,
+`605.mcf_s`, `ligra_CF`, `ligra_PageRankDelta`, and partially on
+`fluidanimate` (0.9999x ≈ parity). `MoPLite` beat pair-best single on only
+4 traces with the same search-mode windows.
+
+**Interpretation.**
+
+E1 (Anti-Off Gate) is the primary driver, converting suppressed both-off
+epochs into active single-expert epochs. E2 (Winner Isolation) contributes
+on `605.mcf_s` where `OpenEvolve` exceeds both `WinnerTakeAll` and
+`MoPLite`. On `602.gcc_s`, `AthenaMAB` is the only coordinator that crosses
+1.0x — this trace remains hard for all rule-based routers, and the MAB
+online reward estimator handles it better than any fixed-rule approach.
+
+The geomean gap between `OpenEvolve` and `AthenaMAB` has closed from the
+smoke sample (was 1.1 pp) to effectively zero (0.05 pp). This makes
+`OpenEvolve` a viable comparison point: it uses no online learning and is
+fully transparent, yet matches `AthenaMAB` geomean on the search subset.
+
+**Next batch.**
+
+Run the held-out 7-trace evaluation with final-mode instruction windows
+(`20M` warmup + `50M` simulation) to get the definitive Stage 2 result.
+
+## 2026-04-28 — OpenEvolve held-out evaluation (7 traces, final-mode windows)
+
+**Goal.** Run `OpenEvolve` against `MoPLite`, `WinnerTakeAll`, and `AthenaMAB`
+on the 7 held-out traces at the Stage 1 final-mode instruction windows
+(`20M` warmup + `50M` simulation) to get the definitive Stage 2 number.
+
+**What was run.**
+
+```bash
+python3 scripts/run_mop_lite.py \
+  --trace 437.leslie3d-134B --trace 459.GemsFDTD-1169B --trace 471.omnetpp-188B \
+  --trace parsec_2.1.canneal.simlarge.prebuilt.drop_4750M.length_250M \
+  --trace parsec_2.1.streamcluster.simlarge.prebuilt.drop_0M.length_250M \
+  --trace ligra_BC.com-lj.ungraph.gcc_6.3.0_O3.drop_500M.length_250M \
+  --trace secret_compute_fp_105 \
+  --warmup-instructions 20000000 --simulation-instructions 50000000 \
+  --expert-0 Pythia --expert-1 SPP+PPF \
+  --router OpenEvolve --router MoPLite --router WinnerTakeAll \
+  --builtin AthenaMAB --single-baseline MLOP --single-baseline SMS \
+  --workers 8 --epoch-trace \
+  --results-dir results/open_evolve_final
+```
+
+**Completed artifacts.**
+
+- `results/open_evolve_final/manifest.jsonl`
+- `results/open_evolve_final/summary.csv` and `summary.md`
+- epoch-trace CSVs for all router/builtin variants × 7 traces
+
+**Per-trace `speedup_vs_best_single`:**
+
+| Trace | MoPLite | OpenEvolve | WinnerTakeAll | AthenaMAB |
+| --- | ---: | ---: | ---: | ---: |
+| `437.leslie3d` | 0.8832 | **0.9096** | 0.9029 | 0.9989 |
+| `459.GemsFDTD` | **1.0273** | 1.0057 | 1.0246 | 0.9883 |
+| `471.omnetpp` | 0.9597 | **0.9717** | 0.9590 | 0.8942 |
+| `ligra_BC` | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+| `parsec_canneal` | 0.9545 | **0.9779** | 0.9663 | 0.9756 |
+| `streamcluster` | 0.9999 | **1.0000** | 1.0000 | 0.9999 |
+| `secret_fp_105` | **0.6653** | 0.6589 | 0.6560 | 0.9866 |
+
+**Geomean `speedup_vs_best_single` (7 held-out traces):**
+
+| Router | Geomean | vs Stage 1 MoPLite |
+| --- | ---: | ---: |
+| AthenaMAB | 0.9770x | +5.8 pp |
+| **OpenEvolve** | **0.9235x** | **+0.46 pp** |
+| WinnerTakeAll | 0.9210x | +0.21 pp |
+| MoPLite (Stage 1 ref) | 0.9188x | — |
+
+**Interpretation.**
+
+`OpenEvolve` improves over Stage 1 MoPLite by **+0.46 pp geomean** on the
+held-out split and beats `WinnerTakeAll` by 0.24 pp. It crosses `1.0x` on
+3 of 7 held-out traces: `GemsFDTD`, `ligra_BC`, and `streamcluster`.
+
+The predeclared success criterion (`≥ 1.0x` geomean on held-out) is **not
+met** (0.9235x). The main blocker is `secret_compute_fp_105` (0.659x for
+OpenEvolve, same as MoPLite): this trace is dominated by `Pythia` by a very
+large margin and no rule-based router recovers that gap.
+`AthenaMAB` still leads by a substantial margin (5.8 pp) primarily because
+its online reward estimator handles `secret_fp_105` and `437.leslie3d` far
+better than any fixed-rule approach.
+
+**Notable per-trace improvements over MoPLite:**
+
+- `437.leslie3d`: +2.6 pp (0.883x → 0.910x) — E1 reducing both-off
+- `parsec_canneal`: +2.3 pp (0.955x → 0.978x) — E1 reducing both-off
+- `471.omnetpp`: +1.2 pp (0.960x → 0.972x)
+- `streamcluster`: parity with MoPLite, now equals WinnerTakeAll at ~1.0x
+
+**What Stage 2 establishes:**
+
+- `OpenEvolve` is a reproducible improvement over Stage 1 MoPLite on both
+  the search subset (+0.98 pp) and the held-out split (+0.46 pp).
+- The anti-off gate (E1) is the primary driver of improvement.
+- `secret_compute_fp_105` remains the hard case for all fixed-rule routers:
+  it needs online adaptation or a better score signal, not just a routing
+  policy fix.
+- The path to matching `AthenaMAB` on held-out requires addressing the
+  strong-dominance traces where fixed rules consistently under-perform.

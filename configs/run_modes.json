@@ -45,6 +45,20 @@
       "single_prefetcher_baselines": {
         "experiments": ["Baseline", "Pythia", "SPP+PPF"]
       }
+    },
+    "open_evolve_mode": {
+      "warmup_instructions": 5000000,
+      "simulation_instructions": 10000000,
+      "trace_set": "search_subset",
+      "mop_lite": {
+        "expert_0": "Pythia",
+        "expert_1": "SPP+PPF",
+        "routers": "recommended_routers_open_evolve"
+      },
+      "builtin_coordinators": ["AthenaMAB"],
+      "single_prefetcher_baselines": {
+        "experiments": ["Baseline", "Pythia", "SPP+PPF", "MLOP", "SMS"]
+      }
     }
   }
 }

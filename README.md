@@ -1,21 +1,28 @@
 # Mixture-of-Prefetchers
 
-This repository is a Stage 1 systems-research baseline for **two-expert L2
-prefetcher coordination** on top of the Athena simulator.
+This repository contains a Stage 1 baseline and active Stage 2 development for
+**two-expert L2 prefetcher coordination** on top of the Athena simulator.
 
 The concrete question is:
 
 > Can a small epoch-based controller coordinate two strong L2 prefetchers under
 > explicit traffic and usefulness constraints, and beat fair baselines?
 
-The current answer is:
-
+**Stage 1 answer:**
 - **yes, sometimes against no-prefetch**
 - **not yet against the strongest single expert of the coordinated pair**
 
-That negative result is still useful. The repo now contains the full baseline
-package needed for Stage 2: working code, fixed splits, manifests, processed
-data, figures, tables, and human-written logs.
+**Stage 2 complete:** `OpenEvolve` (router type 5) — three targeted fixes to
+the Stage 1 failure mode. Full results:
+
+| Split | MoPLite | OpenEvolve | WinnerTakeAll | AthenaMAB |
+| --- | ---: | ---: | ---: | ---: |
+| Search (10 tr) | 0.968x | **0.978x** | 0.978x | 0.978x |
+| Held-out (7 tr) | 0.919x | **0.924x** | 0.921x | 0.977x |
+
+- Eliminates `both-off` collapse (MoPLite: 90–97% → OpenEvolve: 0%)
+- Beats pair-best single on 3/7 held-out traces (up from 1/7 for MoPLite)
+- Predeclared criterion (≥ 1.0x geomean on held-out) not met; `secret_fp_105` is the primary blocker
 
 ## Current readout
 

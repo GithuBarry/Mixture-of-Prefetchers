@@ -56,6 +56,7 @@ ROUTERS = {
     "RandomRouter":  2,
     "OneShotFit":    3,
     "MoPLite":       4,
+    "OpenEvolve":    5,
 }
 
 # Builtin multi-expert coordinators that pre-date MoP-lite; used as baselines.
@@ -71,6 +72,7 @@ INTERESTING_CONFIG_KEYS = {
     "mop_score_weights",
     "mop_seed",
     "mop_router_type",
+    "mop_winner_isolation_threshold",
     "mab_enable",
 }
 
@@ -176,6 +178,10 @@ def single_expert_flags(config_module, athena_home: Path, warmup: int, sim: int,
     )
 
 
+ROUTER_BASE_CONFIGS = {
+    "OpenEvolve": "config/mop_lite_open_evolve.ini",
+}
+
 def mop_flags(
     config_module,
     athena_home: Path,
@@ -190,9 +196,10 @@ def mop_flags(
     base = build_base_flags(config_module, athena_home, warmup, sim)
     spec0 = EXPERTS[expert0]
     spec1 = EXPERTS[expert1]
+    base_config = ROUTER_BASE_CONFIGS.get(router, "config/mop_lite.ini")
     flags = (
         f"{base} "
-        f"--config={shlex.quote(str(athena_home / 'config' / 'mop_lite.ini'))} "
+        f"--config={shlex.quote(str(athena_home / base_config))} "
         f"--mop_router_type={ROUTERS[router]} "
         f"--mop_seed={seed} "
         f"--l2c_prefetcher_types={spec0['type']} "
@@ -386,7 +393,7 @@ def resolve_routers(root: Path, spec) -> list[str]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=["smoke_mode", "search_mode", "final_mode"],
+    parser.add_argument("--mode", choices=["smoke_mode", "search_mode", "final_mode", "open_evolve_mode"],
                         help="Named run mode from configs/run_modes.json. Supplies defaults for omitted options.")
     parser.add_argument("--trace", dest="traces", action="append")
     parser.add_argument("--expert-0", choices=sorted(EXPERTS), default=None)

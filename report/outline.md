@@ -1,4 +1,4 @@
-# Stage 1 report — outline
+# Stage 1 + Stage 2 report — outline
 
 Working outline for the Stage 1 MoP-lite report. Each section lists the
 content to be filled in and — crucially — the **evidence** each claim will
@@ -14,10 +14,12 @@ lean on (which figure, which table, which CSV column).
 
 ## 2. Method
 
-- The five router variants (FixedSplit, WinnerTakeAll, RandomRouter,
-  OneShotFit, MoPLite), one paragraph each, referencing `oogway.cc` line
-  numbers.
+- The six router variants (FixedSplit, WinnerTakeAll, RandomRouter,
+  OneShotFit, MoPLite, **OpenEvolve**), one paragraph each, referencing
+  `oogway.cc` line numbers.
 - The builtin comparator: `AthenaMAB`, briefly, noting attribution.
+- OpenEvolve design: E1 Anti-Off Gate, E2 Winner Isolation, E3 Squared-Score
+  Budget Split (see `report/draft.md` §7.1).
 - Control surface (link to `docs/operational/stage2_memo.md`).
 - Hardware budget: table `report/tables/hardware_budget.md`.
 
@@ -92,8 +94,18 @@ Supplemental evidence: `report/tables/alternate_pair_exploration.md`.
 - Paths to logs, metrics, manifest, and processed dataset.
 - Git SHA, Python, gcc, Athena build line.
 
-## 7. Claim ↔ evidence table
+## 7. Open Evolve: Stage 2 router
 
-Every numeric claim in §4 lists, in one table, the figure/table/file it comes
-from and the expected sign/direction of the effect. Reviewers should be able
-to spot-check each claim from exactly one artifact.
+- Design and motivation (see `report/draft.md` §7.1 – §7.2).
+- Preliminary smoke results: both-off rate drop, `fluidanimate` crossing 1.0x.
+- Full search-side and held-out results once Stage 2 runs complete.
+- Success criterion: geomean ≥ 1.0x vs pair-best single on 7-trace held-out.
+
+Evidence: `results/open_evolve_search/summary.csv`,
+`results/open_evolve_final/summary.csv` (pending).
+
+## 8. Claim ↔ evidence table
+
+Every numeric claim in §4 and §7 lists, in one table, the figure/table/file it
+comes from and the expected sign/direction of the effect. Reviewers should be
+able to spot-check each claim from exactly one artifact.

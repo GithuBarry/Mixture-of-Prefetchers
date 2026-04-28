@@ -137,7 +137,8 @@ void Oogway::print_config() {
          << "mop_score_weights " << array_to_string(knob::mop_score_weights) << endl
          << "mop_one_shot_epochs " << knob::mop_one_shot_epochs << endl
          << "mop_seed " << knob::mop_seed << endl
-         << "mop_epoch_trace " << knob::mop_epoch_trace << endl;
+         << "mop_epoch_trace " << knob::mop_epoch_trace << endl
+         << "mop_winner_isolation_threshold " << knob::mop_winner_isolation_threshold << endl;
   }
 }
 
@@ -460,7 +461,6 @@ uint32_t Oogway::mop_decision(og_state_t *state) {
     }
     return mop.one_shot_winner == 0 ? 2 : 1;
   case 4:
-  default:
     if (score0 <= 0.0f && score1 <= 0.0f) {
       return 0;
     }
@@ -471,6 +471,40 @@ uint32_t Oogway::mop_decision(og_state_t *state) {
       return 2;
     }
     return 3;
+  case 5:
+  default: {
+    // E1: Anti-Off Gate.
+    // Original MoPLite collapses to "both off" whenever both scores are <= 0,
+    // which happens on epoch 1 (no issued history) and on low-traffic traces
+    // that trip the accuracy floor.  Instead, fall back to the historically
+    // more-active expert.  If no history exists yet, keep both on so the first
+    // real epoch can build evidence.
+    if (score0 <= 0.0f && score1 <= 0.0f) {
+      const uint64_t hist0 = mop.pref_issued_total[0];
+      const uint64_t hist1 = mop.pref_issued_total[1];
+      if (hist0 == 0 && hist1 == 0) {
+        return 3;
+      }
+      return (hist0 >= hist1) ? 2 : 1;
+    }
+    if (score0 <= 0.0f) {
+      return 1;
+    }
+    if (score1 <= 0.0f) {
+      return 2;
+    }
+    // E2: Winner Isolation.
+    // When one expert's score dominates by the configured ratio, route
+    // exclusively to that expert rather than sharing the budget.
+    const float threshold = knob::mop_winner_isolation_threshold;
+    if (score0 >= threshold * score1) {
+      return 2;
+    }
+    if (score1 >= threshold * score0) {
+      return 1;
+    }
+    return 3;
+  }
   }
 }
 
@@ -514,8 +548,7 @@ void Oogway::configure_mop_epoch(og_state_t *state) {
       set_mop_budget(1, total_budget - prefetch_budget[0]);
     }
     break;
-  case 4:
-  default: {
+  case 4: {
     const float score_sum = score0 + score1;
     if (curr_action == 0) {
       break;
@@ -531,6 +564,39 @@ void Oogway::configure_mop_epoch(og_state_t *state) {
       set_prefetch_enabled(1, true);
       if (score_sum > 0.0f) {
         const uint64_t budget0 = static_cast<uint64_t>(std::llround(total_budget * (score0 / score_sum)));
+        set_mop_budget(0, std::min<uint64_t>(budget0, total_budget));
+        set_mop_budget(1, total_budget - prefetch_budget[0]);
+      } else {
+        set_mop_budget(0, total_budget / 2);
+        set_mop_budget(1, total_budget - prefetch_budget[0]);
+      }
+    }
+    break;
+  }
+  case 5:
+  default: {
+    // E3: Budget Split Fix.
+    // Single-expert actions are identical to MoPLite (full budget to winner).
+    // For the both-on action, use squared scores so the budget allocation is
+    // steeper than linear: a 2:1 score ratio becomes a 4:1 budget ratio,
+    // reducing the traffic dilution that weakens the weaker expert's gains.
+    if (curr_action == 0) {
+      break;
+    }
+    if (curr_action == 2) {
+      set_prefetch_enabled(0, true);
+      set_mop_budget(0, total_budget);
+    } else if (curr_action == 1) {
+      set_prefetch_enabled(1, true);
+      set_mop_budget(1, total_budget);
+    } else {
+      set_prefetch_enabled(0, true);
+      set_prefetch_enabled(1, true);
+      const float sq0 = score0 * score0;
+      const float sq1 = score1 * score1;
+      const float sq_sum = sq0 + sq1;
+      if (sq_sum > 0.0f) {
+        const uint64_t budget0 = static_cast<uint64_t>(std::llround(total_budget * (sq0 / sq_sum)));
         set_mop_budget(0, std::min<uint64_t>(budget0, total_budget));
         set_mop_budget(1, total_budget - prefetch_budget[0]);
       } else {

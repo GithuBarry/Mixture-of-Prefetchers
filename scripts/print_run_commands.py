@@ -29,12 +29,9 @@ def resolve_routers(suites: dict, mode: dict) -> list[str]:
     if isinstance(spec, list):
         return spec
     if isinstance(spec, str):
-        key = spec
-        if key == "recommended_routers_all":
-            return list(suites["recommended_routers_all"])
-        if key == "recommended_routers_search_fast":
-            return list(suites["recommended_routers_search_fast"])
-        raise ValueError(f"Unknown router reference: {key}")
+        if spec in suites:
+            return list(suites[spec])
+        raise ValueError(f"Unknown router reference: {spec!r}. Available keys: {[k for k in suites if k.startswith('recommended_routers')]}")
     raise ValueError(f"Invalid routers spec: {spec!r}")
 
 
@@ -52,7 +49,7 @@ def main() -> int:
         "mode",
         nargs="?",
         default="search_mode",
-        choices=["search_mode", "final_mode", "smoke_mode"],
+        choices=["search_mode", "final_mode", "smoke_mode", "open_evolve_mode"],
         help="Run mode from configs/run_modes.json",
     )
     parser.add_argument(

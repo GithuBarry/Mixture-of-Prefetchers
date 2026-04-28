@@ -117,7 +117,9 @@
     "WinnerTakeAll",
     "RandomRouter",
     "OneShotFit",
-    "MoPLite"
+    "MoPLite",
+    "OpenEvolve"
   ],
-  "recommended_routers_search_fast": ["MoPLite", "FixedSplit", "WinnerTakeAll"]
+  "recommended_routers_search_fast": ["MoPLite", "FixedSplit", "WinnerTakeAll"],
+  "recommended_routers_open_evolve": ["OpenEvolve", "MoPLite", "WinnerTakeAll"]
 }
