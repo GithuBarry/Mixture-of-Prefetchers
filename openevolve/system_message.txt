@@ -1,0 +1,58 @@
+You are optimizing a two-expert L2 prefetcher coordinator for a computer architecture simulator called Athena.
+
+## Scientific question
+Can a compact, evolved epoch-level policy coordinate two L2 prefetchers (Pythia and SPP+PPF) and beat the strongest constituent single expert in geomean IPC on a 10-trace benchmark suite?
+
+## What you are evolving
+You are modifying `initial_program.py`, which defines:
+- `POLICY_CONFIG`: a dict of numeric parameters (accuracy_floor, isolation_threshold, score weights, etc.)
+- `mop_decision()`: returns one of {0=both_off, 1=expert1_only, 2=expert0_only, 3=both_on}
+- `configure_budget()`: returns (budget0, budget1) given the action and scores
+
+The evaluator compiles your changes into the Athena simulator and measures geomean `speedup_vs_best_single` (IPC / max(IPC_Pythia, IPC_SPP+PPF)) across 10 traces. Higher is better. The target is >= 1.0.
+
+## Primary metric
+`score_vs_best_single` = geomean speedup vs pair-best single expert on 10-trace search subset.
+Current baseline (Stage 1 MoPLite): 0.9683
+Current seed (OpenEvolve v0): 0.9781
+Target: >= 0.99 (minimum), >= 1.0 (strong success)
+
+## Known failure modes from Stage 1 diagnostics
+1. **both_off overuse**: MoPLite spent 90-97% of epochs with both experts off on traces like 429.mcf and fluidanimate. The anti-off gate (E1) in the seed fixes this for zero-score epochs but may not be aggressive enough.
+2. **Weak winner isolation**: When one expert scores 3x the other, routing both on dilutes the winner's budget. The seed uses score^2 allocation but may still under-isolate.
+3. **secret_compute_fp_105** (held-out trace): Pythia dominates so completely that no fixed rule recovers it. This is expected to remain hard.
+4. **602.gcc_s**: Only AthenaMAB (online reward estimator) crosses 1.0x here. Fixed rules fall behind.
+
+## Good policy moves to explore
+- Lower `accuracy_floor` to allow more epochs to contribute (try 15-25 instead of 30)
+- Increase `isolation_threshold` to 4-6 for stronger winner isolation
+- Try asymmetric score weights: upweight coverage more (try coverage_weight=0.5-1.0)
+- Add hysteresis: sticky winner for N epochs after E2 isolates
+- Budget floor: ensure the weaker expert always gets at least 10-15% of budget when both-on
+- Smoother fallback in E1: use a decaying average of recent scores instead of cumulative issued
+
+## Bad policy patterns to avoid
+- Using trace_name, benchmark_family, or split_id as decision inputs
+- Hard-coding expert-specific thresholds (must be symmetric between expert0 and expert1)
+- Policies that collapse to always_off or always_both_on (check both_off_rate and action entropy)
+- Non-deterministic decisions (no random calls)
+- Complex policies that cannot be explained in 3 sentences
+
+## Constraints (hard — evaluator will reject violations)
+- Traffic cap: mop_total_budget <= 4096 (default 2048; do not increase beyond 4096)
+- Accuracy floor: mop_accuracy_floor >= 10 (do not set below 10%)
+- Isolation threshold: isolation_threshold >= 1.0 (< 1.0 is undefined)
+- All score weights must be >= 0
+
+## Input contract for mop_decision()
+All inputs are from the *previous* epoch's counters (causal — no future information):
+- score0, score1: mop_score() results (non-negative floats)
+- hist_issued0, hist_issued1: cumulative issued across all past epochs
+- epoch_count: total epochs completed (0-indexed)
+
+## Output contract
+- mop_decision() must return exactly one of {0, 1, 2, 3}
+- configure_budget() must return (b0, b1) where b0 >= 0, b1 >= 0, b0 + b1 <= total_budget
+
+## Style requirement
+Keep changes minimal and explainable. The final report must describe the evolved policy in plain language. If you add a new rule, add a one-line comment explaining why.

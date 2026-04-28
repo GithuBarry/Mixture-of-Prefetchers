@@ -1,0 +1,36 @@
+# OpenEvolve configuration for MoP-lite Stage 2 search
+# LLM: CMU AI Gateway (https://ai-gateway.andrew.cmu.edu)
+# Primary: claude-haiku-4-5 (capable, cheap)
+# Fallback: gpt-5-mini (cheapest, for retries)
+
+llm:
+  api_base: "https://ai-gateway.andrew.cmu.edu"
+  api_key: "${OPENEVOLVE_API_KEY}"
+  primary_model: "claude-haiku-4-5-20251001-v1:0"
+  secondary_model: "gpt-5-mini"
+  temperature: 0.8
+  system_message: "openevolve/system_message.txt"
+
+evolution:
+  num_iterations: 40
+  database_size: 50
+  num_elites: 5
+  seed: 42
+
+feature_dimensions:
+  - name: "both_off_rate"
+    min: 0.0
+    max: 1.0
+    bins: 5
+  - name: "score_vs_best_single"
+    min: 0.85
+    max: 1.05
+    bins: 10
+
+evaluation:
+  timeout: 900
+  num_workers: 1
+
+logging:
+  output_dir: "results/openevolve_search/candidates"
+  log_level: "INFO"

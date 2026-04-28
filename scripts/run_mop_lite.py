@@ -608,7 +608,7 @@ def main() -> int:
                 "mode": args.mode,
                 "epoch_len_instructions": int(active_settings["og_instr_epoch_len"]) if "og_instr_epoch_len" in active_settings else None,
                 "mop_total_budget": int(active_settings["mop_total_budget"]) if "mop_total_budget" in active_settings else None,
-                "mop_accuracy_floor": int(active_settings["mop_accuracy_floor"]) if "mop_accuracy_floor" in active_settings else None,
+                "mop_accuracy_floor": int(float(active_settings["mop_accuracy_floor"])) if "mop_accuracy_floor" in active_settings else None,
                 "mop_fixed_split_ratio": int(active_settings["mop_fixed_split_ratio"]) if "mop_fixed_split_ratio" in active_settings else None,
                 "mop_score_weights": active_settings.get("mop_score_weights"),
                 "git_revision": revision,
