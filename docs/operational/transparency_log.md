@@ -246,3 +246,62 @@ Format:
   changed the final figure set and wording, so they belong in the public
   reasoning ledger rather than only the chat history.
 - AI-assisted: yes.
+
+---
+
+## Stage 2 decisions
+
+### 2026-04-28 — OpenEvolve seed family chosen over MoPLite as Stage 2 mainline
+
+Takeaway: `OpenEvolve` (router type 5) is the Stage 2 seed because it directly fixes the two structural failure modes identified in Stage 1 epoch-trace diagnostics — both-off overuse and weak winner isolation — and improves geomean by +0.98 pp on the search subset and +0.46 pp on held-out. MoPLite is demoted to a labeled Stage 1 baseline.
+
+- Question: Which router family should be the Stage 2 seed for automated OpenEvolve search?
+- Choice: `OpenEvolve` (type 5), with `MoPLite` (type 4) kept as a comparison baseline.
+- Evidence type: direct measurement on 10-trace search subset and 7-trace held-out split
+- Confidence: high
+- Main supporting facts:
+  - Both-off rate drops from 90–97% to 0% on `429.mcf` and `fluidanimate`
+  - Search-subset geomean: MoPLite 0.968x → OpenEvolve 0.978x (+0.98 pp)
+  - Held-out geomean: MoPLite 0.919x → OpenEvolve 0.924x (+0.46 pp)
+  - OpenEvolve beats pair-best single on 3/7 held-out traces (vs 1/7 for MoPLite)
+  - Policy surface is small and isolated in `oogway.cc` case 5 — suitable for OpenEvolve search
+- Main inadequacy or risk:
+  - Primary success criterion (≥1.0x geomean on held-out) not met (0.924x)
+  - `secret_compute_fp_105` remains a hard failure for all fixed-rule routers
+  - All results use one expert pair (`Pythia + SPP+PPF`) only
+- What changed your mind: Stage 1 epoch-trace diagnostics showing 90–97% both-off on key failure traces made it clear the structural fix (E1) would dominate any weight tuning
+- File pointers: `results/open_evolve_search/summary.csv`, `results/open_evolve_final/summary.csv`, `docs/operational/research_log.md` (2026-04-28 entries), `external/athena/src/oogway.cc` case 5
+
+### 2026-04-28 — Stage 2 freeze: held-out split remains clean under Path A
+
+Takeaway: The 7-trace held-out split was run only once, for the final Stage 2 evaluation, after all design decisions were finalized on the train side. The split is clean and the held-out results are claim-grade evidence, not development evidence.
+
+- Question: Is the held-out test side contaminated by Stage 2 design decisions?
+- Choice: No — Path A (pristine held-out test) applies. All OpenEvolve design (E1/E2/E3 logic, thresholds, score weights) was finalized on the 10-trace train-side search subset before any held-out run.
+- Evidence type: direct measurement + code inspection
+- Confidence: high
+- Main supporting facts:
+  - OpenEvolve design was fixed before `results/open_evolve_final/` was created
+  - `mop_winner_isolation_threshold=3.0`, `mop_accuracy_floor=30`, `mop_score_weights=1.0,0.25,1.0` were set from Stage 1 analysis, not from held-out signal
+  - Held-out command run once with `--skip-download` and `--epoch-trace`; manifest shows single run group
+- Main inadequacy or risk:
+  - The E1/E2/E3 design was motivated by Stage 1 epoch diagnostics that included some held-out traces (the failure-mode diagnostics ran on `secret_compute_fp_105`, which is held-out). Those diagnostics were qualitative mechanism studies, not parameter searches, so contamination is minimal but not zero.
+- What changed your mind: Reviewing the Stage 1 research log confirmed the epoch diagnostics on held-out traces were run to understand the failure mode, not to tune any parameter.
+- File pointers: `docs/operational/research_log.md` (2026-04-17 failure-case diagnostics entry), `docs/decisions/stage2_seed_freeze.md`, `results/open_evolve_final/manifest.jsonl`
+
+### 2026-04-28 — mop_winner_isolation_threshold set to 3.0 without search
+
+Takeaway: The isolation threshold was set to 3.0 by intuition from the score distributions seen in Stage 1 epoch traces, not by grid search. This value should be the first parameter OpenEvolve searches over in Stage 3 automated search.
+
+- Question: What value of `mop_winner_isolation_threshold` should the seed use?
+- Choice: 3.0 (default). A 3:1 score ratio means one expert has tripled the other's combined accuracy+coverage signal, which is a reasonable trigger for exclusive routing.
+- Evidence type: hypothesis (not direct measurement)
+- Confidence: medium
+- Main supporting facts:
+  - On `602.gcc_s`, Pythia score >> SPP+PPF score in most epochs; a threshold of 3.0 would trigger E2 and route exclusively to Pythia
+  - On `GemsFDTD`, scores are closer; a 3.0 threshold keeps both active, which matches the observed epoch behavior
+- Main inadequacy or risk:
+  - Value was not swept on the train side; could be too high (rarely triggers) or too low (over-isolates on noisy epochs)
+  - This is explicitly the first knob to evolve in the automated search
+- What changed your mind: N/A — this is a prior, not a posterior
+- File pointers: `external/athena/config/mop_lite_open_evolve.ini`, `external/athena/inc/knobs.def` (mop_winner_isolation_threshold)
