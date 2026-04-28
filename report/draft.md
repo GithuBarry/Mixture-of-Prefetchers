@@ -22,7 +22,7 @@ set, `MoPLite` reaches `0.998257x` geomean IPC relative to no-prefetch and
 24 traces above `1.0x` on that stricter comparator. Failure-mode diagnostics
 identify two root causes: overuse of the `both off` action (90–97% of epochs on
 hard traces) and insufficient winner isolation when one expert dominates. Stage 2
-introduces `OpenEvolve` (router type 5), which fixes both: an anti-off gate that
+introduces `OpenEvolve` (router type 5), which directly targets both: an anti-off gate that
 falls back to the historically-better expert, a winner-isolation threshold that
 routes exclusively when one score dominates, and a squared-score budget split
 for steeper allocation. On the 10-trace search-side subset, `OpenEvolve` improves geomean
@@ -446,7 +446,9 @@ The full `open_evolve_mode` matrix was run on all 10 `search_subset` traces
 | **OpenEvolve** | **0.9781x** | **+0.98 pp** |
 | WinnerTakeAll | 0.9780x | +0.97 pp |
 | AthenaMAB | 0.9776x | +0.93 pp |
-| MoPLite | 0.9683x | baseline |
+| MoPLite | 0.9683x | — |
+
+Note: OpenEvolve, WinnerTakeAll, and AthenaMAB are effectively tied (within 0.05 pp) on the search subset. The differences are not statistically distinguishable at this trace count.
 
 `OpenEvolve` improves over Stage 1 MoPLite by **+0.98 pp geomean** and is
 now essentially tied with `WinnerTakeAll` and `AthenaMAB`.  It beats
@@ -482,7 +484,7 @@ windows (`20M` warmup + `50M` simulation).
 
 | Router | Geomean | vs Stage 1 MoPLite |
 | --- | ---: | ---: |
-| AthenaMAB | 0.9770x | +5.8 pp |
+| AthenaMAB | 0.9770x | +5.82 pp vs MoPLite |
 | **OpenEvolve** | **0.9235x** | **+0.46 pp** |
 | WinnerTakeAll | 0.9210x | +0.21 pp |
 | MoPLite (Stage 1) | 0.9188x | — |
@@ -495,9 +497,9 @@ traces (`GemsFDTD`, `ligra_BC`, `streamcluster`), up from 1 of 7 for Stage
 The predeclared success criterion (`≥ 1.0x` geomean on held-out) is **not
 met**. The blocker is `secret_compute_fp_105` (0.659x for OpenEvolve, same
 as MoPLite): `Pythia` dominates this trace by a very large margin and no
-fixed-rule router closes that gap. `AthenaMAB` leads by 5.8 pp on held-out,
-primarily because its online reward estimator handles `secret_fp_105` and
-`437.leslie3d` far better than any fixed rule.
+fixed-rule router closes that gap. `AthenaMAB` leads `OpenEvolve` by 5.35 pp on held-out
+(0.9770x vs 0.9235x), primarily because its online reward estimator handles
+`secret_fp_105` and `437.leslie3d` far better than any fixed rule.
 
 Notable per-trace improvements over Stage 1 MoPLite:
 
@@ -612,10 +614,11 @@ figure/table in `report/` is regenerated deterministically from
 ## 9. Conclusion
 
 Stage 1 establishes a reproducible two-expert coordination baseline on Athena.
-The Stage 1 `MoPLite` rule does not beat the pair-best single expert in geomean
-on either the 17-trace training split or the 7-trace held-out split. The main
-identified failure modes are overuse of the `both off` action and insufficient
-winner isolation when one expert dominates.
+Under the committed `Pythia + SPP+PPF` pair and protocol, the Stage 1 `MoPLite`
+rule does not beat the pair-best single expert in geomean on either the 17-trace
+training split or the 7-trace held-out split. The main identified failure modes
+are overuse of the `both off` action and insufficient winner isolation when one
+expert dominates.
 
 Stage 2 introduces `OpenEvolve` (router type 5), which applies three targeted
 fixes: an anti-off gate that routes to the historically-better expert instead
