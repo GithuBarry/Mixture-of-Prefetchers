@@ -460,6 +460,11 @@ uint32_t Oogway::mop_decision(og_state_t *state) {
       return (score0 >= score1) ? 2 : 1;
     }
     return mop.one_shot_winner == 0 ? 2 : 1;
+  case 6:
+    if (epoch_count < knob::mop_one_shot_epochs) {
+      return 3;
+    }
+    return (score0 >= score1) ? 2 : 1;
   case 4:
   case 5:
   default:
@@ -500,6 +505,7 @@ void Oogway::configure_mop_epoch(og_state_t *state) {
   case 1:
   case 2:
   case 3:
+  case 6:
     if (curr_action == 0) {
       break;
     }

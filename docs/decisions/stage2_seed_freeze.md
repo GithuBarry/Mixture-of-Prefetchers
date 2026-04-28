@@ -72,6 +72,11 @@ Development evidence only:
 This is not enough to claim final success. It is enough to use
 `MoPLiteGuarded` as the compact Stage 2 seed family for train-side search.
 
+Follow-up note: `docs/decisions/stage2_forced_single_probe.md` adds a second
+explicit Stage 2 candidate family, `ProbeThenWinner`, after a filtered dev sweep
+showed that removing both mixed actions after an initial probe improves the
+candidate set but still does not solve the pair-best-single problem.
+
 ## Protocol Breaks
 
 The following would invalidate clean Stage 2 claims unless clearly labeled as

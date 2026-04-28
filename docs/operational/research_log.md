@@ -527,3 +527,39 @@ The guarded variant:
 improvement over old `MoPLite`. It does not solve the pair-best-single problem.
 Treat it as a Stage 2 seed family for train-side structural search, not as the
 final result.
+
+## 2026-04-28 — Forced-single probe after initial epoch
+
+**Goal.** Test whether `MoPLite` is losing because it is too indecisive:
+overusing `both off` on some traces and `both on` / budget sharing on others.
+
+**Implementation.** Added explicit router `ProbeThenWinner`
+(`mop_router_type=6`). It uses the initial both-on epoch to collect signal, then
+chooses exactly one expert by score after the configured probe window. The
+runner also gained explicit MoP knob overrides for dev sweeps, with structured
+capture of `mop_one_shot_epochs`.
+
+**What was run.** Dev-only 1M filtered sweeps on five local traces where both
+`Pythia` and `SPP+PPF` beat no-prefetch and separate by about 1% or more:
+
+- `results/_dev_forced_single_probe`
+- `results/_dev_forced_single_budget1024`
+- `results/_dev_forced_single_budget4096`
+- `results/_dev_forced_single_budget8192`
+
+**Observed signal.**
+
+- At budget 2048, forced-single routers improved over old `MoPLite` and
+  `MoPLiteGuarded` on the filtered five-trace geomean, but stayed below the
+  worse single routee on four of five traces.
+- At budget 8192, `WinnerTakeAll` reached `1.035682x` vs no-prefetch and
+  `0.991810x` vs pair-best on the filtered set; `ProbeThenWinner` reached
+  `1.035570x` and `0.991703x`.
+- The desired "between the two routees and closer to the better one" shape held
+  for only two of five traces at budget 8192.
+
+**Interpretation.** The indecision hypothesis is partly right: removing both
+mixed actions after an initial probe and raising the budget improves the filtered
+dev result. It is not a complete fix. Some traces still fall below the worse
+single, while others overshoot the better single. Treat forced-single routing as
+a Stage 2 candidate family, not as final evidence.

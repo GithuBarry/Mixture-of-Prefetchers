@@ -66,6 +66,7 @@ ROUTERS = {
     "OneShotFit":    3,
     "MoPLite":       4,
     "MoPLiteGuarded": 5,
+    "ProbeThenWinner": 6,
 }
 
 # Builtin multi-expert coordinators that pre-date MoP-lite; used as baselines.
@@ -79,6 +80,7 @@ INTERESTING_CONFIG_KEYS = {
     "mop_accuracy_floor",
     "mop_fixed_split_ratio",
     "mop_guarded_min_budget_share",
+    "mop_one_shot_epochs",
     "mop_score_weights",
     "mop_seed",
     "mop_router_type",
@@ -210,6 +212,10 @@ def mop_flags(
     router: str,
     seed: int,
     epoch_trace_prefix: Path | None,
+    mop_total_budget: int | None,
+    mop_accuracy_floor: int | None,
+    mop_guarded_min_budget_share: int | None,
+    mop_one_shot_epochs: int | None,
 ) -> str:
     base = build_base_flags(config_module, athena_home, warmup, sim)
     spec0 = EXPERTS[expert0]
@@ -227,6 +233,14 @@ def mop_flags(
     )
     if epoch_trace_prefix is not None:
         flags += f" --mop_epoch_trace={shlex.quote(str(epoch_trace_prefix))}"
+    if mop_total_budget is not None:
+        flags += f" --mop_total_budget={mop_total_budget}"
+    if mop_accuracy_floor is not None:
+        flags += f" --mop_accuracy_floor={mop_accuracy_floor}"
+    if mop_guarded_min_budget_share is not None:
+        flags += f" --mop_guarded_min_budget_share={mop_guarded_min_budget_share}"
+    if mop_one_shot_epochs is not None:
+        flags += f" --mop_one_shot_epochs={mop_one_shot_epochs}"
     return flags
 
 
@@ -434,6 +448,15 @@ def parse_args() -> argparse.Namespace:
                         choices=sorted(LLC_PREFETCHERS),
                         help="Additional LLC-only prefetcher baselines to run without L2 prefetching.")
     parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument("--mop-total-budget", type=int, default=None)
+    parser.add_argument("--mop-accuracy-floor", type=int, default=None)
+    parser.add_argument("--mop-guarded-min-budget-share", type=int, default=None)
+    parser.add_argument(
+        "--mop-one-shot-epochs",
+        type=int,
+        default=None,
+        help="Override mop_one_shot_epochs for routers that use an initial fitting/probe window.",
+    )
     parser.add_argument("--warmup-instructions", type=int, default=None)
     parser.add_argument("--simulation-instructions", type=int, default=None)
     parser.add_argument(
@@ -468,6 +491,10 @@ def main() -> int:
     sim = args.simulation_instructions
     expert_0 = args.expert_0
     expert_1 = args.expert_1
+    mop_total_budget = args.mop_total_budget
+    mop_accuracy_floor = args.mop_accuracy_floor
+    mop_guarded_min_budget_share = args.mop_guarded_min_budget_share
+    mop_one_shot_epochs = args.mop_one_shot_epochs
 
     if args.mode:
         mode = load_run_mode(root, args.mode)
@@ -573,6 +600,8 @@ def main() -> int:
                 flags = mop_flags(
                     config_module, athena_home, warmup, sim,
                     expert_0, expert_1, experiment, args.seed, epoch_trace_prefix,
+                    mop_total_budget, mop_accuracy_floor, mop_guarded_min_budget_share,
+                    mop_one_shot_epochs,
                 )
             elif kind == "builtin":
                 if args.epoch_trace:
@@ -649,6 +678,7 @@ def main() -> int:
                 "mop_accuracy_floor": int(active_settings["mop_accuracy_floor"]) if "mop_accuracy_floor" in active_settings else None,
                 "mop_fixed_split_ratio": int(active_settings["mop_fixed_split_ratio"]) if "mop_fixed_split_ratio" in active_settings else None,
                 "mop_guarded_min_budget_share": int(active_settings["mop_guarded_min_budget_share"]) if "mop_guarded_min_budget_share" in active_settings else None,
+                "mop_one_shot_epochs": int(active_settings["mop_one_shot_epochs"]) if "mop_one_shot_epochs" in active_settings else None,
                 "mop_score_weights": active_settings.get("mop_score_weights"),
                 "git_revision": revision,
                 "host": hostname,

@@ -275,3 +275,17 @@ Format:
   a reasonable Stage 2 seed, not a new default result. Keeping it explicit
   avoids silently changing the Stage 1 reproduction path.
 - AI-assisted: yes.
+
+### 2026-04-28 — Forced-single probing treated as candidate family, not a win
+- Options: (a) present removal of `both on` / `both off` as the fix,
+  (b) add an explicit forced-single router and report the filtered dev result
+  with failures and overshoots.
+- Choice: (b).
+- Confidence: high for the dev result, low for final claims.
+- Evidence: On five filtered local traces where both routees beat no-prefetch,
+  8192-budget `WinnerTakeAll` reached `1.035682x` vs no-prefetch and
+  `0.991810x` vs pair-best; `ProbeThenWinner` reached `1.035570x` and
+  `0.991703x`. The desired between-and-closer behavior held on only two of
+  five traces. This supports forced-single routing as a Stage 2 candidate, not
+  as a completed effectiveness claim.
+- AI-assisted: yes.
