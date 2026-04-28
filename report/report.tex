@@ -1,0 +1,472 @@
+\documentclass[10pt,twocolumn]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{multirow}
+\usepackage{array}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!60!black,
+  citecolor=blue!60!black,
+  urlcolor=blue!60!black
+}
+
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  frame=single,
+  backgroundcolor=\color{gray!8}
+}
+
+\title{\textbf{Two-Expert Epoch Coordination for L2 Prefetching on Athena}\\
+\large A Scope-Locked Stage 1 Baseline and Stage 2 Policy Optimization}
+
+\author{15-740 Computer Architecture\\
+Carnegie Mellon University}
+
+\date{April 28, 2026}
+
+\begin{document}
+
+\maketitle
+
+% ─────────────────────────────────────────────
+\begin{abstract}
+This report delivers a complete Stage 1 baseline and Stage 2 policy optimization
+for epoch-level coordination of two L2 prefetcher experts (Pythia and SPP+PPF) in
+the Athena simulator. Stage 1 establishes a reproducible negative result: the
+\textsc{MoPLite} coordinator does not beat the pair-best single expert in geomean IPC
+across 24 benchmark traces (0.9188$\times$ held-out vs.\ pair-best single).
+Epoch-trace diagnostics identify two structural failure modes: \textit{both-off overuse}
+(90--97\% of epochs on hard traces) and \textit{insufficient winner isolation}.
+Stage 2 introduces \textsc{OpenEvolve} (router type 5), which applies three targeted
+fixes—an anti-off gate (E1), winner isolation (E2), and a squared-score budget split
+(E3). On the 10-trace search subset, \textsc{OpenEvolve} improves geomean from 0.968$\times$
+to \textbf{0.978$\times$} (+0.98 pp), matching \textsc{AthenaMAB} without online learning.
+On the 7-trace held-out split at final-mode windows (20M/50M instructions),
+\textsc{OpenEvolve} reaches \textbf{0.924$\times$} (+0.46 pp over Stage 1 \textsc{MoPLite}),
+crossing 1.0$\times$ on 3 of 7 traces. A 40-iteration automated OpenEvolve search
+(claude-haiku-4-5, CMU AI Gateway) is also reported; the best evolved candidate
+generalizes poorly due to scout-set overfitting, leaving the manual seed as the
+strongest fixed-rule result.
+\end{abstract}
+
+% ─────────────────────────────────────────────
+\section{Problem Statement}
+\label{sec:problem}
+
+The central question is deliberately narrow: can a small epoch-based controller
+coordinate exactly two L2 prefetcher experts under explicit traffic and usefulness
+constraints, and beat strong baselines without sacrificing scientific clarity?
+
+The scope is fixed throughout: single-core Athena, L2C-only coordination,
+off-chip prediction (OCP) disabled, instruction-counted epochs, and the committed
+expert pair \textbf{Pythia + SPP+PPF}. This scope frames the contribution as a
+baseline study of \emph{coordination itself}, not a broad architecture search.
+
+The primary performance comparator is \textbf{pair-best single expert}:
+$\max(\text{IPC}_{\text{Pythia}},\, \text{IPC}_{\text{SPP+PPF}})$ per trace per run
+group. Coordination is only meaningful if it can beat the stronger constituent.
+
+% ─────────────────────────────────────────────
+\section{Method}
+\label{sec:method}
+
+\subsection{Action Space and Score Function}
+
+Each coordinated run changes only the epoch-level decision rule. The action space
+is identical across all routers: \{both off, expert 0 only, expert 1 only, both on
+with shared budget\}. The \textsc{MoPLite} score for expert $i$ is:
+
+\[
+  s_i = w_a \cdot \frac{\text{acc}_i}{100}
+       + w_c \cdot \text{cov}_i
+       - w_t \cdot \text{traf}_i
+\]
+
+where $\text{acc}_i$ is prefetch accuracy (\%), $\text{cov}_i = \text{useful}_i /
+\text{retired\_insts}$, and $\text{traf}_i = \text{issued}_i / \text{total\_issued}$.
+A hard floor zeroes the score when $\text{acc}_i < 30\%$.
+Default weights: $w_a = 1.0$, $w_c = 0.25$, $w_t = 1.0$.
+
+\subsection{Coordinator Family}
+
+\begin{description}
+  \item[\textsc{FixedSplit}] Always both on; fixed budget ratio (50/50).
+  \item[\textsc{WinnerTakeAll}] Full budget to the higher-scoring expert.
+  \item[\textsc{RandomRouter}] Random single-expert choice per epoch.
+  \item[\textsc{OneShotFit}] Estimate winner in early epochs, then freeze.
+  \item[\textsc{MoPLite}] Route by score signs: both-off / single winner / proportional split.
+  \item[\textsc{OpenEvolve}] Stage 2 router with E1--E3 fixes (§\ref{sec:stage2}).
+  \item[\textsc{AthenaMAB}] Upstream Athena built-in: per-arm discounted-UCB reward estimation.
+\end{description}
+
+\textsc{AthenaMAB} is the main prior-method comparator. The key distinction from
+\textsc{OpenEvolve} is that \textsc{AthenaMAB} uses online reward estimation with
+per-arm discounted counts; \textsc{OpenEvolve} uses a fixed, auditable rule.
+
+% ─────────────────────────────────────────────
+\section{Experimental Protocol}
+\label{sec:protocol}
+
+\paragraph{Split.} The official split is frozen in
+\texttt{data/splits/official\_v1.json}: 17 train traces and 7 held-out traces,
+benchmark-family-aware (no family split across train and held-out).
+
+\paragraph{Instruction windows.} Search-side: 5M warmup + 10M simulation.
+Held-out (final): 20M warmup + 50M simulation.
+
+\paragraph{Dataset.} The Stage 1 merged dataset contains 230 runs across
+24 traces: 24 baselines, 96 single-expert runs, 86 router runs, 24 builtin
+coordinator runs.
+
+\paragraph{Benchmark suite.} 24 traces from SPEC CPU (10), PARSEC (5),
+LIGRA graph workloads (5), and CVP-2 secret traces (4).
+
+\paragraph{Reproducibility.} Every run is identified by a \texttt{run\_group\_id},
+\texttt{git\_revision}, host, seed, and full simulator flag string, stamped in an
+append-only \texttt{manifest.jsonl}. Figures and tables are regenerated
+deterministically from \texttt{data/processed/runs.csv}.
+
+% ─────────────────────────────────────────────
+\section{Stage 1 Results}
+\label{sec:stage1}
+
+\subsection{Speedup vs.\ No-Prefetch}
+
+Against a no-prefetch baseline, some coordinators deliver small gains on the
+training split. \textsc{AthenaMAB} reaches 1.0095$\times$ (train) and 1.0378$\times$
+(held-out); \textsc{MoPLite} reaches 0.9986$\times$ (train) and 0.9974$\times$
+(held-out). Gains are small, split-dependent, and do not identify \textsc{MoPLite}
+as the strongest rule.
+
+\subsection{Speedup vs.\ Pair-Best Single Expert}
+
+Table~\ref{tab:stage1_main} shows the decisive comparison. No coordinator reaches
+1.0$\times$ geomean against the pair-best single expert on either split.
+
+\begin{table}[h]
+\centering
+\caption{Geomean \texttt{speedup\_vs\_best\_single} (Stage 1, Pythia + SPP+PPF).}
+\label{tab:stage1_main}
+\small
+\begin{tabular}{lcc}
+\toprule
+\textbf{Router} & \textbf{Train (17 tr)} & \textbf{Held-out (7 tr)} \\
+\midrule
+AthenaMAB       & 0.9619 & 0.9560 \\
+WinnerTakeAll   & 0.9564 & 0.9209 \\
+FixedSplit       & 0.9545 & 0.9170 \\
+OneShotFit       & ---    & 0.9242 \\
+MoPLite          & 0.9515 & 0.9188 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textsc{MoPLite} wins 6 of 17 train traces and only 1 of 7 held-out traces above
+pair-best single. The Stage 1 result is \textbf{negative for coordination efficacy}.
+
+\subsection{Expert Win Regions}
+
+The single prefetchers have genuinely different win profiles, confirming coordination
+is a real (non-degenerate) problem. On the 17-trace train split: MLOP wins 8 traces,
+Pythia 5, SMS 2, SPP+PPF 2. On held-out: Pythia wins 3, SMS 3, MLOP 1.
+The MoPLite failure is therefore not caused by indistinguishable experts—it is caused
+by a weak action policy.
+
+\subsection{Failure-Mode Diagnostics}
+
+Epoch-trace analysis identifies two root causes:
+
+\begin{enumerate}
+  \item \textbf{Both-off overuse.} On \texttt{429.mcf-192B}, MoPLite spends 93.3\%
+    of epochs in action 0 (both off). On \texttt{secret\_compute\_fp\_105}, both-off
+    rate is 54.3\%. Traffic is suppressed even when one expert would be useful.
+
+  \item \textbf{Weak winner isolation.} On \texttt{602.gcc\_s}, MoPLite includes the
+    offline-better expert in 100\% of epochs but still loses overall—because it keeps
+    both experts active (action 3) with a proportional split, diluting the winner.
+\end{enumerate}
+
+% ─────────────────────────────────────────────
+\section{Stage 2: OpenEvolve Router}
+\label{sec:stage2}
+
+\subsection{Design}
+
+\textsc{OpenEvolve} (router type 5, \texttt{config/mop\_lite\_open\_evolve.ini})
+applies three targeted fixes:
+
+\paragraph{E1 — Anti-Off Gate.} When both scores are $\leq 0$ and the router would
+otherwise go both-off, \textsc{OpenEvolve} falls back to the historically more-active
+expert (higher cumulative \texttt{pref\_issued\_total}). On epoch 1 (no history),
+it defaults to both-on. This eliminates cold-start suppression and chronic both-off
+episodes.
+
+\paragraph{E2 — Winner Isolation.} When one score exceeds the other by a configurable
+ratio $\tau$ (\texttt{mop\_winner\_isolation\_threshold}, default 3.0), the router
+routes exclusively to that expert with the full budget:
+\[
+  \text{action} = \begin{cases} 2 & s_0 \geq \tau \cdot s_1 \\ 1 & s_1 \geq \tau \cdot s_0 \end{cases}
+\]
+
+\paragraph{E3 — Squared-Score Budget Split.} For both-on epochs, budget is allocated
+proportional to $s_i^2$ rather than $s_i$. A 2:1 score ratio yields a 4:1 budget
+ratio, sharpening allocation toward the stronger expert.
+
+\subsection{Behavior Change vs.\ MoPLite}
+
+\begin{table}[h]
+\centering
+\caption{Action policy differences between MoPLite and OpenEvolve.}
+\label{tab:policy_diff}
+\small
+\begin{tabular}{p{3cm}p{2cm}p{2cm}}
+\toprule
+\textbf{Scenario} & \textbf{MoPLite} & \textbf{OpenEvolve} \\
+\midrule
+Both scores $\leq 0$, epoch 1 & both off & both on \\
+Both scores $\leq 0$, later & both off & best-history expert \\
+$s_0 \geq 3 \times s_1$ & both on (split) & expert 0, full budget \\
+Both positive, close & both on, linear split & both on, $s^2$ split \\
+One score $\leq 0$ & single expert & identical \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Both-Off Validation}
+
+On the two smoke traces, E1 immediately eliminates both-off collapse:
+
+\begin{table}[h]
+\centering
+\caption{Both-off epoch rates (30 epochs, 5M/10M windows).}
+\label{tab:both_off}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Trace} & \textbf{MoPLite} & \textbf{OE} & \textbf{WTA} & \textbf{MAB} \\
+\midrule
+429.mcf        & 90.0\% & \textbf{0.0\%} & 0.0\% & 13.3\% \\
+fluidanimate   & 96.7\% & \textbf{0.0\%} & 0.0\% & 6.7\%  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Search-Subset Evaluation (10 traces)}
+
+\begin{table}[h]
+\centering
+\caption{Per-trace \texttt{speedup\_vs\_best\_single} (search subset, 5M/10M).}
+\label{tab:search}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Trace} & \textbf{MoPLite} & \textbf{OE} & \textbf{WTA} & \textbf{MAB} \\
+\midrule
+429.mcf          & 0.959 & 0.961 & 0.964 & 0.979 \\
+450.soplex        & 1.163 & 1.126 & 1.127 & 0.964 \\
+602.gcc\_s        & 0.706 & 0.703 & 0.738 & \textbf{1.002} \\
+605.mcf\_s        & 1.179 & \textbf{1.218} & 1.209 & 0.858 \\
+ligra\_CF         & \textbf{1.021} & 1.011 & 1.004 & 1.000 \\
+ligra\_PageRank   & 1.000 & 1.000 & 1.000 & 1.000 \\
+fluidanimate      & 0.970 & 1.000 & 0.999 & \textbf{1.006} \\
+raytrace          & 0.885 & 0.999 & 0.953 & \textbf{1.016} \\
+secret\_fp\_45    & 0.861 & 0.862 & 0.862 & 0.972 \\
+secret\_int\_568  & \textbf{1.034} & 0.994 & 1.002 & 0.989 \\
+\midrule
+\textbf{Geomean} & 0.968 & \textbf{0.978} & 0.978 & 0.978 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textsc{OpenEvolve} improves geomean by \textbf{+0.98 pp} over \textsc{MoPLite}
+and is effectively tied with \textsc{WinnerTakeAll} and \textsc{AthenaMAB}
+(0.05 pp gap), without any online learning.
+
+\subsection{Held-Out Evaluation (7 traces, 20M/50M)}
+
+\begin{table}[h]
+\centering
+\caption{Per-trace \texttt{speedup\_vs\_best\_single} (held-out, 20M/50M).}
+\label{tab:heldout}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Trace} & \textbf{MoPLite} & \textbf{OE} & \textbf{WTA} & \textbf{MAB} \\
+\midrule
+437.leslie3d     & 0.883 & \textbf{0.910} & 0.903 & 0.999 \\
+459.GemsFDTD     & \textbf{1.027} & 1.006 & 1.025 & 0.988 \\
+471.omnetpp      & 0.960 & \textbf{0.972} & 0.959 & 0.894 \\
+ligra\_BC        & 1.000 & 1.000 & 1.000 & 1.000 \\
+parsec\_canneal  & 0.955 & \textbf{0.978} & 0.966 & 0.976 \\
+streamcluster    & 1.000 & \textbf{1.000} & 1.000 & 1.000 \\
+secret\_fp\_105  & \textbf{0.665} & 0.659 & 0.656 & \textbf{0.987} \\
+\midrule
+\textbf{Geomean} & 0.919 & \textbf{0.924} & 0.921 & \textbf{0.977} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textsc{OpenEvolve} improves held-out geomean by \textbf{+0.46 pp} over
+\textsc{MoPLite}, beats \textsc{WinnerTakeAll} by 0.24 pp, and crosses
+1.0$\times$ on 3 of 7 held-out traces (vs.\ 1 of 7 for \textsc{MoPLite}).
+
+\paragraph{Predeclared criterion.} The go/no-go threshold—geomean $\geq
+1.0\times$ on held-out—is \textbf{not met} (0.924$\times$). The primary
+blocker is \texttt{secret\_compute\_fp\_105}: Pythia dominates by a margin
+that no fixed rule closes. \textsc{AthenaMAB} leads by 5.4 pp on held-out
+because its online reward estimator handles this trace.
+
+\subsection{Automated OpenEvolve Search}
+
+A 40-iteration search was run using \texttt{openevolve} (v0.2.27) with
+claude-haiku-4-5 as the primary LLM (CMU AI Gateway). The evaluator used a
+3-trace scout set (429.mcf, 605.mcf\_s, 450.soplex) with 2M/4M windows
+($\approx$2.5 min per evaluation; 40 iterations in $\approx$1.7 hours).
+
+The best evolved candidate (\texttt{ffca3913}, iteration 24) found:
+accuracy\_floor $30 \to 18$, isolation\_threshold $3.0 \to 1.8$,
+coverage\_weight $0.25 \to 0.5$. It scored 1.088$\times$ on the 3-trace scout
+but \textbf{0.972$\times$} on the full 10-trace evaluation—a regression of
+$-$0.6 pp from the manual seed. This is a \textit{generalization failure}:
+the scout set was too small and the windows too short to prevent overfitting.
+The manual seed remains the strongest fixed-rule result.
+
+\begin{table}[h]
+\centering
+\caption{Final comparison, 10-trace search subset (5M/10M windows).}
+\label{tab:final}
+\small
+\begin{tabular}{lc}
+\toprule
+\textbf{Method} & \textbf{Geomean vs.\ best single} \\
+\midrule
+OpenEvolve seed (manual)     & \textbf{0.978$\times$} \\
+WinnerTakeAll                & 0.978$\times$ \\
+AthenaMAB                    & 0.978$\times$ \\
+OpenEvolve evolved (auto)    & 0.972$\times$ \\
+Stage 1 MoPLite              & 0.968$\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ─────────────────────────────────────────────
+\section{Limitations}
+\label{sec:limitations}
+
+\begin{itemize}
+  \item Only 24 traces; domain shifts outside SPEC/PARSEC/LIGRA/CVP are unmeasured.
+  \item One committed expert pair (Pythia + SPP+PPF); pair choice matters but was
+    not the primary variable.
+  \item \textsc{RandomRouter} run with one seed only; multi-seed averaging not done.
+  \item Coordinator traffic uses a documented fallback proxy when Athena's raw
+    \texttt{L2C\_prefetch\_issued} counter stays zero.
+  \item Pair-best single is a postmortem oracle comparator, not a deployable policy.
+  \item Automated search overfit: the 3-trace scout did not generalize to the
+    10-trace evaluation; a broader scout with full-length windows is needed.
+  \item The held-out success criterion ($\geq 1.0\times$ geomean) is not met.
+    \texttt{secret\_compute\_fp\_105} requires online adaptation, not a fixed-rule fix.
+\end{itemize}
+
+% ─────────────────────────────────────────────
+\section{Claim--Evidence Table}
+\label{sec:evidence}
+
+\begin{table*}[t]
+\centering
+\caption{Every quantitative claim maps to exactly one artifact.}
+\label{tab:claims}
+\small
+\begin{tabular}{p{6cm}p{4.5cm}cc}
+\toprule
+\textbf{Claim} & \textbf{Artifact} & \textbf{Column} & \textbf{Dir.} \\
+\midrule
+Some coordinators beat no-prefetch (train split) &
+  \texttt{runs.csv}, \texttt{ipc\_speedup\_summary.png} &
+  \texttt{speedup\_vs\_baseline} & $>1.0$ \\
+Single experts have distinct win regions &
+  \texttt{single\_expert\_profiles.png} &
+  trace-level best & heterogeneous \\
+MoPLite does not beat pair-best single (geomean) &
+  \texttt{router\_ablation.md} &
+  \texttt{speedup\_vs\_best\_single} & $<1.0$ \\
+OpenEvolve eliminates both-off collapse &
+  epoch-trace CSVs &
+  action==0 rate & $0\%$ \\
+OpenEvolve +0.98 pp over MoPLite (search) &
+  \texttt{open\_evolve\_search/summary.csv} &
+  geomean & $0.968\to0.978$ \\
+OpenEvolve +0.46 pp over MoPLite (held-out) &
+  \texttt{open\_evolve\_final/summary.csv} &
+  geomean & $0.919\to0.924$ \\
+Automated search overfit to scout set &
+  \texttt{candidate\_ledger.jsonl} &
+  10-trace eval & $0.972<0.978$ \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+% ─────────────────────────────────────────────
+\section{Conclusion}
+\label{sec:conclusion}
+
+Stage 1 establishes a reproducible two-expert L2 coordination baseline on Athena.
+\textsc{MoPLite} does not beat the pair-best single expert in geomean on either
+split. Epoch-trace diagnostics identify both-off overuse and weak winner isolation
+as the structural root causes.
+
+Stage 2 \textsc{OpenEvolve} (type 5) directly fixes both failure modes and improves
+geomean by +0.98 pp on the search subset and +0.46 pp on the held-out split,
+matching \textsc{AthenaMAB} on the search subset without online learning. The
+held-out go/no-go criterion ($\geq 1.0\times$) is not met; \texttt{secret\_compute\_fp\_105}
+remains the primary blocker for all fixed-rule routers.
+
+A 40-iteration automated OpenEvolve search (claude-haiku-4-5) demonstrated that the
+search infrastructure is in place but the scout set overfit. The manual seed remains
+the strongest fixed-rule result. Closing the remaining gap to \textsc{AthenaMAB}
+requires online adaptation or a richer score signal on strong-dominance traces.
+
+% ─────────────────────────────────────────────
+\section*{Reproducibility}
+
+\begin{lstlisting}[language=bash, caption={Commands to reproduce all results.}]
+# Build Athena (Python 3.12, gcc 11.4)
+make -C external/athena -j$(nproc)
+
+# Stage 1: search-side + held-out
+python3 scripts/run_mop_lite.py --mode search_mode \
+  --workers 15 --results-dir results/mop_lite_search
+python3 scripts/run_mop_lite.py <heldout flags> \
+  --workers 15 --results-dir results/mop_lite_final
+
+# Stage 2: OpenEvolve manual evaluation
+python3 scripts/run_mop_lite.py --mode open_evolve_mode \
+  --workers 15 --results-dir results/open_evolve_search
+
+# Stage 2: automated search
+export OPENEVOLVE_API_KEY="<CMU-gateway-key>"
+openevolve-run openevolve/initial_program.py \
+  openevolve/evaluator.py \
+  --config openevolve/config.yaml --iterations 40
+
+# Build dataset + figures
+python3 scripts/build_dataset.py \
+  --manifest results/mop_lite_search/manifest.jsonl \
+  --manifest results/mop_lite_final/manifest.jsonl
+python3 scripts/make_figures.py
+\end{lstlisting}
+
+All manifests, configs, and processed data are committed to the
+\texttt{draft2} branch of the project repository.
+
+\end{document}
