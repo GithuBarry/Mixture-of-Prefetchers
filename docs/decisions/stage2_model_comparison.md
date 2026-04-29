@@ -35,11 +35,13 @@ accessible models:
 | --- | --- |
 | `gpt-5.4-mini` | `stage2/openevolve/config_modelcmp_short_gpt54mini.yaml` |
 | `gpt-5.4-nano` | `stage2/openevolve/config_modelcmp_short_gpt54nano.yaml` |
+| `gpt-5-mini` | `stage2/openevolve/config_modelcmp_short_gpt5mini.yaml` |
 | `claude-haiku-4-5-20251001-v1:0` | `stage2/openevolve/config_modelcmp_short_claude_haiku45.yaml` |
 
 The first, more verbose `gpt-5.4-mini` comparison config was rejected by the
 gateway prompt filter before producing a candidate. The actual comparison uses
-the shorter matched configs above for all three models.
+the shorter matched configs above. `gpt-5-mini` was added after `gpt-5.4-mini`
+also hit the prompt filter with the shorter config.
 
 ## Planned Command Shape
 
