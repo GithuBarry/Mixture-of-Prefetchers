@@ -5,6 +5,15 @@ Date: 2026-04-29
 Status: Stage 2 scaffold is active after the Stage 1 train-only freeze commit.
 Heldout traces remain unused for selection.
 
+Update: the active seed was tightened by the train-only sweep in
+`docs/decisions/stage2_policy_sweep.md`; it remains `MoP-V1.2` but uses
+`mop_score_weights = [1.0, 0.5, 1.0]`.
+
+Update: the OpenEvolve evaluator now hashes canonical policy behavior plus
+frozen evaluator/simulator inputs, rejects non-literal evolved code, and returns
+the full metric schema on failed candidates. This keeps the Stage 2 loop from
+rewarding comment-only edits or crashing on invalid generated policies.
+
 ## Frozen Story
 
 - cache level: L2C

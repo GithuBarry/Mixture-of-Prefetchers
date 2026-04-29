@@ -45,6 +45,8 @@ The repository now has the finished Stage 1 evidence package.
   reflect that finished Stage 1 snapshot.
 - Stage 2 search has a frozen boundary in
   `docs/decisions/stage2_openevolve_start.md`.
+- The current train-only Stage 2 policy selection is summarized in
+  `docs/decisions/stage2_policy_sweep.md`.
 
 ## Which file answers which question?
 
@@ -52,6 +54,7 @@ The repository now has the finished Stage 1 evidence package.
   - `docs/outsider_guide.md`
   - `docs/operational/mop_stage1_instruction_v2.md`
   - `docs/decisions/stage2_openevolve_start.md`
+  - `docs/decisions/stage2_policy_sweep.md`
 - "Which traces and instruction windows count as official?"
   - `docs/operational/experiment_setup.md`
   - `configs/trace_suites.json`

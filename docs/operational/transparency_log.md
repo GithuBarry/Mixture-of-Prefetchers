@@ -337,3 +337,49 @@ Format:
   `results/stage2_openevolve/smoke_llama8b_iter1`, and
   `results/stage2_openevolve/stage1_llama8b_full_iter3`.
 - AI-assisted: yes.
+
+## 2026-04-29 — Stage 2 deterministic policy sweep
+
+- Goal: give OpenEvolve a stronger seed by sweeping the same frozen policy
+  surface without touching heldout traces.
+- Decision: promote `MoP-V1.2` with `mop_score_weights = [1.0, 0.5, 1.0]`.
+  This keeps the same router, budget, probe window, and guards as the prior
+  seed, but raises the accuracy component of the score.
+- Evidence: the 36-candidate serial stage1 sweep completed with no failed
+  records. The tuned seed reached `0.936679x` vs pair-best, `1.033235x` vs
+  no-prefetch, and `1.018669x` vs weaker routee, slightly ahead of the old
+  seed in combined score. On the 10-trace search confirmation it reached
+  `0.958714x` vs pair-best, `1.065858x` vs no-prefetch, and `1.105995x` vs
+  weaker routee. On the 13 locally available train traces it reached
+  `0.965420x` vs pair-best, `1.047570x` vs no-prefetch, and `1.096829x` vs
+  weaker routee.
+- Caveat: full 17-trace train confirmation with `--skip-download` failed
+  loudly because four train traces are missing locally. No heldout traces were
+  used. Athena was unstable under multi-candidate parallelism, so selection
+  runs used serial candidate evaluation with explicit retries.
+- Artifacts: `docs/decisions/stage2_policy_sweep.md`,
+  `stage2/openevolve/selection_ledger.jsonl`,
+  `results/stage2_openevolve/sweeps/stage1_tight_serial_20260429`,
+  `results/stage2_openevolve/sweeps/stage2_confirm_top3_20260429`, and
+  `results/stage2_openevolve/sweeps/stage3_local_train_confirm_top2_20260429`.
+- AI-assisted: yes.
+
+## 2026-04-29 — Stage 2 OpenEvolve smoke hardening
+
+- Goal: verify the Stage 2 OpenEvolve loop with the tuned seed before spending
+  more model budget.
+- Decision: keep `MoP-V1.2` with `mop_score_weights = [1.0, 0.5, 1.0]` as the
+  active seed. The only valid new cheap-model candidate used
+  `mop_score_weights = [1.0, 0.4, 1.0]`; it lost to the active seed on the
+  10-trace search confirmation.
+- Evidence: after behavior-hash cache hardening, the active seed reached
+  `0.958273x` vs pair-best, `1.064585x` vs no-prefetch, and `1.108183x` vs
+  weaker routee on stage2. The `[1.0, 0.4, 1.0]` candidate reached
+  `0.958214x`, `1.062867x`, and `1.106615x`.
+- Caveat: the cheap 8B model repeatedly tried to add metric keys such as
+  `single_action_rate`; the evaluator rejected those edits fail-closed. One
+  stage2 retry hit an Athena `SIGBUS` and then succeeded on retry.
+- Artifacts: `results/stage2_openevolve/stage1_tuned_llama8b_iter5_behaviorhash`,
+  `results/stage2_openevolve/stage2/047993d2d251398b`, and
+  `results/stage2_openevolve/stage2/1662bd615d89c4e8`.
+- AI-assisted: yes.

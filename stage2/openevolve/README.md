@@ -11,6 +11,10 @@ The data-backed reason for this pair is complementarity on the train/search
 screen: `MLOP` wins 3/10 traces, `SPP+PPF` wins 7/10, both routees beat
 no-prefetch on 6/10, and the routee gap is at least 2% on 7/10.
 
+After the train-only policy sweep, the active seed is `MoP-V1.2` with
+`mop_score_weights = [1.0, 0.5, 1.0]`. See
+`docs/decisions/stage2_policy_sweep.md`.
+
 ## Editable Surface
 
 OpenEvolve edits only `candidate_policy()` in `initial_policy.py`. The evaluator
@@ -47,3 +51,39 @@ PYTHONPATH=external/openevolve STAGE2_EVAL_STAGE=stage0 \
 
 The evaluator writes `stage2/openevolve/candidate_ledger.jsonl` and raw
 simulator artifacts under `results/stage2_openevolve/`.
+
+The evaluator hashes the validated policy dictionary plus frozen evaluator and
+simulator inputs. Program text outside the literal policy is intentionally not
+part of the behavior cache key, so comment-only changes cannot rerun the
+simulator and appear better because of noise.
+
+## Deterministic Sweep
+
+Before spending more model budget, run the deterministic policy sweep:
+
+```bash
+python3 stage2/openevolve/sweep_policies.py \
+  --stage stage1 \
+  --preset tight \
+  --workers 1 \
+  --retries 1 \
+  --out-dir results/stage2_openevolve/sweeps/stage1_tight_serial
+```
+
+Use `--workers 1` for Athena stability on this machine. Higher concurrency has
+triggered transient `SIGBUS` failures in the simulator on some traces.
+
+The last cheap-model smoke that completed the loop was:
+
+```bash
+PYTHONPATH=external/openevolve STAGE2_EVAL_STAGE=stage1 \
+  python3 external/openevolve/openevolve-run.py \
+  stage2/openevolve/initial_policy.py \
+  stage2/openevolve/evaluator.py \
+  --config stage2/openevolve/config_smoke.yaml \
+  --output results/stage2_openevolve/stage1_tuned_llama8b_iter5_behaviorhash \
+  --iterations 5
+```
+
+That run found one valid new policy, `[1.0, 0.4, 1.0]`, but it was not promoted
+after the 10-trace stage2 confirmation.

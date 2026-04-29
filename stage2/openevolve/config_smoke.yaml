@@ -37,6 +37,10 @@ prompt:
     stay within the frozen Stage 2 seed families, MoP-V1.1 or MoP-V1.2. The
     other allowed knobs are mop_total_budget, mop_one_shot_epochs, mop_accuracy_floor,
     mop_guarded_min_budget_share, and mop_score_weights.
+    The returned dictionary must not include metric names. Never add
+    n_traces, gm_vs_pair_best, gm_vs_nopref, gm_vs_weaker, beats_weaker_rate,
+    catastrophic_rate, both_routees_gt_1_rate, off_rate, both_on_rate,
+    single_action_rate, combined_score, or stage_passed.
 
     Strong Stage 1 facts:
     - MLOP + SPP+PPF has complementary trace strengths: MLOP wins 3/10 search
@@ -48,7 +52,7 @@ prompt:
 
     Prefer simple, explainable policies. Do not import data files or modify any
     code outside the evolve block.
-  include_artifacts: true
+  include_artifacts: false
   num_top_programs: 2
   num_diverse_programs: 1
 

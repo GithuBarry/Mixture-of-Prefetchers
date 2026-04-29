@@ -20,8 +20,10 @@ import hashlib
 import json
 import math
 import os
+import shutil
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -51,7 +53,46 @@ STAGE2_TRACES = [
     "450.soplex-92B",
     "parsec_2.1.fluidanimate.simlarge.prebuilt.drop_9500M.length_250M",
     "parsec_2.1.raytrace.simlarge.prebuilt.drop_23500M.length_250M",
+    "ligra_CF.com-lj.ungraph.gcc_6.3.0_O3.drop_154750M.length_250M",
+    "ligra_PageRankDelta.com-lj.ungraph.gcc_6.3.0_O3.drop_1250M.length_250M",
     "secret_compute_fp_45",
+    "secret_compute_int_568",
+    "602.gcc_s-734B",
+    "605.mcf_s-472B",
+]
+STAGE3_TRACES = [
+    "429.mcf-192B",
+    "433.milc-127B",
+    "450.soplex-92B",
+    "602.gcc_s-734B",
+    "605.mcf_s-472B",
+    "619.lbm_s-2676B",
+    "649.fotonik3d_s-7084B",
+    "parsec_2.1.fluidanimate.simlarge.prebuilt.drop_9500M.length_250M",
+    "parsec_2.1.raytrace.simlarge.prebuilt.drop_23500M.length_250M",
+    "ligra_CF.com-lj.ungraph.gcc_6.3.0_O3.drop_154750M.length_250M",
+    "ligra_PageRankDelta.com-lj.ungraph.gcc_6.3.0_O3.drop_1250M.length_250M",
+    "secret_compute_fp_45",
+    "secret_compute_int_568",
+]
+STAGE4_TRACES = [
+    "429.mcf-192B",
+    "433.milc-127B",
+    "450.soplex-92B",
+    "602.gcc_s-734B",
+    "605.mcf_s-472B",
+    "619.lbm_s-2676B",
+    "649.fotonik3d_s-7084B",
+    "parsec_2.1.facesim.simlarge.prebuilt.drop_1500M.length_250M",
+    "parsec_2.1.fluidanimate.simlarge.prebuilt.drop_9500M.length_250M",
+    "parsec_2.1.raytrace.simlarge.prebuilt.drop_23500M.length_250M",
+    "ligra_BFS.com-lj.ungraph.gcc_6.3.0_O3.drop_500M.length_250M",
+    "ligra_CF.com-lj.ungraph.gcc_6.3.0_O3.drop_154750M.length_250M",
+    "ligra_PageRankDelta.com-lj.ungraph.gcc_6.3.0_O3.drop_1250M.length_250M",
+    "ligra_Triangle.com-lj.ungraph.gcc_6.3.0_O3.drop_750M.length_250M",
+    "secret_compute_fp_45",
+    "secret_compute_int_243",
+    "secret_compute_int_568",
 ]
 FROZEN_SPLIT_PATH = REPO_ROOT / "data" / "splits" / "official_v1.json"
 EVOLVE_START = "# EVOLVE-BLOCK-START"
@@ -62,6 +103,11 @@ CACHE_INPUTS = [
     Path("scripts/run_single_prefetcher_baselines.py"),
     Path("configs/trace_suites.json"),
     Path("data/splits/official_v1.json"),
+    Path("external/athena/src/oogway.cc"),
+    Path("external/athena/inc/knobs.def"),
+    Path("external/athena/config/mop_lite.ini"),
+    Path("external/athena/config/mlop.ini"),
+    Path("external/athena/config/spp_ppf_dev.ini"),
 ]
 
 
@@ -82,7 +128,10 @@ def extract_evolve_block(program_path: str) -> str:
 
 def literal_policy_from_function(fn: ast.FunctionDef) -> dict[str, Any]:
     assert fn.name == "candidate_policy", "Evolve block must define candidate_policy()"
+    assert not fn.decorator_list, "candidate_policy() decorators are disallowed"
+    assert fn.returns is None, "candidate_policy() return annotations are disallowed"
     assert not fn.args.args and not fn.args.kwonlyargs and not fn.args.vararg and not fn.args.kwarg
+    assert not fn.args.defaults and not fn.args.kw_defaults
     body = list(fn.body)
     if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
         assert isinstance(body[0].value.value, str), "Only a docstring may precede the return"
@@ -136,7 +185,7 @@ def validate_policy(raw: Any) -> dict[str, Any]:
 
 def policy_hash(program_path: str, policy: dict[str, Any]) -> str:
     h = hashlib.sha256()
-    h.update(Path(program_path).read_bytes())
+    _ = program_path
     h.update(json.dumps(policy, sort_keys=True).encode())
     for rel_path in CACHE_INPUTS:
         path = REPO_ROOT / rel_path
@@ -150,6 +199,47 @@ def repo_relative(path: Path) -> str:
     return str(path.relative_to(REPO_ROOT))
 
 
+def display_path(path: str) -> str:
+    resolved = Path(path).resolve()
+    try:
+        return repo_relative(resolved)
+    except ValueError:
+        return resolved.name
+
+
+def display_error(exc: Exception) -> str:
+    text = str(exc)
+    text = text.replace(str(REPO_ROOT), ".")
+    text = text.replace(str(Path.home()), "~")
+    return text
+
+
+def process_exists(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+
+
+def acquire_pid_lock(lock_path: Path) -> None:
+    while True:
+        try:
+            fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode())
+            os.close(fd)
+            return
+        except FileExistsError:
+            try:
+                lock_pid = int(lock_path.read_text().strip())
+            except (OSError, ValueError):
+                lock_pid = -1
+            if lock_pid <= 0 or not process_exists(lock_pid):
+                lock_path.unlink(missing_ok=True)
+                continue
+            time.sleep(0.5)
+
+
 def stage_settings(stage: str) -> tuple[list[str], int, int]:
     if stage == "stage0":
         return SMOKE_TRACES, 100_000, 600_000
@@ -157,10 +247,14 @@ def stage_settings(stage: str) -> tuple[list[str], int, int]:
         return STAGE1_TRACES, 500_000, 1_000_000
     if stage == "stage2":
         return STAGE2_TRACES, 500_000, 1_000_000
+    if stage == "stage3":
+        return STAGE3_TRACES, 500_000, 1_000_000
+    if stage == "stage4":
+        return STAGE4_TRACES, 5_000_000, 10_000_000
     raise AssertionError(f"Unknown STAGE2_EVAL_STAGE={stage!r}")
 
 
-def assert_train_only(traces: list[str]) -> None:
+def assert_train_only(traces: list[str], *, require_search_subset: bool) -> None:
     split = json.loads(FROZEN_SPLIT_PATH.read_text())["trace_sets"]
     train = set(split["train"])
     search_subset = set(split["search_subset"])
@@ -168,9 +262,10 @@ def assert_train_only(traces: list[str]) -> None:
     trace_set = set(traces)
     assert not trace_set & heldout, f"Stage 2 evaluator touched heldout traces: {sorted(trace_set & heldout)}"
     assert trace_set <= train, f"Stage 2 evaluator traces outside frozen train split: {sorted(trace_set - train)}"
-    assert trace_set <= search_subset, (
-        f"Stage 2 evaluator traces outside frozen search subset: {sorted(trace_set - search_subset)}"
-    )
+    if require_search_subset:
+        assert trace_set <= search_subset, (
+            f"Stage 2 evaluator traces outside frozen search subset: {sorted(trace_set - search_subset)}"
+        )
 
 
 def policy_flags(policy: dict[str, Any]) -> list[str]:
@@ -190,34 +285,43 @@ def policy_flags(policy: dict[str, Any]) -> list[str]:
 
 def run_candidate(policy: dict[str, Any], code_hash: str, stage: str) -> Path:
     traces, warmup, sim = stage_settings(stage)
-    assert_train_only(traces)
+    assert_train_only(traces, require_search_subset=stage in {"stage0", "stage1", "stage2"})
     result_dir = RESULTS_ROOT / stage / code_hash
-    if (result_dir / "summary.csv").exists() and os.environ.get("STAGE2_FORCE_RERUN") != "1":
+    lock_path = result_dir.with_suffix(".lock")
+    result_dir.parent.mkdir(parents=True, exist_ok=True)
+    acquire_pid_lock(lock_path)
+    try:
+        summary_path = result_dir / "summary.csv"
+        if summary_path.exists() and os.environ.get("STAGE2_FORCE_RERUN") != "1":
+            return result_dir
+        if result_dir.exists():
+            shutil.rmtree(result_dir)
+        result_dir.mkdir(parents=True, exist_ok=True)
+        cmd = [
+            sys.executable,
+            "scripts/run_mop_lite.py",
+            "--expert-0",
+            EXPERT_0,
+            "--expert-1",
+            EXPERT_1,
+            "--warmup-instructions",
+            str(warmup),
+            "--simulation-instructions",
+            str(sim),
+            "--workers",
+            "1",
+            "--skip-download",
+            "--epoch-trace",
+            "--results-dir",
+            str(result_dir),
+        ]
+        for trace in traces:
+            cmd.extend(["--trace", trace])
+        cmd.extend(policy_flags(policy))
+        subprocess.run(cmd, cwd=REPO_ROOT, check=True, timeout=int(os.environ.get("STAGE2_SIM_TIMEOUT", "900")))
         return result_dir
-    result_dir.mkdir(parents=True, exist_ok=True)
-    cmd = [
-        sys.executable,
-        "scripts/run_mop_lite.py",
-        "--expert-0",
-        EXPERT_0,
-        "--expert-1",
-        EXPERT_1,
-        "--warmup-instructions",
-        str(warmup),
-        "--simulation-instructions",
-        str(sim),
-        "--workers",
-        "1",
-        "--skip-download",
-        "--epoch-trace",
-        "--results-dir",
-        str(result_dir),
-    ]
-    for trace in traces:
-        cmd.extend(["--trace", trace])
-    cmd.extend(policy_flags(policy))
-    subprocess.run(cmd, cwd=REPO_ROOT, check=True, timeout=int(os.environ.get("STAGE2_SIM_TIMEOUT", "900")))
-    return result_dir
+    finally:
+        lock_path.unlink(missing_ok=True)
 
 
 def summarize_result(result_dir: Path, router: str) -> dict[str, float]:
@@ -264,8 +368,7 @@ def action_mix(result_dir: Path, router: str) -> dict[str, float]:
         for row in csv.DictReader(path.open()):
             counts[int(row["action"])] += 1
             total += 1
-    if total == 0:
-        return {"off_rate": 0.0, "both_on_rate": 0.0, "single_action_rate": 0.0}
+    assert total > 0, f"No epoch action logs found for {result_dir}/{router}"
     return {
         "off_rate": counts[0] / total,
         "both_on_rate": counts[3] / total,
@@ -284,8 +387,13 @@ def fitness(metrics: dict[str, float]) -> float:
 
 def append_ledger(record: dict[str, Any]) -> None:
     LEDGER_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with LEDGER_PATH.open("a") as handle:
-        handle.write(json.dumps(record, sort_keys=True) + "\n")
+    lock_path = LEDGER_PATH.with_suffix(".lock")
+    acquire_pid_lock(lock_path)
+    try:
+        with LEDGER_PATH.open("a") as handle:
+            handle.write(json.dumps(record, sort_keys=True) + "\n")
+    finally:
+        lock_path.unlink(missing_ok=True)
 
 
 def evaluate(program_path: str) -> EvaluationResult:
@@ -315,21 +423,31 @@ def evaluate(program_path: str) -> EvaluationResult:
             },
         )
     except Exception as exc:
+        error = display_error(exc)
+        failed_metrics = {
+            "n_traces": 0.0,
+            "gm_vs_pair_best": 0.0,
+            "gm_vs_nopref": 0.0,
+            "gm_vs_weaker": 0.0,
+            "beats_weaker_rate": 0.0,
+            "catastrophic_rate": 1.0,
+            "both_routees_gt_1_rate": 0.0,
+            "off_rate": 0.0,
+            "both_on_rate": 0.0,
+            "single_action_rate": 0.0,
+            "combined_score": -10.0,
+            "stage_passed": 0.0,
+        }
         append_ledger({
             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
             "stage": stage,
-            "error": str(exc),
-            "program_path": program_path,
+            "error": error,
+            "metrics": failed_metrics,
+            "program_path": display_path(program_path),
         })
         return EvaluationResult(
-            metrics={
-                "combined_score": -10.0,
-                "stage_passed": 0.0,
-                "gm_vs_pair_best": 0.0,
-                "gm_vs_nopref": 0.0,
-                "gm_vs_weaker": 0.0,
-            },
-            artifacts={"error": str(exc)},
+            metrics=failed_metrics,
+            artifacts={"error": error},
         )
 
 
