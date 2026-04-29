@@ -47,6 +47,7 @@ EXPERTS = {
     "SPP+PPF": {"type": "spp_ppf_dev",  "config": "config/spp_ppf_dev.ini"},
     "MLOP":    {"type": "mlop",         "config": "config/mlop.ini"},
     "SMS":     {"type": "sms",          "config": "config/sms.ini"},
+    "AMPM":    {"type": "ampm",         "config": "config/ampm.ini"},
 }
 
 LLC_PREFETCHERS = {
@@ -67,6 +68,9 @@ ROUTERS = {
     "MoPLite":       4,
     "MoPLiteGuarded": 5,
     "ProbeThenWinner": 6,
+    "MoP-V0":        4,
+    "MoP-V1.1":      5,
+    "MoP-V1.2":      6,
 }
 
 # Builtin multi-expert coordinators that pre-date MoP-lite; used as baselines.
@@ -434,7 +438,14 @@ def resolve_routers(root: Path, spec) -> list[str]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=["smoke_mode", "search_mode", "final_mode"],
+    parser.add_argument("--mode", choices=[
+                            "smoke_mode",
+                            "search_mode",
+                            "final_mode",
+                            "stage1_pair_screen_1m",
+                            "stage1_pair_confirm_10m",
+                            "stage1_train_confirm_10m",
+                        ],
                         help="Named run mode from configs/run_modes.json. Supplies defaults for omitted options.")
     parser.add_argument("--trace", dest="traces", action="append")
     parser.add_argument("--expert-0", choices=sorted(EXPERTS), default=None)
@@ -514,6 +525,15 @@ def main() -> int:
             expert_0 = mode["mop_lite"].get("expert_0")
         if expert_1 is None:
             expert_1 = mode["mop_lite"].get("expert_1")
+        mop_knobs = mode.get("mop_knobs", {})
+        if mop_total_budget is None and "mop_total_budget" in mop_knobs:
+            mop_total_budget = int(mop_knobs["mop_total_budget"])
+        if mop_accuracy_floor is None and "mop_accuracy_floor" in mop_knobs:
+            mop_accuracy_floor = int(mop_knobs["mop_accuracy_floor"])
+        if mop_guarded_min_budget_share is None and "mop_guarded_min_budget_share" in mop_knobs:
+            mop_guarded_min_budget_share = int(mop_knobs["mop_guarded_min_budget_share"])
+        if mop_one_shot_epochs is None and "mop_one_shot_epochs" in mop_knobs:
+            mop_one_shot_epochs = int(mop_knobs["mop_one_shot_epochs"])
 
     if warmup is None:
         warmup = 5_000_000

@@ -34,6 +34,8 @@ def resolve_routers(suites: dict, mode: dict) -> list[str]:
             return list(suites["recommended_routers_all"])
         if key == "recommended_routers_search_fast":
             return list(suites["recommended_routers_search_fast"])
+        if key == "stage1_candidate_routers":
+            return list(suites["stage1_candidate_routers"])
         raise ValueError(f"Unknown router reference: {key}")
     raise ValueError(f"Invalid routers spec: {spec!r}")
 
@@ -50,13 +52,37 @@ def llc_flags(prefetchers: list[str]) -> str:
     return " ".join(f"--llc-prefetcher {json.dumps(p)}" for p in prefetchers)
 
 
+def builtin_flags(coordinators: list[str]) -> str:
+    return " ".join(f"--builtin {json.dumps(c)}" for c in coordinators)
+
+
+def mop_knob_flags(knobs: dict) -> str:
+    allowed = {
+        "mop_total_budget": "--mop-total-budget",
+        "mop_accuracy_floor": "--mop-accuracy-floor",
+        "mop_guarded_min_budget_share": "--mop-guarded-min-budget-share",
+        "mop_one_shot_epochs": "--mop-one-shot-epochs",
+    }
+    unknown = sorted(set(knobs) - set(allowed))
+    if unknown:
+        raise ValueError(f"Unknown mop_knobs: {unknown}")
+    return " ".join(f"{allowed[key]} {int(knobs[key])}" for key in allowed if key in knobs)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "mode",
         nargs="?",
         default="search_mode",
-        choices=["search_mode", "final_mode", "smoke_mode"],
+        choices=[
+            "search_mode",
+            "final_mode",
+            "smoke_mode",
+            "stage1_pair_screen_1m",
+            "stage1_pair_confirm_10m",
+            "stage1_train_confirm_10m",
+        ],
         help="Run mode from configs/run_modes.json",
     )
     parser.add_argument(
@@ -64,6 +90,8 @@ def main() -> int:
         action="store_true",
         help="Only print trace names for the mode's trace set (one per line).",
     )
+    parser.add_argument("--expert-0", help="Override the mode's first L2C routee expert.")
+    parser.add_argument("--expert-1", help="Override the mode's second L2C routee expert.")
     args = parser.parse_args()
 
     root = repo_root()
@@ -83,12 +111,14 @@ def main() -> int:
 
     w = mode["warmup_instructions"]
     s = mode["simulation_instructions"]
-    e0 = mode["mop_lite"]["expert_0"]
-    e1 = mode["mop_lite"]["expert_1"]
+    e0 = args.expert_0 or mode["mop_lite"]["expert_0"]
+    e1 = args.expert_1 or mode["mop_lite"]["expert_1"]
     bl = " ".join(
         f"--experiment {json.dumps(e)}" for e in mode["single_prefetcher_baselines"]["experiments"]
     )
     llc = llc_flags(mode.get("llc_prefetcher_baselines", []))
+    builtins = builtin_flags(mode.get("builtin_coordinators", []))
+    mop_knobs = mop_knob_flags(mode.get("mop_knobs", {}))
 
     print("# Trace set:", set_name, f"({len(traces)} traces)")
     print("# From:", suites_path)
@@ -99,6 +129,8 @@ def main() -> int:
         f"--warmup-instructions {w} --simulation-instructions {s} "
         f"--expert-0 {json.dumps(e0)} --expert-1 {json.dumps(e1)} "
         f"{router_flags(routers)} "
+        f"{builtins} "
+        f"{mop_knobs} "
         f"{llc} "
         f"{trace_flags(traces)}"
     )

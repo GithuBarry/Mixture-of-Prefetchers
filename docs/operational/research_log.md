@@ -563,3 +563,51 @@ mixed actions after an initial probe and raising the budget improves the filtere
 dev result. It is not a complete fix. Some traces still fall below the worse
 single, while others overshoot the better single. Treat forced-single routing as
 a Stage 2 candidate family, not as final evidence.
+
+## 2026-04-29 — Train-only Stage 1 finish screen
+
+**Goal.** Finish Stage 1 without using held-out traces for selection: add the
+`MoP-V0` / `MoP-V1.1` / `MoP-V1.2` names, qualify L2C `AMPM`, screen a tiny
+expert-pair shortlist, and decide whether Stage 2 has a clean seed.
+
+**Implementation.**
+
+- Added user-facing router aliases while preserving legacy names:
+  `MoP-V0 == MoPLite`, `MoP-V1.1 == MoPLiteGuarded`,
+  `MoP-V1.2 == ProbeThenWinner`.
+- Added L2C `AMPM` as an explicit single-prefetcher candidate.
+- Added train-only run modes:
+  `stage1_pair_screen_1m`, `stage1_pair_confirm_10m`, and
+  `stage1_train_confirm_10m`.
+- Set Stage 1 finish modes to `mop_one_shot_epochs=1`; without this, short 1M
+  screens keep `MoP-V1.2` in its both-on probe window and do not evaluate
+  ProbeSingle behavior.
+
+**What was run.**
+
+- AMPM qualification: `results/_dev_stage1_l2c_ampm_search_1m`
+- corrected pair screens:
+  - `results/stage1_pair_screen_1m_probe1_budget8192_Pythia_SPPplusPPF`
+  - `results/stage1_pair_screen_1m_probe1_budget8192_MLOP_SPPplusPPF`
+- failed corrected screens, not used as completed evidence:
+  - `results/stage1_pair_screen_1m_probe1_budget8192_MLOP_Pythia`
+  - `results/stage1_pair_screen_1m_probe1_budget8192_MLOP_SMS`
+  - `results/stage1_pair_screen_1m_probe1_budget8192_MLOP_SMS_serial`
+
+**Observed signal.**
+
+- L2C `AMPM` reached `1.062585x` vs no-prefetch and won 7/10 traces, but did
+  not beat the best existing single expert by `>=2%` on any trace.
+- `Pythia + SPP+PPF`: best MoP cell was `MoP-V1.1` at `1.065671x` vs
+  no-prefetch and `0.957672x` vs pair-best.
+- `MLOP + SPP+PPF`: best MoP cell was `MoP-V0` at `1.065933x` vs no-prefetch
+  and `0.961801x` vs pair-best. `MoP-V1.2` was correctly single-action but
+  reached `0.960353x` vs pair-best.
+- `OneShotFit` on `MLOP + SPP+PPF` was the closest completed non-MoP cell at
+  `1.084763x` vs no-prefetch and `0.978791x` vs pair-best.
+
+**Interpretation.** Stage 1 is frozen as a high-risk negative result. The
+system clearly beats no-prefetch on train/search screens, but the MoP variants
+do not meet the predeclared `0.98x` pair-best threshold and do not beat
+`MoP-V0` consistently. Stage 2 can proceed only as policy search over a
+documented failure mode, with pair-best single remaining the primary comparator.

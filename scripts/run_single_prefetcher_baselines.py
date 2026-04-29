@@ -29,6 +29,7 @@ EXPERIMENTS = {
     "SPP+PPF": ["SPP+PPF"],
     "MLOP": ["MLOP"],
     "SMS": ["SMS"],
+    "AMPM": ["AMPM"],
 }
 
 ZENODO_RECORD = "17850673"
@@ -92,6 +93,13 @@ def build_experiment_flags(config_module, athena_home: Path, experiment: str, wa
     flags = replace_flag_value(flags, "--warmup_instructions", warmup)
     flags = replace_flag_value(flags, "--simulation_instructions", sim)
     for key in EXPERIMENTS[experiment]:
+        if key == "AMPM":
+            flags = (
+                f"{flags} --l2c_prefetcher_types=ampm "
+                f"--config={shlex.quote(str(athena_home / 'config' / 'ampm.ini'))} "
+                "--l2c_prefetcher_force_prefetch_at_llc=true"
+            )
+            continue
         flags = f"{flags} {config_module.EXP_VARIABLES[key]}"
     return flags.replace("$(ATHENA_HOME)", shlex.quote(str(athena_home)))
 

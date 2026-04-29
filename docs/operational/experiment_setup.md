@@ -16,6 +16,9 @@ advisor-facing conclusions.
   a broader training subset at lower cost?
 - `final_mode` answers the strongest evaluation question: how does the method
   behave on the full official suite under report-style instruction windows?
+- `stage1_pair_screen_1m`, `stage1_pair_confirm_10m`, and
+  `stage1_train_confirm_10m` are train-only Stage 1 finish modes for screening
+  expert pairs without touching held-out traces.
 
 ## Provenance of this protocol
 
@@ -93,8 +96,19 @@ clear interpretation.
 | **search_mode** | 5M | 10M | `search_subset` | Matches current `run_mop_lite.py` defaults; uses a reduced router list in config for faster iteration |
 | **final_mode** | 20M | 50M | `full_suite` | Matches current `run_single_prefetcher_baselines.py` defaults (report-style windows) |
 | **smoke_mode** | 5M | 10M | `small_smoke_test_subset` | Minimal MoP-lite (`MoPLite` only) and tiny baseline set |
+| **stage1_pair_screen_1m** | 500K | 1M | `search_subset` | Cheap train/search pair screen; routers are `MoP-V0`, `MoP-V1.1`, `MoP-V1.2`, `WinnerTakeAll`, `OneShotFit`, plus `AthenaMAB`; `mop_one_shot_epochs=1` |
+| **stage1_pair_confirm_10m** | 5M | 10M | `search_subset` | Longer train/search confirmation for the top pair/family candidates; held-out is not used |
+| **stage1_train_confirm_10m** | 5M | 10M | `train` | Full train confirmation before Stage 2 freeze; held-out is not used |
 
 **Experts (MoP-lite)** default to **Pythia** + **SPP+PPF** (`recommended_expert_pair` in `trace_suites.json`).
+
+Stage 1 finish naming:
+
+| User-facing name | Legacy CLI name | Router type | Purpose |
+| --- | --- | ---: | --- |
+| `MoP-V0` | `MoPLite` | 4 | Original score-sign router baseline |
+| `MoP-V1.1` | `MoPLiteGuarded` | 5 | Guarded fallback that avoids both-off when both scores are nonpositive |
+| `MoP-V1.2` | `ProbeThenWinner` | 6 | ProbeSingle family; Stage 1 modes set `mop_one_shot_epochs=1` so short screens do not stay in the probe window |
 
 ### Instruction counts and Athena `knobs`
 
@@ -108,6 +122,7 @@ Generate commands (includes all `--trace` repetitions):
 python3 scripts/print_run_commands.py search_mode
 python3 scripts/print_run_commands.py final_mode
 python3 scripts/print_run_commands.py smoke_mode
+python3 scripts/print_run_commands.py stage1_pair_screen_1m --expert-0 MLOP --expert-1 SMS
 ```
 
 List traces for a mode’s trace set:

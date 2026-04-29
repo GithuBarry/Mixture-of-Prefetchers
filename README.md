@@ -31,7 +31,7 @@ Held-out-first summary:
   `1.0378x`
 - against the **pair-best single expert** (`Pythia` / `SPP+PPF`), no coordinator
   reaches `1.0x`; the strongest is `AthenaMAB` at `0.9560x`
-- `MoPLite` reaches `0.9974x` vs no-prefetch and `0.9188x` vs pair-best single
+- `MoP-V0` (`MoPLite`) reaches `0.9974x` vs no-prefetch and `0.9188x` vs pair-best single
   on held-out
 
 Train-side summary:
@@ -39,9 +39,9 @@ Train-side summary:
 - vs no-prefetch, `AthenaMAB` is strongest at `1.0095x`
 - vs pair-best single, no coordinator reaches `1.0x`; `AthenaMAB` is strongest
   at `0.9619x`
-- `MoPLite` reaches `0.9986x` vs no-prefetch and `0.9515x` vs pair-best single
+- `MoP-V0` (`MoPLite`) reaches `0.9986x` vs no-prefetch and `0.9515x` vs pair-best single
 
-So the current `MoPLite` rule is **not** the strongest coordinator in this repo,
+So the current `MoP-V0` (`MoPLite`) rule is **not** the strongest coordinator in this repo,
 and it does **not** beat the pair-best single expert in geomean on either split.
 
 ## What this means
@@ -59,6 +59,20 @@ What is established:
 - the current `Pythia + SPP+PPF` rules lose in geomean to the pair-best single
 
 That is enough to justify Stage 2 optimization without overselling Stage 1.
+
+## Stage 1 finish names
+
+The Stage 1 freeze keeps the old router names as CLI aliases but uses clearer
+reporting names:
+
+| Name | Legacy alias | Router type | Role |
+| --- | --- | ---: | --- |
+| `MoP-V0` | `MoPLite` | 4 | Original score-sign baseline |
+| `MoP-V1.1` | `MoPLiteGuarded` | 5 | Guarded fallback / budget-share variant |
+| `MoP-V1.2` | `ProbeThenWinner` | 6 | ProbeSingle candidate with `mop_one_shot_epochs=1` in Stage 1 finish modes |
+
+Held-out traces remain reserved for final Stage 2 confirmation. The Stage 1
+finish screens and confirmations use train/search data only.
 
 ## What to look at
 
@@ -137,7 +151,7 @@ This repository adds:
 
 - the scoped Stage 1 protocol
 - local `oogway.cc` changes for the MoP-lite study
-- simple router baselines (`FixedSplit`, `WinnerTakeAll`, `RandomRouter`, `OneShotFit`, `MoPLite`)
+- simple router baselines (`FixedSplit`, `WinnerTakeAll`, `RandomRouter`, `OneShotFit`, `MoP-V0` / `MoPLite`)
 - manifests, dataset building, figure generation, and advisor-facing docs
 
 ## Bottom line
@@ -145,5 +159,5 @@ This repository adds:
 If you want the shortest honest summary:
 
 - **the baseline is real and reproducible**
-- **the current `MoPLite` rule is not yet better than the strongest single expert**
+- **the current `MoP-V0` (`MoPLite`) rule is not yet better than the strongest single expert**
 - **Stage 2 should optimize the control surface, not re-litigate the measurement setup**

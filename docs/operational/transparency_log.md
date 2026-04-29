@@ -289,3 +289,27 @@ Format:
   five traces. This supports forced-single routing as a Stage 2 candidate, not
   as a completed effectiveness claim.
 - AI-assisted: yes.
+
+### 2026-04-29 — Stage 1 finish frozen as high-risk negative result
+- Options: (a) promote the best no-prefetch gains as Stage 1 success,
+  (b) freeze only if a MoP variant reaches the predeclared `0.98x` pair-best
+  threshold, (c) freeze a high-risk negative result and carry only a tiny Stage
+  2 seed shortlist forward.
+- Choice: (c).
+- Confidence: high for the train/search screen outcome, medium for Stage 2
+  seed usefulness.
+- Evidence: L2C `AMPM` reached `1.062585x` vs no-prefetch on the 10-trace
+  train/search qualification screen but never beat the best existing single
+  expert by the required `>=2%` margin, so it was not promoted. Corrected
+  `stage1_pair_screen_1m` runs with `mop_one_shot_epochs=1` and
+  `mop_total_budget=8192` completed for `Pythia + SPP+PPF` and
+  `MLOP + SPP+PPF`. The best MoP cells were `MoP-V1.1` on `Pythia + SPP+PPF`
+  at `1.065671x` vs no-prefetch and `0.957672x` vs pair-best, and `MoP-V0` on
+  `MLOP + SPP+PPF` at `1.065933x` vs no-prefetch and `0.961801x` vs pair-best.
+  `MoP-V1.2` was correctly single-action after the probe (`single_action_rate =
+  1.0`) but still reached only `0.960353x` vs pair-best on `MLOP + SPP+PPF`.
+  `MLOP + Pythia` and `MLOP + SMS` corrected screens hit `SIGBUS` on
+  `secret_compute_int_568` for `MoP-V1.2`; `MLOP + SMS` failed again when run
+  alone, so those partial dirs are documented as compatibility risks, not
+  completed evidence.
+- AI-assisted: yes.

@@ -9,7 +9,7 @@ should dominate.
 
 ## Implementation
 
-Added explicit router `ProbeThenWinner` (`mop_router_type=6`). It keeps the
+Added explicit router `MoP-V1.2` (`ProbeThenWinner`) (`mop_router_type=6`). It keeps the
 initial constructor behavior, where both experts are enabled for the first epoch
 to collect signal. After the configured probe window
 (`mop_one_shot_epochs`), it removes actions `0` and `3` from the policy and
@@ -52,8 +52,8 @@ Dev result directories:
 
 ## Observed Signal
 
-At the default 2048 budget, forced-single routers improved over old `MoPLite`
-and `MoPLiteGuarded` on the five-trace filtered set, but still fell below the
+At the default 2048 budget, forced-single routers improved over old `MoP-V0` (`MoPLite`)
+and `MoP-V1.1` (`MoPLiteGuarded`) on the five-trace filtered set, but still fell below the
 worse single routee on four of five traces.
 
 Budget sweep geomeans over the five filtered traces:

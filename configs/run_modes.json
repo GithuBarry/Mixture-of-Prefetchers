@@ -14,7 +14,6 @@
         "routers": "recommended_routers_search_fast"
       },
       "builtin_coordinators": ["AthenaMAB"],
-      "llc_prefetcher_baselines": ["LLC-AMPM", "LLC-SMS"],
       "single_prefetcher_baselines": {
         "experiments": ["Baseline", "Pythia", "SPP+PPF", "MLOP", "SMS"]
       }
@@ -29,7 +28,6 @@
         "routers": "recommended_routers_all"
       },
       "builtin_coordinators": ["AthenaMAB"],
-      "llc_prefetcher_baselines": ["LLC-AMPM"],
       "single_prefetcher_baselines": {
         "experiments": ["Baseline", "Pythia", "SPP+PPF", "MLOP", "SMS"]
       }
@@ -44,9 +42,62 @@
         "routers": ["MoPLite"]
       },
       "builtin_coordinators": ["AthenaMAB"],
-      "llc_prefetcher_baselines": ["LLC-AMPM"],
       "single_prefetcher_baselines": {
         "experiments": ["Baseline", "Pythia", "SPP+PPF"]
+      }
+    },
+    "stage1_pair_screen_1m": {
+      "warmup_instructions": 500000,
+      "simulation_instructions": 1000000,
+      "trace_set": "search_subset",
+      "mop_lite": {
+        "expert_0": "Pythia",
+        "expert_1": "SPP+PPF",
+        "routers": "stage1_candidate_routers"
+      },
+      "mop_knobs": {
+        "mop_one_shot_epochs": 1
+      },
+      "builtin_coordinators": ["AthenaMAB"],
+      "llc_prefetcher_baselines": [],
+      "single_prefetcher_baselines": {
+        "experiments": ["Baseline"]
+      }
+    },
+    "stage1_pair_confirm_10m": {
+      "warmup_instructions": 5000000,
+      "simulation_instructions": 10000000,
+      "trace_set": "search_subset",
+      "mop_lite": {
+        "expert_0": "Pythia",
+        "expert_1": "SPP+PPF",
+        "routers": "stage1_candidate_routers"
+      },
+      "mop_knobs": {
+        "mop_one_shot_epochs": 1
+      },
+      "builtin_coordinators": ["AthenaMAB"],
+      "llc_prefetcher_baselines": [],
+      "single_prefetcher_baselines": {
+        "experiments": ["Baseline"]
+      }
+    },
+    "stage1_train_confirm_10m": {
+      "warmup_instructions": 5000000,
+      "simulation_instructions": 10000000,
+      "trace_set": "train",
+      "mop_lite": {
+        "expert_0": "Pythia",
+        "expert_1": "SPP+PPF",
+        "routers": "stage1_candidate_routers"
+      },
+      "mop_knobs": {
+        "mop_one_shot_epochs": 1
+      },
+      "builtin_coordinators": ["AthenaMAB"],
+      "llc_prefetcher_baselines": [],
+      "single_prefetcher_baselines": {
+        "experiments": ["Baseline"]
       }
     }
   }

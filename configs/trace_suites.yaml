@@ -119,5 +119,6 @@
     "OneShotFit",
     "MoPLite"
   ],
-  "recommended_routers_search_fast": ["MoPLite", "FixedSplit", "WinnerTakeAll"]
+  "recommended_routers_search_fast": ["MoPLite", "FixedSplit", "WinnerTakeAll"],
+  "stage1_candidate_routers": ["MoP-V0", "MoP-V1.1", "MoP-V1.2", "WinnerTakeAll", "OneShotFit"]
 }
