@@ -191,10 +191,11 @@ Minimal nano and sticky-grid artifacts:
 
 ## Comparator Check
 
-`WinnerTakeAll` and `OneShotFit` were run on the same 13-trace train-window as
-the active `MoP-V1.3` seed. This checks whether the result is just a trivial
-single-expert chooser. It is not: both simple comparators stay above
-no-prefetch but are substantially worse than the sticky-margin policy.
+`WinnerTakeAll`, `OneShotFit`, and `AthenaMAB` were run on the same 13-trace
+train-window as the active `MoP-V1.3` seed. This checks whether the result is
+just a trivial single-expert chooser or an older built-in coordinator effect.
+It is not: all three comparators stay above no-prefetch but are substantially
+worse than the sticky-margin policy.
 
 | Candidate | vs pair-best | vs no-prefetch | vs weaker | beats weaker | catastrophic | combined score |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -202,11 +203,13 @@ no-prefetch but are substantially worse than the sticky-margin policy.
 | post-OpenEvolve `MoP-V1.3` sticky 3 | 0.982884 | 1.066243 | 1.117600 | 11/13 | 2/13 | 0.002547 |
 | `WinnerTakeAll` | 0.942771 | 1.024749 | 1.071244 | 7/13 | 5/13 | -0.085210 |
 | `OneShotFit` | 0.943456 | 1.026820 | 1.072286 | 6/13 | 5/13 | -0.083784 |
+| `AthenaMAB` | 0.942077 | 1.021295 | 1.069394 | 6/13 | 5/13 | -0.097136 |
 
 Comparator artifacts:
 
 - `results/stage2_openevolve/comparators/stage3_winnertakeall_20260429`
 - `results/stage2_openevolve/comparators/stage3_oneshotfit_20260429`
+- `results/stage2_openevolve/comparators/stage3_athenamab_20260429`
 
 ## Trace Availability
 

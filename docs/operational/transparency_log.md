@@ -500,10 +500,11 @@ Format:
 ## 2026-04-29 — Stage 2 simple-comparator check
 
 - Goal: test whether the active `MoP-V1.3` sticky-margin policy is merely a
-  disguised trivial chooser on the same 13-trace train-window evidence.
+  disguised trivial chooser or older built-in coordinator effect on the same
+  13-trace train-window evidence.
 - Decision: keep `MoP-V1.3`, sticky `3`, weights `[1.0, 0.55, 1.0]` as the
-  active seed. `WinnerTakeAll` and `OneShotFit` are useful comparators but not
-  competitive seeds.
+  active seed. `WinnerTakeAll`, `OneShotFit`, and `AthenaMAB` are useful
+  comparators but not competitive seeds.
 - Evidence: on the 13 locally available train traces, the pre-OpenEvolve
   `MoP-V1.2` reference reached `0.965888x` vs pair-best, `1.049788x` vs
   no-prefetch, `1.096860x` vs weaker routee, beats-weaker `10/13`, and
@@ -512,11 +513,13 @@ Format:
   catastrophic `2/13`. `WinnerTakeAll` reached only `0.942771x`, `1.024749x`,
   `1.071244x`, beats-weaker `7/13`, and catastrophic `5/13`; `OneShotFit`
   reached `0.943456x`, `1.026820x`, `1.072286x`, beats-weaker `6/13`, and
-  catastrophic `5/13`.
+  catastrophic `5/13`. `AthenaMAB` reached `0.942077x`, `1.021295x`,
+  `1.069394x`, beats-weaker `6/13`, and catastrophic `5/13`.
 - Caveat: these comparator checks do not replace full 17-trace train
   confirmation or heldout final evaluation. They only strengthen the current
-  train-window story that the sticky-margin policy is better than two simple
-  single-action alternatives.
+  train-window story that the sticky-margin policy is better than the simple
+  single-action alternatives and the older built-in coordinator.
 - Artifacts: `results/stage2_openevolve/comparators/stage3_winnertakeall_20260429`
-  and `results/stage2_openevolve/comparators/stage3_oneshotfit_20260429`.
+  `results/stage2_openevolve/comparators/stage3_oneshotfit_20260429`, and
+  `results/stage2_openevolve/comparators/stage3_athenamab_20260429`.
 - AI-assisted: no.
