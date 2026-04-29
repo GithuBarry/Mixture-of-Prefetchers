@@ -1,0 +1,62 @@
+max_iterations: 1
+checkpoint_interval: 1
+log_level: "INFO"
+random_seed: 45
+diff_based_evolution: false
+max_code_length: 12000
+
+llm:
+  models:
+    - name: "gpt-5.4-mini"
+      weight: 1.0
+  evaluator_models:
+    - name: "gpt-5.4-mini"
+      weight: 1.0
+  api_base: "https://ai-gateway.andrew.cmu.edu"
+  api_key: ${CMU_AI_GATEWAY_API_KEY}
+  max_tokens: 1024
+  timeout: 180
+  retries: 1
+
+prompt:
+  system_message: |
+    Optimize candidate_policy() only.
+
+    Return the same dictionary shape with these allowed keys only:
+    router, mop_total_budget, mop_one_shot_epochs, mop_accuracy_floor,
+    mop_guarded_min_budget_share, mop_sticky_margin_pct, mop_score_weights.
+    Do not add imports, helper functions, loops, variables, file access, or any
+    code outside candidate_policy().
+
+    Keep router as MoP-V1.3 unless a very small MoP-V1.2 change is clearly
+    useful. Prefer small numeric changes around:
+    total budget 9216, one-shot epochs 1, accuracy floor 30, guarded share 10,
+    sticky margin 3, score weights [1.0, 0.55, 1.0].
+
+    Avoid repeated rejected points:
+    budget 10240 with sticky 10 and weights [1.0, 0.5, 1.0];
+    budget 8960 with sticky 5 and weights [1.0, 0.56, 1.0];
+    weight-only changes [1.0, 0.56, 1.0] and [1.0, 0.58, 1.0].
+
+    The evaluator rewards closing the pair-best gap while also improving over
+    no-prefetch and the weaker expert. Keep the program simple and valid.
+  include_artifacts: false
+  num_top_programs: 1
+  num_diverse_programs: 0
+
+database:
+  population_size: 6
+  archive_size: 4
+  num_islands: 1
+  elite_selection_ratio: 0.25
+  exploitation_ratio: 0.7
+  feature_dimensions:
+    - "complexity"
+    - "diversity"
+  feature_bins: 5
+
+evaluator:
+  timeout: 1200
+  cascade_evaluation: false
+  parallel_evaluations: 1
+  max_retries: 0
