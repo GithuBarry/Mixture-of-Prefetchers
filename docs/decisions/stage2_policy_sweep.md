@@ -44,14 +44,14 @@ expert when both scores are positive and within a 3% margin.
 
 All runs used L2C `MLOP + SPP+PPF`, no heldout traces, and no downloads.
 
-| Gate | Traces | Candidate | vs pair-best | vs no-prefetch | vs weaker | beats weaker | both-on | single |
+| Check | Traces | Candidate | vs pair-best | vs no-prefetch | vs weaker | beats weaker | both-on | single |
 | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| stage1 tight sweep | 3 | tuned `MoP-V1.2` | 0.936679 | 1.033235 | 1.018669 | 3/3 | 0.000 | 1.000 |
-| stage1 tight sweep | 3 | old seed | 0.935490 | 1.033502 | 1.019753 | 3/3 | 0.000 | 1.000 |
-| stage2 search confirm | 10 | tuned `MoP-V1.2` | 0.958714 | 1.065858 | 1.105995 | 7/10 | 0.000 | 1.000 |
-| stage2 search confirm | 10 | old seed | 0.957492 | 1.064016 | 1.103872 | 8/10 | 0.000 | 1.000 |
-| stage3 local-train confirm | 13 | tuned `MoP-V1.2` | 0.965420 | 1.047570 | 1.096829 | 9/13 | 0.000 | 1.000 |
-| stage3 local-train confirm | 13 | old seed | 0.963934 | 1.046549 | 1.095920 | 9/13 | 0.000 | 1.000 |
+| 3-trace tight sweep | 3 | tuned `MoP-V1.2` | 0.936679 | 1.033235 | 1.018669 | 3/3 | 0.000 | 1.000 |
+| 3-trace tight sweep | 3 | old seed | 0.935490 | 1.033502 | 1.019753 | 3/3 | 0.000 | 1.000 |
+| 10-trace train/search | 10 | tuned `MoP-V1.2` | 0.958714 | 1.065858 | 1.105995 | 7/10 | 0.000 | 1.000 |
+| 10-trace train/search | 10 | old seed | 0.957492 | 1.064016 | 1.103872 | 8/10 | 0.000 | 1.000 |
+| 13-trace train-window | 13 | tuned `MoP-V1.2` | 0.965420 | 1.047570 | 1.096829 | 9/13 | 0.000 | 1.000 |
+| 13-trace train-window | 13 | old seed | 0.963934 | 1.046549 | 1.095920 | 9/13 | 0.000 | 1.000 |
 
 The tuned policy wins the combined metric and improves geomean versus pair-best,
 no-prefetch, and weaker routee on both the 10-trace search confirmation and the
@@ -189,6 +189,25 @@ Minimal nano and sticky-grid artifacts:
 - `results/stage2_openevolve/stage3/a52ed8a4151ad6cc`
 - `results/stage2_openevolve/stage2_gpt54nano_after_sticky3_iter4_20260429`
 
+## Comparator Check
+
+`WinnerTakeAll` and `OneShotFit` were run on the same 13-trace train-window as
+the active `MoP-V1.3` seed. This checks whether the result is just a trivial
+single-expert chooser. It is not: both simple comparators stay above
+no-prefetch but are substantially worse than the sticky-margin policy.
+
+| Candidate | vs pair-best | vs no-prefetch | vs weaker | beats weaker | catastrophic | combined score |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| pre-OpenEvolve `MoP-V1.2` reference | 0.965888 | 1.049788 | 1.096860 | 10/13 | 3/13 | -0.031762 |
+| post-OpenEvolve `MoP-V1.3` sticky 3 | 0.982884 | 1.066243 | 1.117600 | 11/13 | 2/13 | 0.002547 |
+| `WinnerTakeAll` | 0.942771 | 1.024749 | 1.071244 | 7/13 | 5/13 | -0.085210 |
+| `OneShotFit` | 0.943456 | 1.026820 | 1.072286 | 6/13 | 5/13 | -0.083784 |
+
+Comparator artifacts:
+
+- `results/stage2_openevolve/comparators/stage3_winnertakeall_20260429`
+- `results/stage2_openevolve/comparators/stage3_oneshotfit_20260429`
+
 ## Trace Availability
 
 Full 17-trace train confirmation was attempted with `--skip-download` and
@@ -199,9 +218,9 @@ failed loudly because four train traces are not available locally:
 - `ligra_Triangle.com-lj.ungraph.gcc_6.3.0_O3.drop_750M.length_250M`
 - `secret_compute_int_243`
 
-Because downloading more traces was too slow, Stage 3 was made explicit as the
-13 locally available train traces. Stage 4 remains the full 17-trace train
-confirmation once those traces are available.
+Because downloading more traces was too slow, the current train-window evidence
+uses the 13 locally available train traces. The full 17-trace train confirmation
+remains pending until those traces are available.
 
 ## Artifacts
 
