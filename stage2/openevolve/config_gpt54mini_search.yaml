@@ -41,12 +41,12 @@ prompt:
     and mop_score_weights.
 
     Do not add new keys. Do not add metric names, trace names, benchmark-family
-    rules, imports, helper functions, parser code, simulator paths, or offline
-    oracle labels.
+    rules, imports, helper functions, parser code, simulator paths, or
+    trace-specific labels.
 
     Search evidence:
     - The promoted active seed is MoP-V1.3 with total budget 9216, one-shot
-      epochs 1, accuracy floor 30, guarded minimum share 10, sticky margin 5,
+      epochs 1, accuracy floor 30, guarded minimum share 10, sticky margin 3,
       and score weights [1.0, 0.55, 1.0].
     - The backup/reference seed is MoP-V1.2 with total budget 8192,
       one-shot epochs 1, accuracy floor 30, guarded minimum share 10, and
@@ -69,12 +69,18 @@ prompt:
       sticky margin 5, and weights [1.0, 0.56, 1.0] made only a tiny
       10-trace combined-score gain, lowered pair-best geomean, and failed the
       13-trace train-window confirmation. Do not repeat that candidate.
+    - A minimal-prompt nano search plus local grid promoted sticky margin 3
+      with the active budget and weights. It improved pair-best and robustness
+      on the 13-trace train-window while slightly lowering no-prefetch geomean.
+      Treat sticky margin 3 as the current center.
+    - Nearby weight-only changes [1.0, 0.56, 1.0] and [1.0, 0.58, 1.0] failed
+      during 10-trace train/search measurement on the MLOP single baseline.
     - MoP-V1.3 is MoP-V1.2 plus a sticky single-expert margin. It keeps the
       previous single expert when both scores are positive and close. Use
       mop_sticky_margin_pct only with MoP-V1.3; start small, usually 5 to 25.
     - MLOP + SPP+PPF has complementary trace strengths. The viable story is
       to beat no-prefetch and the weaker routee while closing the gap to
-      pair-best, not to chase an oracle.
+      pair-best, not to chase a trace-specific answer.
 
     Prefer small numeric changes to the allowed policy knobs. A valid simple
     policy that improves the score is better than a creative invalid program.

@@ -3,12 +3,13 @@
 Date: 2026-04-29
 
 Status: train-only Stage 2 sweep first promoted a tuned `MoP-V1.2` seed. A
-later GPT-5.4-mini OpenEvolve search promoted `MoP-V1.3 StickySingle`. Heldout
-traces were not used.
+later GPT-5.4-mini OpenEvolve search promoted `MoP-V1.3 StickySingle`, and a
+minimal GPT-5.4-nano run plus a tiny local grid tightened its sticky margin.
+Heldout traces were not used.
 
 ## Selected Policy
 
-The active Stage 2 seed after GPT-5.4-mini search is:
+The active Stage 2 seed is:
 
 ```python
 {
@@ -17,7 +18,7 @@ The active Stage 2 seed after GPT-5.4-mini search is:
     "mop_one_shot_epochs": 1,
     "mop_accuracy_floor": 30,
     "mop_guarded_min_budget_share": 10,
-    "mop_sticky_margin_pct": 5,
+    "mop_sticky_margin_pct": 3,
     "mop_score_weights": [1.0, 0.55, 1.0],
 }
 ```
@@ -37,7 +38,7 @@ The backup/reference seed is:
 
 The `MoP-V1.3` seed is a narrow extension of `MoP-V1.2`: it still uses only
 single-expert actions after the one-epoch probe, but it keeps the prior single
-expert when both scores are positive and within a 5% margin.
+expert when both scores are positive and within a 3% margin.
 
 ## Evidence
 
@@ -137,8 +138,8 @@ The first rejected candidate looked better than the promoted seed on the
 10-trace train/search window, but it was not reproducible enough for the
 train-window check. The second rejected candidate improved the combined score
 only from `-0.001472` to `-0.001210`, while lowering pair-best geomean from
-`0.977466` to `0.977240`. The promoted seed therefore remains the active
-Stage 2 policy.
+`0.977466` to `0.977240`. These results were useful negative evidence before
+the later sticky-margin grid.
 
 Continuation artifacts:
 
@@ -148,6 +149,45 @@ Continuation artifacts:
 - `results/stage2_openevolve/stage2/bf4d587210a19f36`
 - `results/stage2_openevolve/stage3/53e5b8b728c0a657`
 - `results/stage2_openevolve/stage3/bf4d587210a19f36`
+
+## Minimal Nano And Local Sticky Grid
+
+The full GPT-5.4-mini continuation prompt began triggering CMU AI Gateway prompt
+filtering before candidate generation. A shorter GPT-5.4-nano config was added
+only as a generator; all candidates still used the same frozen evaluator and
+simulator path.
+
+| Window | Traces | Candidate | vs pair-best | vs no-prefetch | vs weaker | beats weaker | catastrophic | Outcome |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| 10-trace train/search | 10 | sticky 5, weights `[1.0, 0.57, 1.0]` | 0.978647 | 1.084972 | 1.128668 | 8/10 | 2/10 | rejected: 13-trace geomeans below sticky 5 seed despite better robustness counts |
+| 13-trace train-window | 13 | sticky 5, weights `[1.0, 0.57, 1.0]` | 0.982187 | 1.066777 | 1.116029 | 11/13 | 2/13 | rejected |
+| 10-trace train/search | 10 | sticky 3, weights `[1.0, 0.55, 1.0]` | 0.980137 | 1.089214 | 1.130177 | 7/10 | 2/10 | promoted after train-window confirmation |
+| 13-trace train-window | 13 | sticky 3, weights `[1.0, 0.55, 1.0]` | 0.982884 | 1.066243 | 1.117600 | 11/13 | 2/13 | active seed |
+
+Sticky `3` supersedes sticky `5` because it improves the primary pair-best
+comparator and robustness counts on the 13 locally available train traces, and
+it improves the weaker-routee geomean. It does slightly lower no-prefetch
+geomean on the 13-trace train-window confirmation (`1.066243x` vs
+`1.067489x`), so the final story should report that tradeoff rather than claim
+uniform improvement over the previous sticky `5` seed.
+
+Two nearby weight-only points, `[1.0, 0.56, 1.0]` and `[1.0, 0.58, 1.0]`, failed
+during 10-trace train/search measurement on the MLOP single baseline for
+`secret_compute_int_568`. They were not interpreted from partial manifests.
+
+A final 4-iteration minimal-nano pass centered on sticky `3` did not find a
+valid improvement. All generated mutations were rejected by the literal-policy
+guard before simulator execution, and the tracked best remained sticky `3`.
+
+Minimal nano and sticky-grid artifacts:
+
+- `results/stage2_openevolve/stage2_gpt54nano_minimal_iter8_20260429`
+- `results/stage2_openevolve/sweeps/stage2_v13_local_grid_20260429`
+- `results/stage2_openevolve/stage2/7883aa5c4c1a14dc`
+- `results/stage2_openevolve/stage3/7883aa5c4c1a14dc`
+- `results/stage2_openevolve/stage2/a52ed8a4151ad6cc`
+- `results/stage2_openevolve/stage3/a52ed8a4151ad6cc`
+- `results/stage2_openevolve/stage2_gpt54nano_after_sticky3_iter4_20260429`
 
 ## Trace Availability
 
@@ -169,6 +209,7 @@ confirmation once those traces are available.
 - `results/stage2_openevolve/sweeps/stage2_confirm_top3_20260429`
 - `results/stage2_openevolve/sweeps/stage3_local_train_confirm_top2_20260429`
 - `results/stage2_openevolve/sweeps/stage3_train_confirm_top2_20260429`
+- `results/stage2_openevolve/sweeps/stage2_v13_local_grid_20260429`
 - `stage2/openevolve/selection_ledger.jsonl`
 
 Raw simulator outputs remain under ignored `results/`; the selection ledger is

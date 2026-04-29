@@ -462,3 +462,37 @@ Format:
   `results/stage2_openevolve/stage3/53e5b8b728c0a657`, and
   `results/stage2_openevolve/stage3/bf4d587210a19f36`.
 - AI-assisted: yes.
+
+## 2026-04-29 — Stage 2 minimal nano and sticky-margin grid
+
+- Goal: continue Stage 2 search after the full GPT-5.4-mini prompt began
+  triggering CMU AI Gateway prompt filtering, without changing the evaluator,
+  traces, metrics, or expert pair.
+- Decision: promote the sticky-margin-only policy
+  `router=MoP-V1.3`, `mop_total_budget=9216`, `mop_one_shot_epochs=1`,
+  `mop_accuracy_floor=30`, `mop_guarded_min_budget_share=10`,
+  `mop_sticky_margin_pct=3`, `mop_score_weights=[1.0, 0.55, 1.0]`.
+- Evidence: a minimal GPT-5.4-nano prompt found a nearby weight tweak
+  `[1.0, 0.57, 1.0]`; it improved 13-trace robustness counts but slightly
+  lowered the main geomeans and was not promoted. A tiny serial local grid then
+  found sticky `3`. On the 10-trace train/search subset, sticky `3` reached
+  `0.980137x` vs pair-best, `1.089214x` vs no-prefetch, and `1.130177x` vs
+  weaker routee. On the 13 locally available train traces, it reached
+  `0.982884x` vs pair-best, `1.066243x` vs no-prefetch, and `1.117600x` vs
+  weaker routee, with beats-weaker rate `0.846154` and catastrophic rate
+  `0.153846`. A final 4-iteration minimal-nano pass centered on sticky `3`
+  produced no valid improvement; all generated mutations were rejected by the
+  literal-policy guard before simulator execution.
+- Caveat: sticky `3` slightly lowers the 13-trace no-prefetch geomean compared
+  with the previous sticky `5` seed (`1.066243x` vs `1.067489x`). It is promoted
+  because it improves the primary pair-best comparator, weaker-routee geomean,
+  beats-weaker count, and catastrophic count. Heldout traces were not used.
+  Full 17-trace train confirmation still awaits the missing train traces.
+- Artifacts: `results/stage2_openevolve/stage2_gpt54nano_minimal_iter8_20260429`,
+  `results/stage2_openevolve/sweeps/stage2_v13_local_grid_20260429`,
+  `results/stage2_openevolve/stage2/7883aa5c4c1a14dc`,
+  `results/stage2_openevolve/stage3/7883aa5c4c1a14dc`,
+  `results/stage2_openevolve/stage2/a52ed8a4151ad6cc`,
+  `results/stage2_openevolve/stage3/a52ed8a4151ad6cc`, and
+  `results/stage2_openevolve/stage2_gpt54nano_after_sticky3_iter4_20260429`.
+- AI-assisted: yes.

@@ -3,8 +3,9 @@
 
 OpenEvolve may edit only `candidate_policy`. The evaluator rejects keys outside
 the documented policy contract, so keep this compact and generic. Do not add
-trace names, benchmark-family rules, parser code, simulator paths, offline
-oracle labels, or metric keys such as `single_action_rate` and `both_on_rate`.
+trace names, benchmark-family rules, parser code, simulator paths,
+trace-specific labels, or metric keys such as `single_action_rate` and
+`both_on_rate`.
 """
 
 
@@ -16,7 +17,7 @@ def candidate_policy():
         "mop_one_shot_epochs": 1,
         "mop_accuracy_floor": 30,
         "mop_guarded_min_budget_share": 10,
-        "mop_sticky_margin_pct": 5,
+        "mop_sticky_margin_pct": 3,
         "mop_score_weights": [1.0, 0.55, 1.0],
     }
 

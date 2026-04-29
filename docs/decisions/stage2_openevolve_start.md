@@ -25,6 +25,21 @@ active seed is promoted to `MoP-V1.3`, a narrow sticky-single extension of
 }
 ```
 
+Update: a later minimal-prompt GPT-5.4-nano run and a tiny local knob grid
+promoted the sticky margin from `5` to `3`. The active confirmed policy is now:
+
+```python
+{
+    "router": "MoP-V1.3",
+    "mop_total_budget": 9216,
+    "mop_one_shot_epochs": 1,
+    "mop_accuracy_floor": 30,
+    "mop_guarded_min_budget_share": 10,
+    "mop_sticky_margin_pct": 3,
+    "mop_score_weights": [1.0, 0.55, 1.0],
+}
+```
+
 Update: the OpenEvolve evaluator now hashes canonical policy behavior plus
 frozen evaluator/simulator inputs, rejects non-literal evolved code, and returns
 the full metric schema on failed candidates. This keeps the Stage 2 loop from
@@ -132,6 +147,30 @@ On the 13-trace local train-window confirmation, the candidate reached:
 - `0.769231` beats-weaker rate
 - `0.230769` catastrophic rate
 
+A later sticky-margin-only local grid found `MoP-V1.3`, budget `9216`,
+sticky `3`, weights `[1.0, 0.55, 1.0]`. On the 10-trace train/search subset it
+reached:
+
+- `0.980137x` vs pair-best
+- `1.089214x` vs no-prefetch
+- `1.130177x` vs weaker routee
+- `0.700000` beats-weaker rate
+- `0.200000` catastrophic rate
+
+On the 13-trace local train-window confirmation, it reached:
+
+- `0.982884x` vs pair-best
+- `1.066243x` vs no-prefetch
+- `1.117600x` vs weaker routee
+- `0.846154` beats-weaker rate
+- `0.153846` catastrophic rate
+
+This supersedes sticky `5` as the active Stage 2 seed because it improves the
+primary pair-best comparator and robustness counts on the 13 locally available
+train traces, while preserving a clear gain over no-prefetch. It does slightly
+lower the no-prefetch geomean versus sticky `5` on the 13-trace train-window
+confirmation (`1.066243x` vs `1.067489x`), so that tradeoff must be reported.
+
 The `MoP-V1.2` reference under the same rebuilt binary reached:
 
 - `0.965888x` vs pair-best
@@ -149,6 +188,10 @@ The `MoP-V1.2` reference under the same rebuilt binary reached:
 - GPT-5.4-mini search output: `results/stage2_openevolve/stage2_gpt54mini_iter4`
 - confirmed candidate search-window artifacts: `results/stage2_openevolve/stage2/48b15535009fa381`
 - confirmed candidate train-window artifacts: `results/stage2_openevolve/stage3/48b15535009fa381`
+- minimal nano output: `results/stage2_openevolve/stage2_gpt54nano_minimal_iter8_20260429`
+- sticky-margin grid: `results/stage2_openevolve/sweeps/stage2_v13_local_grid_20260429`
+- active sticky-3 search-window artifacts: `results/stage2_openevolve/stage2/a52ed8a4151ad6cc`
+- active sticky-3 train-window artifacts: `results/stage2_openevolve/stage3/a52ed8a4151ad6cc`
 
 All paths above are repository-relative. Raw simulator outputs remain ignored
 under `results/`.

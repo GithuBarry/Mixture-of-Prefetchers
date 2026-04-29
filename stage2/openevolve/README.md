@@ -11,8 +11,9 @@ The data-backed reason for this pair is complementarity on the train/search
 screen: `MLOP` wins 3/10 traces, `SPP+PPF` wins 7/10, both routees beat
 no-prefetch on 6/10, and the routee gap is at least 2% on 7/10.
 
-After the train-only policy sweep, the active seed is `MoP-V1.2` with
-`mop_score_weights = [1.0, 0.5, 1.0]`. See
+After train-only OpenEvolve search and a small local knob grid, the active seed
+is `MoP-V1.3` with `mop_total_budget = 9216`, `mop_sticky_margin_pct = 3`,
+and `mop_score_weights = [1.0, 0.55, 1.0]`. See
 `docs/decisions/stage2_policy_sweep.md`.
 
 ## Editable Surface
@@ -23,11 +24,12 @@ baselines, and simulator internals frozen.
 
 Allowed knobs:
 
-- `router`: `MoP-V1.1` or `MoP-V1.2`
+- `router`: `MoP-V1.1`, `MoP-V1.2`, or `MoP-V1.3`
 - `mop_total_budget`
 - `mop_one_shot_epochs`
 - `mop_accuracy_floor`
 - `mop_guarded_min_budget_share`
+- `mop_sticky_margin_pct`
 - `mop_score_weights`
 
 `WinnerTakeAll`, `OneShotFit`, and constituent singles remain comparators in
