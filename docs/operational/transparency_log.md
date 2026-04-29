@@ -531,3 +531,15 @@ Format:
   `results/stage2_openevolve/comparators/stage3_oneshotfit_20260429`, and
   `results/stage2_openevolve/comparators/stage3_athenamab_20260429`.
 - AI-assisted: no.
+
+## 2026-04-29 — Stage 2 heldout protocol predeclared
+
+- Goal: lock retry and failure handling before any heldout result exists.
+- Decision: use `docs/decisions/stage2_heldout_protocol.md` as the final
+  heldout protocol. Infrastructure failures may be rerun once with the same
+  command; repeated router failure is a failed heldout result; repeated baseline
+  or single-expert failure invalidates the heldout run until infrastructure is
+  fixed. Heldout results cannot be used to choose a different policy.
+- Evidence: no heldout data was used. This is a protocol freeze only.
+- Artifacts: `docs/decisions/stage2_heldout_protocol.md`.
+- AI-assisted: no.
