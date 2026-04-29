@@ -73,7 +73,7 @@ python3 stage2/openevolve/sweep_policies.py \
 Use `--workers 1` for Athena stability on this machine. Higher concurrency has
 triggered transient `SIGBUS` failures in the simulator on some traces.
 
-The last cheap-model smoke that completed the loop was:
+The latest cheap-model smoke that completed the loop was:
 
 ```bash
 PYTHONPATH=external/openevolve STAGE2_EVAL_STAGE=stage1 \
@@ -81,9 +81,10 @@ PYTHONPATH=external/openevolve STAGE2_EVAL_STAGE=stage1 \
   stage2/openevolve/initial_policy.py \
   stage2/openevolve/evaluator.py \
   --config stage2/openevolve/config_smoke.yaml \
-  --output results/stage2_openevolve/stage1_tuned_llama8b_iter5_behaviorhash \
+  --output results/stage2_openevolve/stage1_tuned_llama8b_iter5_builtinfeatures \
   --iterations 5
 ```
 
-That run found one valid new policy, `[1.0, 0.4, 1.0]`, but it was not promoted
-after the 10-trace stage2 confirmation.
+That run found one valid new policy, `[0.7, 0.3, 1.0]`. It improved the
+10-trace stage2 search confirmation but was not promoted after the 13-trace
+local-train confirmation.

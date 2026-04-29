@@ -63,8 +63,8 @@ database:
   elite_selection_ratio: 0.25
   exploitation_ratio: 0.7
   feature_dimensions:
-    - "single_action_rate"
-    - "both_on_rate"
+    - "complexity"
+    - "diversity"
   feature_bins: 5
 
 evaluator:

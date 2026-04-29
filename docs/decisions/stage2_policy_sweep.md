@@ -58,11 +58,25 @@ promoted: on the 10-trace search confirmation it reached `0.958214x` vs
 pair-best, `1.062867x` vs no-prefetch, and `1.106615x` vs weaker routee,
 slightly below the active seed's `0.958273x`, `1.064585x`, and `1.108183x`.
 
+After switching OpenEvolve MAP-Elites features from action-metric names to the
+built-in `complexity` / `diversity` features, the cheap model produced a
+stronger valid screen candidate with `mop_score_weights = [0.7, 0.3, 1.0]`.
+That candidate improved the 10-trace search confirmation (`0.960233x` vs
+pair-best and `1.066260x` vs no-prefetch), but it failed the 13-trace local-train
+confirmation: `0.963380x` vs pair-best, `1.044298x` vs no-prefetch, and
+`0.307692` catastrophic rate, compared with the active seed's `0.964299x`,
+`1.047360x`, and `0.230769`. It is therefore not promoted.
+
 OpenEvolve smoke artifacts:
 
 - `results/stage2_openevolve/stage1_tuned_llama8b_iter5_behaviorhash`
+- `results/stage2_openevolve/stage1_tuned_llama8b_iter5_builtinfeatures`
 - `results/stage2_openevolve/stage2/047993d2d251398b`
 - `results/stage2_openevolve/stage2/1662bd615d89c4e8`
+- `results/stage2_openevolve/stage2/d1291eb1c25956db`
+- `results/stage2_openevolve/stage2/38d624d27e711ce2`
+- `results/stage2_openevolve/stage3/d1291eb1c25956db`
+- `results/stage2_openevolve/stage3/38d624d27e711ce2`
 
 ## Trace Availability
 

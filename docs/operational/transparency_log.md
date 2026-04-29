@@ -383,3 +383,23 @@ Format:
   `results/stage2_openevolve/stage2/047993d2d251398b`, and
   `results/stage2_openevolve/stage2/1662bd615d89c4e8`.
 - AI-assisted: yes.
+
+## 2026-04-29 — Stage 2 OpenEvolve built-in feature smoke
+
+- Goal: remove action-metric names from the OpenEvolve diversity map so the
+  cheap model is less likely to add metrics as policy keys.
+- Decision: use built-in `complexity` and `diversity` MAP-Elites features in
+  `stage2/openevolve/config_smoke.yaml`. Keep `[1.0, 0.5, 1.0]` as the active
+  seed.
+- Evidence: the cheap 5-iteration run found a valid `[0.7, 0.3, 1.0]` candidate.
+  It improved the 10-trace stage2 search confirmation to `0.960233x` vs
+  pair-best and `1.066260x` vs no-prefetch, but failed the 13-trace local-train
+  confirmation with `0.963380x` vs pair-best and `1.044298x` vs no-prefetch,
+  below the active seed's `0.964299x` and `1.047360x`. It also raised
+  catastrophic rate from `0.230769` to `0.307692`.
+- Artifacts: `results/stage2_openevolve/stage1_tuned_llama8b_iter5_builtinfeatures`,
+  `results/stage2_openevolve/stage2/d1291eb1c25956db`,
+  `results/stage2_openevolve/stage2/38d624d27e711ce2`,
+  `results/stage2_openevolve/stage3/d1291eb1c25956db`, and
+  `results/stage2_openevolve/stage3/38d624d27e711ce2`.
+- AI-assisted: yes.
