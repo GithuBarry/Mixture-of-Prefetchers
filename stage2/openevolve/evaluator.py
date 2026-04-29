@@ -37,13 +37,14 @@ LEDGER_PATH = REPO_ROOT / "stage2" / "openevolve" / "candidate_ledger.jsonl"
 
 EXPERT_0 = "MLOP"
 EXPERT_1 = "SPP+PPF"
-ALLOWED_ROUTERS = {"MoP-V1.1", "MoP-V1.2"}
+ALLOWED_ROUTERS = {"MoP-V1.1", "MoP-V1.2", "MoP-V1.3"}
 ALLOWED_KEYS = {
     "router",
     "mop_total_budget",
     "mop_one_shot_epochs",
     "mop_accuracy_floor",
     "mop_guarded_min_budget_share",
+    "mop_sticky_margin_pct",
     "mop_score_weights",
 }
 SMOKE_TRACES = ["429.mcf-192B"]
@@ -175,6 +176,9 @@ def validate_policy(raw: Any) -> dict[str, Any]:
     if "mop_guarded_min_budget_share" in policy:
         policy["mop_guarded_min_budget_share"] = int(policy["mop_guarded_min_budget_share"])
         assert 0 <= policy["mop_guarded_min_budget_share"] <= 50
+    if "mop_sticky_margin_pct" in policy:
+        policy["mop_sticky_margin_pct"] = int(policy["mop_sticky_margin_pct"])
+        assert 0 <= policy["mop_sticky_margin_pct"] <= 100
     if "mop_score_weights" in policy:
         weights = [float(x) for x in policy["mop_score_weights"]]
         assert len(weights) == 3
@@ -274,6 +278,7 @@ def policy_flags(policy: dict[str, Any]) -> list[str]:
         ("mop_one_shot_epochs", "--mop-one-shot-epochs"),
         ("mop_accuracy_floor", "--mop-accuracy-floor"),
         ("mop_guarded_min_budget_share", "--mop-guarded-min-budget-share"),
+        ("mop_sticky_margin_pct", "--mop-sticky-margin-pct"),
     ]
     for key, flag in optional:
         if key in policy:

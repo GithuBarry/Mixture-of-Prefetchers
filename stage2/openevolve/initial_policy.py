@@ -11,12 +11,13 @@ oracle labels, or metric keys such as `single_action_rate` and `both_on_rate`.
 def candidate_policy():
     """Return a compact router/knob policy for MLOP + SPP+PPF."""
     return {
-        "router": "MoP-V1.2",
-        "mop_total_budget": 8192,
+        "router": "MoP-V1.3",
+        "mop_total_budget": 9216,
         "mop_one_shot_epochs": 1,
         "mop_accuracy_floor": 30,
         "mop_guarded_min_budget_share": 10,
-        "mop_score_weights": [1.0, 0.5, 1.0],
+        "mop_sticky_margin_pct": 5,
+        "mop_score_weights": [1.0, 0.55, 1.0],
     }
 
 

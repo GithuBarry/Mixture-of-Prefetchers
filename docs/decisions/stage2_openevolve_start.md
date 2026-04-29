@@ -5,9 +5,25 @@ Date: 2026-04-29
 Status: Stage 2 scaffold is active after the Stage 1 train-only freeze commit.
 Heldout traces remain unused for selection.
 
-Update: the active seed was tightened by the train-only sweep in
-`docs/decisions/stage2_policy_sweep.md`; it remains `MoP-V1.2` but uses
+Update: the active seed was first tightened by the train-only sweep in
+`docs/decisions/stage2_policy_sweep.md`; it remained `MoP-V1.2` with
 `mop_score_weights = [1.0, 0.5, 1.0]`.
+
+Update: after GPT-5.4-mini search on the 10-trace train/search subset, the
+active seed is promoted to `MoP-V1.3`, a narrow sticky-single extension of
+`MoP-V1.2`. The confirmed policy is:
+
+```python
+{
+    "router": "MoP-V1.3",
+    "mop_total_budget": 9216,
+    "mop_one_shot_epochs": 1,
+    "mop_accuracy_floor": 30,
+    "mop_guarded_min_budget_share": 10,
+    "mop_sticky_margin_pct": 5,
+    "mop_score_weights": [1.0, 0.55, 1.0],
+}
+```
 
 Update: the OpenEvolve evaluator now hashes canonical policy behavior plus
 frozen evaluator/simulator inputs, rejects non-literal evolved code, and returns
@@ -18,8 +34,8 @@ rewarding comment-only edits or crashing on invalid generated policies.
 
 - cache level: L2C
 - expert pair: `MLOP + SPP+PPF`
-- main seed: `MoP-V1.2 ProbeSingle`
-- backup seed: `MoP-V1.1 Guarded`
+- main seed: `MoP-V1.3 StickySingle`
+- backup seed: `MoP-V1.2 ProbeSingle`
 - primary comparator: pair-best constituent single expert
 - secondary comparators: no-prefetch, then weaker routee
 
@@ -37,11 +53,12 @@ OpenEvolve may edit only `candidate_policy()` in
 
 Allowed outputs:
 
-- router family: `MoP-V1.1` or `MoP-V1.2`
+- router family: `MoP-V1.1`, `MoP-V1.2`, or `MoP-V1.3`
 - total prefetch budget
 - one-shot probe epochs
 - accuracy floor
 - guarded minimum budget share
+- sticky margin percentage for `MoP-V1.3`
 - three score weights
 
 Frozen:
@@ -50,7 +67,8 @@ Frozen:
 - parser, dataset, and figure code
 - no-prefetch and constituent single baselines
 - metric definitions
-- Athena simulator internals
+- Athena simulator internals, except the already-implemented `MoP-V1.3`
+  sticky-single router branch and its one exposed margin knob
 - expert pair
 
 `WinnerTakeAll`, `OneShotFit`, and single experts remain comparators. They are
@@ -82,12 +100,55 @@ worse than the seed. They increased both-on usage and reduced weaker-routee
 performance, so the objective direction looked reasonable. The committed
 candidate ledger keeps only the post-hardening seed reruns.
 
+## GPT-5.4-mini Search Evidence
+
+Kimi/Moonshot model IDs were probed through the CMU AI Gateway and were not
+available to this team. The gateway did allow `gpt-5.4-mini`, which was used
+for the successful train/search run.
+
+The successful candidate came from
+`results/stage2_openevolve/stage2_gpt54mini_iter4`. On the 10-trace
+train/search subset, it reached:
+
+- `0.977466x` vs pair-best
+- `1.087038x` vs no-prefetch
+- `1.130068x` vs weaker routee
+- `0.800000` beats-weaker rate
+- `0.200000` catastrophic rate
+
+The `MoP-V1.2` reference under the same rebuilt binary reached:
+
+- `0.959129x` vs pair-best
+- `1.062249x` vs no-prefetch
+- `1.106171x` vs weaker routee
+- `0.700000` beats-weaker rate
+- `0.300000` catastrophic rate
+
+On the 13-trace local train-window confirmation, the candidate reached:
+
+- `0.982234x` vs pair-best
+- `1.067489x` vs no-prefetch
+- `1.116795x` vs weaker routee
+- `0.769231` beats-weaker rate
+- `0.230769` catastrophic rate
+
+The `MoP-V1.2` reference under the same rebuilt binary reached:
+
+- `0.965888x` vs pair-best
+- `1.049788x` vs no-prefetch
+- `1.096860x` vs weaker routee
+- `0.769231` beats-weaker rate
+- `0.230769` catastrophic rate
+
 ## Artifact Paths
 
 - Stage 2 scaffold: `stage2/openevolve/`
 - candidate ledger: `stage2/openevolve/candidate_ledger.jsonl`
 - smoke output: `results/stage2_openevolve/smoke_llama8b_iter1`
 - stage1 full-program smoke: `results/stage2_openevolve/stage1_llama8b_full_iter3`
+- GPT-5.4-mini search output: `results/stage2_openevolve/stage2_gpt54mini_iter4`
+- confirmed candidate search-window artifacts: `results/stage2_openevolve/stage2/48b15535009fa381`
+- confirmed candidate train-window artifacts: `results/stage2_openevolve/stage3/48b15535009fa381`
 
 All paths above are repository-relative. Raw simulator outputs remain ignored
 under `results/`.

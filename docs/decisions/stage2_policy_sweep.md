@@ -2,12 +2,27 @@
 
 Date: 2026-04-29
 
-Status: train-only Stage 2 sweep promoted a tuned `MoP-V1.2` seed. Heldout
+Status: train-only Stage 2 sweep first promoted a tuned `MoP-V1.2` seed. A
+later GPT-5.4-mini OpenEvolve search promoted `MoP-V1.3 StickySingle`. Heldout
 traces were not used.
 
 ## Selected Policy
 
-The active Stage 2 seed is:
+The active Stage 2 seed after GPT-5.4-mini search is:
+
+```python
+{
+    "router": "MoP-V1.3",
+    "mop_total_budget": 9216,
+    "mop_one_shot_epochs": 1,
+    "mop_accuracy_floor": 30,
+    "mop_guarded_min_budget_share": 10,
+    "mop_sticky_margin_pct": 5,
+    "mop_score_weights": [1.0, 0.55, 1.0],
+}
+```
+
+The backup/reference seed is:
 
 ```python
 {
@@ -20,8 +35,9 @@ The active Stage 2 seed is:
 }
 ```
 
-This is the original `MoP-V1.2` seed with a higher accuracy weight. The router
-still uses only single-expert actions after the one-epoch probe.
+The `MoP-V1.3` seed is a narrow extension of `MoP-V1.2`: it still uses only
+single-expert actions after the one-epoch probe, but it keeps the prior single
+expert when both scores are positive and within a 5% margin.
 
 ## Evidence
 
@@ -77,6 +93,34 @@ OpenEvolve smoke artifacts:
 - `results/stage2_openevolve/stage2/38d624d27e711ce2`
 - `results/stage2_openevolve/stage3/d1291eb1c25956db`
 - `results/stage2_openevolve/stage3/38d624d27e711ce2`
+
+## GPT-5.4-mini OpenEvolve Confirmation
+
+Kimi/Moonshot model IDs were probed through the CMU AI Gateway, but this team
+was not allowed to access them. `gpt-5.4-mini` was available and produced a
+valid `MoP-V1.3` candidate when run directly on the 10-trace train/search
+subset.
+
+| Window | Traces | Candidate | vs pair-best | vs no-prefetch | vs weaker | beats weaker | catastrophic | both-on | single |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 10-trace train/search | 10 | `MoP-V1.3`, budget 9216, sticky 5 | 0.977466 | 1.087038 | 1.130068 | 8/10 | 2/10 | 0.000 | 1.000 |
+| 10-trace train/search | 10 | `MoP-V1.2` reference | 0.959129 | 1.062249 | 1.106171 | 7/10 | 3/10 | 0.000 | 1.000 |
+| local train-window | 13 | `MoP-V1.3`, budget 9216, sticky 5 | 0.982234 | 1.067489 | 1.116795 | 10/13 | 3/13 | 0.000 | 1.000 |
+| local train-window | 13 | `MoP-V1.2` reference | 0.965888 | 1.049788 | 1.096860 | 10/13 | 3/13 | 0.000 | 1.000 |
+
+This is the first Stage 2 candidate in this run sequence that improves the
+active reference on the 10-trace train/search subset and preserves the gain on
+the 13 locally available train traces. It still does not beat pair-best single
+overall, but it materially closes the gap while improving over no-prefetch and
+the weaker routee.
+
+GPT-5.4-mini artifacts:
+
+- `results/stage2_openevolve/stage2_gpt54mini_iter4`
+- `results/stage2_openevolve/stage2/48b15535009fa381`
+- `results/stage2_openevolve/stage3/48b15535009fa381`
+- `results/stage2_openevolve/stage2/696ab41d0e1b93bf`
+- `results/stage2_openevolve/stage3/696ab41d0e1b93bf`
 
 ## Trace Availability
 

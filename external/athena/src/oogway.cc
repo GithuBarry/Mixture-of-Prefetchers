@@ -137,6 +137,7 @@ void Oogway::print_config() {
        << "mop_score_weights " << array_to_string(knob::mop_score_weights) << endl
        << "mop_one_shot_epochs " << knob::mop_one_shot_epochs << endl
        << "mop_guarded_min_budget_share " << knob::mop_guarded_min_budget_share << endl
+       << "mop_sticky_margin_pct " << knob::mop_sticky_margin_pct << endl
        << "mop_seed " << knob::mop_seed << endl
        << "mop_epoch_trace " << knob::mop_epoch_trace << endl;
   }
@@ -465,6 +466,29 @@ uint32_t Oogway::mop_decision(og_state_t *state) {
       return 3;
     }
     return (score0 >= score1) ? 2 : 1;
+  case 7: {
+    if (epoch_count < knob::mop_one_shot_epochs) {
+      return 3;
+    }
+    if (score0 <= 0.0f && score1 <= 0.0f) {
+      return (prev_action == 1 || prev_action == 2) ? prev_action : 2;
+    }
+    if (score0 <= 0.0f) {
+      return 1;
+    }
+    if (score1 <= 0.0f) {
+      return 2;
+    }
+
+    const uint32_t best_action = (score0 >= score1) ? 2 : 1;
+    if ((prev_action == 1 || prev_action == 2) && knob::mop_sticky_margin_pct > 0) {
+      const float margin = std::max(score0, score1) * static_cast<float>(knob::mop_sticky_margin_pct) / 100.0f;
+      if (std::abs(score0 - score1) <= margin) {
+        return prev_action;
+      }
+    }
+    return best_action;
+  }
   case 4:
   case 5:
   default:
@@ -506,6 +530,7 @@ void Oogway::configure_mop_epoch(og_state_t *state) {
   case 2:
   case 3:
   case 6:
+  case 7:
     if (curr_action == 0) {
       break;
     }

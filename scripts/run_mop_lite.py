@@ -71,6 +71,7 @@ ROUTERS = {
     "MoP-V0":        4,
     "MoP-V1.1":      5,
     "MoP-V1.2":      6,
+    "MoP-V1.3":      7,
 }
 
 # Builtin multi-expert coordinators that pre-date MoP-lite; used as baselines.
@@ -84,6 +85,7 @@ INTERESTING_CONFIG_KEYS = {
     "mop_accuracy_floor",
     "mop_fixed_split_ratio",
     "mop_guarded_min_budget_share",
+    "mop_sticky_margin_pct",
     "mop_one_shot_epochs",
     "mop_score_weights",
     "mop_seed",
@@ -219,6 +221,7 @@ def mop_flags(
     mop_total_budget: int | None,
     mop_accuracy_floor: int | None,
     mop_guarded_min_budget_share: int | None,
+    mop_sticky_margin_pct: int | None,
     mop_one_shot_epochs: int | None,
     mop_score_weights: str | None,
 ) -> str:
@@ -244,6 +247,8 @@ def mop_flags(
         flags += f" --mop_accuracy_floor={mop_accuracy_floor}"
     if mop_guarded_min_budget_share is not None:
         flags += f" --mop_guarded_min_budget_share={mop_guarded_min_budget_share}"
+    if mop_sticky_margin_pct is not None:
+        flags += f" --mop_sticky_margin_pct={mop_sticky_margin_pct}"
     if mop_one_shot_epochs is not None:
         flags += f" --mop_one_shot_epochs={mop_one_shot_epochs}"
     if mop_score_weights is not None:
@@ -467,6 +472,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mop-total-budget", type=int, default=None)
     parser.add_argument("--mop-accuracy-floor", type=int, default=None)
     parser.add_argument("--mop-guarded-min-budget-share", type=int, default=None)
+    parser.add_argument("--mop-sticky-margin-pct", type=int, default=None)
     parser.add_argument("--mop-score-weights", default=None,
                         help="Override mop_score_weights as three comma-separated floats.")
     parser.add_argument(
@@ -512,6 +518,7 @@ def main() -> int:
     mop_total_budget = args.mop_total_budget
     mop_accuracy_floor = args.mop_accuracy_floor
     mop_guarded_min_budget_share = args.mop_guarded_min_budget_share
+    mop_sticky_margin_pct = args.mop_sticky_margin_pct
     mop_one_shot_epochs = args.mop_one_shot_epochs
     mop_score_weights = args.mop_score_weights
 
@@ -540,6 +547,8 @@ def main() -> int:
             mop_accuracy_floor = int(mop_knobs["mop_accuracy_floor"])
         if mop_guarded_min_budget_share is None and "mop_guarded_min_budget_share" in mop_knobs:
             mop_guarded_min_budget_share = int(mop_knobs["mop_guarded_min_budget_share"])
+        if mop_sticky_margin_pct is None and "mop_sticky_margin_pct" in mop_knobs:
+            mop_sticky_margin_pct = int(mop_knobs["mop_sticky_margin_pct"])
         if mop_one_shot_epochs is None and "mop_one_shot_epochs" in mop_knobs:
             mop_one_shot_epochs = int(mop_knobs["mop_one_shot_epochs"])
         if mop_score_weights is None and "mop_score_weights" in mop_knobs:
@@ -633,7 +642,7 @@ def main() -> int:
                     config_module, athena_home, warmup, sim,
                     expert_0, expert_1, experiment, args.seed, epoch_trace_prefix,
                     mop_total_budget, mop_accuracy_floor, mop_guarded_min_budget_share,
-                    mop_one_shot_epochs, mop_score_weights,
+                    mop_sticky_margin_pct, mop_one_shot_epochs, mop_score_weights,
                 )
             elif kind == "builtin":
                 if args.epoch_trace:
@@ -710,6 +719,7 @@ def main() -> int:
                 "mop_accuracy_floor": int(active_settings["mop_accuracy_floor"]) if "mop_accuracy_floor" in active_settings else None,
                 "mop_fixed_split_ratio": int(active_settings["mop_fixed_split_ratio"]) if "mop_fixed_split_ratio" in active_settings else None,
                 "mop_guarded_min_budget_share": int(active_settings["mop_guarded_min_budget_share"]) if "mop_guarded_min_budget_share" in active_settings else None,
+                "mop_sticky_margin_pct": int(active_settings["mop_sticky_margin_pct"]) if "mop_sticky_margin_pct" in active_settings else None,
                 "mop_one_shot_epochs": int(active_settings["mop_one_shot_epochs"]) if "mop_one_shot_epochs" in active_settings else None,
                 "mop_score_weights": active_settings.get("mop_score_weights"),
                 "git_revision": revision,

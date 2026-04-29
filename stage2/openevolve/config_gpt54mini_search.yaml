@@ -1,0 +1,91 @@
+max_iterations: 1
+checkpoint_interval: 1
+log_level: "INFO"
+random_seed: 43
+diff_based_evolution: false
+max_code_length: 12000
+
+llm:
+  models:
+    - name: "gpt-5.4-mini"
+      weight: 1.0
+  evaluator_models:
+    - name: "gpt-5.4-mini"
+      weight: 1.0
+  api_base: "https://ai-gateway.andrew.cmu.edu"
+  api_key: ${CMU_AI_GATEWAY_API_KEY}
+  max_tokens: 2048
+  reasoning_effort: "low"
+  timeout: 180
+  retries: 1
+
+prompt:
+  system_message: |
+    You are optimizing a small Stage 2 policy module for a systems research
+    project on L2 cache prefetcher coordination.
+
+    Scientific boundary:
+    - Fixed cache level: L2C.
+    - Fixed expert pair: MLOP + SPP+PPF.
+    - Primary comparator: best constituent single expert on the same trace.
+    - Secondary comparators: no-prefetch, then the weaker routee.
+    - Heldout traces, parser code, dataset code, metric definitions, and
+      simulator internals are frozen.
+
+    You may edit only candidate_policy() in the submitted Python program. It
+    must return a small dictionary with generic policy knobs. The router must
+    stay within the frozen Stage 2 seed families, MoP-V1.1, MoP-V1.2, or the
+    narrow MoP-V1.3 sticky-single extension. The
+    allowed knobs are only mop_total_budget, mop_one_shot_epochs,
+    mop_accuracy_floor, mop_guarded_min_budget_share, mop_sticky_margin_pct,
+    and mop_score_weights.
+
+    Do not add new keys. Do not add metric names, trace names, benchmark-family
+    rules, imports, helper functions, parser code, simulator paths, or offline
+    oracle labels.
+
+    Search evidence:
+    - The promoted active seed is MoP-V1.3 with total budget 9216, one-shot
+      epochs 1, accuracy floor 30, guarded minimum share 10, sticky margin 5,
+      and score weights [1.0, 0.55, 1.0].
+    - The backup/reference seed is MoP-V1.2 with total budget 8192,
+      one-shot epochs 1, accuracy floor 30, guarded minimum share 10, and
+      score weights [1.0, 0.5, 1.0].
+    - A prior candidate with total budget 12288, guarded share 8, and weights
+      [1.0, 0.6, 1.0] improved the one-trace smoke and 3-trace search-window
+      scores but regressed on the 10-trace search-window. Do not simply repeat
+      that candidate.
+    - A later candidate with MoP-V1.2, total budget 10240, and otherwise
+      reference settings improved the 3-trace search-window and beats-weaker
+      rate on the 10-trace search-window, but regressed the 10-trace pair-best,
+      no-prefetch, and weaker-routee geomeans. Do not simply repeat that
+      candidate either.
+    - MoP-V1.3 is MoP-V1.2 plus a sticky single-expert margin. It keeps the
+      previous single expert when both scores are positive and close. Use
+      mop_sticky_margin_pct only with MoP-V1.3; start small, usually 5 to 25.
+    - MLOP + SPP+PPF has complementary trace strengths. The viable story is
+      to beat no-prefetch and the weaker routee while closing the gap to
+      pair-best, not to chase an oracle.
+
+    Prefer small numeric changes to the allowed policy knobs. A valid simple
+    policy that improves the score is better than a creative invalid program.
+  include_artifacts: false
+  num_top_programs: 2
+  num_diverse_programs: 1
+
+database:
+  population_size: 8
+  archive_size: 4
+  num_islands: 1
+  elite_selection_ratio: 0.25
+  exploitation_ratio: 0.7
+  feature_dimensions:
+    - "complexity"
+    - "diversity"
+  feature_bins: 5
+
+evaluator:
+  timeout: 1200
+  cascade_evaluation: false
+  parallel_evaluations: 1
+  max_retries: 0

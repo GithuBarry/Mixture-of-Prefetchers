@@ -403,3 +403,34 @@ Format:
   `results/stage2_openevolve/stage3/d1291eb1c25956db`, and
   `results/stage2_openevolve/stage3/38d624d27e711ce2`.
 - AI-assisted: yes.
+
+## 2026-04-29 — Stage 2 GPT-5.4-mini sticky-single promotion
+
+- Goal: spend more model budget only after smoke evidence, and decide whether
+  OpenEvolve should be allowed to change anything beyond scalar policy knobs.
+- Decision: allow one narrow router-side extension, `MoP-V1.3 StickySingle`,
+  rather than broad simulator edits. `MoP-V1.3` is `MoP-V1.2` plus one exposed
+  `mop_sticky_margin_pct` knob. Promote the GPT-5.4-mini candidate:
+  `router=MoP-V1.3`, `mop_total_budget=9216`, `mop_one_shot_epochs=1`,
+  `mop_accuracy_floor=30`, `mop_guarded_min_budget_share=10`,
+  `mop_sticky_margin_pct=5`, `mop_score_weights=[1.0, 0.55, 1.0]`.
+- Evidence: Kimi/Moonshot IDs were probed through the CMU AI Gateway but were
+  not available to this team; `gpt-5.4-mini` was available. On the 10-trace
+  train/search subset, the promoted candidate reached `0.977466x` vs pair-best,
+  `1.087038x` vs no-prefetch, and `1.130068x` vs weaker routee, with
+  catastrophic rate `0.200000`. The rebuilt-binary `MoP-V1.2` reference reached
+  `0.959129x`, `1.062249x`, `1.106171x`, and catastrophic rate `0.300000`.
+  On the 13-trace local train-window confirmation, the promoted candidate
+  reached `0.982234x` vs pair-best, `1.067489x` vs no-prefetch, and
+  `1.116795x` vs weaker routee. The rebuilt-binary `MoP-V1.2` reference reached
+  `0.965888x`, `1.049788x`, and `1.096860x`.
+- Caveat: this still does not beat the pair-best single expert overall. It is a
+  stronger Stage 2 seed because it closes the pair-best gap while improving over
+  no-prefetch and the weaker routee on train/search evidence. Heldout traces
+  were not used.
+- Artifacts: `results/stage2_openevolve/stage2_gpt54mini_iter4`,
+  `results/stage2_openevolve/stage2/48b15535009fa381`,
+  `results/stage2_openevolve/stage3/48b15535009fa381`,
+  `results/stage2_openevolve/stage2/696ab41d0e1b93bf`, and
+  `results/stage2_openevolve/stage3/696ab41d0e1b93bf`.
+- AI-assisted: yes.
