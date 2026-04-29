@@ -525,7 +525,8 @@ Format:
   10. It still has two pair-best catastrophic traces, `429.mcf-192B` and
   `secret_compute_fp_45`; the pre-OpenEvolve `MoP-V1.2` reference had those
   two plus `ligra_CF...`.
-- Artifacts: `results/stage2_openevolve/comparators/stage3_winnertakeall_20260429`
+- Artifacts: `stage2/openevolve/comparator_ledger.jsonl`,
+  `results/stage2_openevolve/comparators/stage3_winnertakeall_20260429`,
   `results/stage2_openevolve/comparators/stage3_oneshotfit_20260429`, and
   `results/stage2_openevolve/comparators/stage3_athenamab_20260429`.
 - AI-assisted: no.

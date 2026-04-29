@@ -207,9 +207,16 @@ worse than the sticky-margin policy.
 
 Comparator artifacts:
 
+- `stage2/openevolve/comparator_ledger.jsonl`
 - `results/stage2_openevolve/comparators/stage3_winnertakeall_20260429`
 - `results/stage2_openevolve/comparators/stage3_oneshotfit_20260429`
 - `results/stage2_openevolve/comparators/stage3_athenamab_20260429`
+
+The committed comparator ledger records manifest row counts, run group IDs, and
+git revisions. The pre-OpenEvolve `MoP-V1.2` reference is historical; the active
+seed and comparator runs share the same runner/evaluator/simulator code surface,
+with intervening changes limited to docs, config prompts, ledgers, and the
+initial policy seed.
 
 ## Trace-Level Mechanism Check
 
