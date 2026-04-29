@@ -199,7 +199,7 @@ worse than the sticky-margin policy.
 
 | Candidate | vs pair-best | vs no-prefetch | vs weaker | beats weaker | catastrophic | combined score |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| pre-OpenEvolve `MoP-V1.2` reference | 0.965888 | 1.049788 | 1.096860 | 10/13 | 3/13 | -0.031762 |
+| current-checkout `MoP-V1.2` reference | 0.964637 | 1.047685 | 1.096428 | 9/13 | 3/13 | -0.033639 |
 | post-OpenEvolve `MoP-V1.3` sticky 3 | 0.982884 | 1.066243 | 1.117600 | 11/13 | 2/13 | 0.002547 |
 | `WinnerTakeAll` | 0.942771 | 1.024749 | 1.071244 | 7/13 | 5/13 | -0.085210 |
 | `OneShotFit` | 0.943456 | 1.026820 | 1.072286 | 6/13 | 5/13 | -0.083784 |
@@ -208,15 +208,15 @@ worse than the sticky-margin policy.
 Comparator artifacts:
 
 - `stage2/openevolve/comparator_ledger.jsonl`
+- `results/stage2_openevolve/comparators/stage3_v12_current_20260429`
 - `results/stage2_openevolve/comparators/stage3_winnertakeall_20260429`
 - `results/stage2_openevolve/comparators/stage3_oneshotfit_20260429`
 - `results/stage2_openevolve/comparators/stage3_athenamab_20260429`
 
 The committed comparator ledger records manifest row counts, run group IDs, and
-git revisions. The pre-OpenEvolve `MoP-V1.2` reference is historical; the active
-seed and comparator runs share the same runner/evaluator/simulator code surface,
-with intervening changes limited to docs, config prompts, ledgers, and the
-initial policy seed.
+git revisions. The table uses a current-checkout rerun of the pre-OpenEvolve
+`MoP-V1.2` policy, so the main comparator pack no longer depends on the older
+historical reference artifact.
 
 ## Trace-Level Mechanism Check
 
@@ -233,9 +233,9 @@ The remaining catastrophic losses versus pair-best are explicit:
 - `secret_compute_fp_45`: `MoP-V1.3` is `0.927679x` vs pair-best but still
   `1.029311x` vs no-prefetch.
 
-Compared with the pre-OpenEvolve `MoP-V1.2` reference, `MoP-V1.3` removes one
-catastrophic trace: `ligra_CF...` improved from `0.847176x` vs pair-best and
-`0.842262x` vs no-prefetch to a non-catastrophic `0.994702x` vs pair-best and
+Compared with the current-checkout `MoP-V1.2` reference, `MoP-V1.3` removes one
+catastrophic trace: `ligra_CF...` improved from `0.850719x` vs pair-best and
+`0.842599x` vs no-prefetch to a non-catastrophic `0.994702x` vs pair-best and
 `0.991680x` vs no-prefetch.
 
 ## Trace Availability

@@ -505,9 +505,9 @@ Format:
 - Decision: keep `MoP-V1.3`, sticky `3`, weights `[1.0, 0.55, 1.0]` as the
   active seed. `WinnerTakeAll`, `OneShotFit`, and `AthenaMAB` are useful
   comparators but not competitive seeds.
-- Evidence: on the 13 locally available train traces, the pre-OpenEvolve
-  `MoP-V1.2` reference reached `0.965888x` vs pair-best, `1.049788x` vs
-  no-prefetch, `1.096860x` vs weaker routee, beats-weaker `10/13`, and
+- Evidence: on the 13 locally available train traces, the current-checkout
+  `MoP-V1.2` reference reached `0.964637x` vs pair-best, `1.047685x` vs
+  no-prefetch, `1.096428x` vs weaker routee, beats-weaker `9/13`, and
   catastrophic `3/13`. The post-OpenEvolve `MoP-V1.3` sticky `3` seed reached
   `0.982884x`, `1.066243x`, `1.117600x`, beats-weaker `11/13`, and
   catastrophic `2/13`. `WinnerTakeAll` reached only `0.942771x`, `1.024749x`,
@@ -523,9 +523,10 @@ Format:
   `MLOP` is better on 4; both experts beat no-prefetch on 7. The active router
   beats the weaker routee on 11 traces and is closer to the better routee on
   10. It still has two pair-best catastrophic traces, `429.mcf-192B` and
-  `secret_compute_fp_45`; the pre-OpenEvolve `MoP-V1.2` reference had those
+  `secret_compute_fp_45`; the current-checkout `MoP-V1.2` reference had those
   two plus `ligra_CF...`.
 - Artifacts: `stage2/openevolve/comparator_ledger.jsonl`,
+  `results/stage2_openevolve/comparators/stage3_v12_current_20260429`,
   `results/stage2_openevolve/comparators/stage3_winnertakeall_20260429`,
   `results/stage2_openevolve/comparators/stage3_oneshotfit_20260429`, and
   `results/stage2_openevolve/comparators/stage3_athenamab_20260429`.
