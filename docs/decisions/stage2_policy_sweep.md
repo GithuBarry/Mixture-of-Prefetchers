@@ -122,6 +122,33 @@ GPT-5.4-mini artifacts:
 - `results/stage2_openevolve/stage2/696ab41d0e1b93bf`
 - `results/stage2_openevolve/stage3/696ab41d0e1b93bf`
 
+## Post-Promotion Continuation
+
+Two short GPT-5.4-mini continuation runs were made after promoting the
+`MoP-V1.3`, budget 9216, sticky 5 seed. They did not justify another
+promotion.
+
+| Window | Traces | Candidate | vs pair-best | vs no-prefetch | vs weaker | beats weaker | catastrophic | Outcome |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| 10-trace train/search | 10 | `MoP-V1.3`, budget 10240, sticky 10, weights `[1.0, 0.5, 1.0]` | 0.982001 | 1.089827 | 1.133480 | 8/10 | 2/10 | rejected: failed 13-trace train-window confirmation twice with simulator `SIGBUS` |
+| 10-trace train/search | 10 | `MoP-V1.3`, budget 8960, sticky 5, weights `[1.0, 0.56, 1.0]` | 0.977240 | 1.087744 | 1.131943 | 8/10 | 2/10 | rejected: tiny composite gain, lower pair-best geomean, and failed 13-trace train-window confirmation |
+
+The first rejected candidate looked better than the promoted seed on the
+10-trace train/search window, but it was not reproducible enough for the
+train-window check. The second rejected candidate improved the combined score
+only from `-0.001472` to `-0.001210`, while lowering pair-best geomean from
+`0.977466` to `0.977240`. The promoted seed therefore remains the active
+Stage 2 policy.
+
+Continuation artifacts:
+
+- `results/stage2_openevolve/stage2_gpt54mini_postpromote_iter4`
+- `results/stage2_openevolve/stage2_gpt54mini_postfail_iter4`
+- `results/stage2_openevolve/stage2/53e5b8b728c0a657`
+- `results/stage2_openevolve/stage2/bf4d587210a19f36`
+- `results/stage2_openevolve/stage3/53e5b8b728c0a657`
+- `results/stage2_openevolve/stage3/bf4d587210a19f36`
+
 ## Trace Availability
 
 Full 17-trace train confirmation was attempted with `--skip-download` and

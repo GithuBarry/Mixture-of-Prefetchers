@@ -434,3 +434,31 @@ Format:
   `results/stage2_openevolve/stage2/696ab41d0e1b93bf`, and
   `results/stage2_openevolve/stage3/696ab41d0e1b93bf`.
 - AI-assisted: yes.
+
+## 2026-04-29 — Stage 2 GPT-5.4-mini continuation after promotion
+
+- Goal: continue spending a small amount of model budget around the promoted
+  `MoP-V1.3` sticky-single seed, while preserving the train-only boundary.
+- Decision: keep the existing promoted seed:
+  `router=MoP-V1.3`, `mop_total_budget=9216`, `mop_one_shot_epochs=1`,
+  `mop_accuracy_floor=30`, `mop_guarded_min_budget_share=10`,
+  `mop_sticky_margin_pct=5`, `mop_score_weights=[1.0, 0.55, 1.0]`.
+- Evidence: a `10240` budget, sticky `10`, weights `[1.0, 0.5, 1.0]`
+  candidate improved the 10-trace train/search window to `0.982001x` vs
+  pair-best, `1.089827x` vs no-prefetch, and `1.133480x` vs weaker routee, but
+  failed 13-trace train-window confirmation twice with simulator `SIGBUS`.
+  A later safer candidate, budget `8960`, sticky `5`, weights
+  `[1.0, 0.56, 1.0]`, reached `0.977240x` vs pair-best, `1.087744x` vs
+  no-prefetch, and `1.131943x` vs weaker routee on the 10-trace train/search
+  window. Its composite score was a tiny improvement over the promoted seed,
+  but it lowered pair-best geomean and then failed the 13-trace train-window
+  confirmation on the MLOP single baseline for `secret_compute_int_568`.
+- Caveat: these are useful negative continuation results, not promotion
+  evidence. Heldout traces were not used.
+- Artifacts: `results/stage2_openevolve/stage2_gpt54mini_postpromote_iter4`,
+  `results/stage2_openevolve/stage2_gpt54mini_postfail_iter4`,
+  `results/stage2_openevolve/stage2/53e5b8b728c0a657`,
+  `results/stage2_openevolve/stage2/bf4d587210a19f36`,
+  `results/stage2_openevolve/stage3/53e5b8b728c0a657`, and
+  `results/stage2_openevolve/stage3/bf4d587210a19f36`.
+- AI-assisted: yes.

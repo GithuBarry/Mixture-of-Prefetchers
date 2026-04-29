@@ -60,6 +60,15 @@ prompt:
       rate on the 10-trace search-window, but regressed the 10-trace pair-best,
       no-prefetch, and weaker-routee geomeans. Do not simply repeat that
       candidate either.
+    - A post-promotion candidate with MoP-V1.3, total budget 10240, sticky
+      margin 10, and weights [1.0, 0.5, 1.0] improved the 10-trace
+      train/search score but failed the 13-trace train-window confirmation
+      twice with simulator SIGBUS on mcf-family traces. Do not repeat that
+      candidate; prefer safer small changes around the promoted seed.
+    - A safer post-promotion candidate with MoP-V1.3, total budget 8960,
+      sticky margin 5, and weights [1.0, 0.56, 1.0] made only a tiny
+      10-trace combined-score gain, lowered pair-best geomean, and failed the
+      13-trace train-window confirmation. Do not repeat that candidate.
     - MoP-V1.3 is MoP-V1.2 plus a sticky single-expert margin. It keeps the
       previous single expert when both scores are positive and close. Use
       mop_sticky_margin_pct only with MoP-V1.3; start small, usually 5 to 25.
