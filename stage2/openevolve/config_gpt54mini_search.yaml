@@ -77,7 +77,8 @@ prompt:
       during 10-trace train/search measurement on the MLOP single baseline.
     - MoP-V1.3 is MoP-V1.2 plus a sticky single-expert margin. It keeps the
       previous single expert when both scores are positive and close. Use
-      mop_sticky_margin_pct only with MoP-V1.3; start small, usually 5 to 25.
+      mop_sticky_margin_pct only with MoP-V1.3; the current center is 3, so
+      try very small nearby values only when the change is justified.
     - MLOP + SPP+PPF has complementary trace strengths. The viable story is
       to beat no-prefetch and the weaker routee while closing the gap to
       pair-best, not to chase a trace-specific answer.
