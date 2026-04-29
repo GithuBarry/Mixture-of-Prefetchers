@@ -211,6 +211,26 @@ Comparator artifacts:
 - `results/stage2_openevolve/comparators/stage3_oneshotfit_20260429`
 - `results/stage2_openevolve/comparators/stage3_athenamab_20260429`
 
+## Trace-Level Mechanism Check
+
+On the 13-trace train-window, the expert split is not symmetric but is still
+useful for the class-project story: `SPP+PPF` is the better single expert on
+9/13 traces and `MLOP` is better on 4/13 traces. Both experts beat no-prefetch
+on 7/13 traces. The active router beats the weaker routee on 11/13 traces and
+is closer to the better routee on 10/13 traces.
+
+The remaining catastrophic losses versus pair-best are explicit:
+
+- `429.mcf-192B`: `MoP-V1.3` is `0.822373x` vs pair-best and `0.999022x` vs
+  no-prefetch; this is a pair-best miss, not a meaningful no-prefetch win.
+- `secret_compute_fp_45`: `MoP-V1.3` is `0.927679x` vs pair-best but still
+  `1.029311x` vs no-prefetch.
+
+Compared with the pre-OpenEvolve `MoP-V1.2` reference, `MoP-V1.3` removes one
+catastrophic trace: `ligra_CF...` improved from `0.847176x` vs pair-best and
+`0.842262x` vs no-prefetch to a non-catastrophic `0.994702x` vs pair-best and
+`0.991680x` vs no-prefetch.
+
 ## Trace Availability
 
 Full 17-trace train confirmation was attempted with `--skip-download` and

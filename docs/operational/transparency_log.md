@@ -519,6 +519,12 @@ Format:
   confirmation or heldout final evaluation. They only strengthen the current
   train-window story that the sticky-margin policy is better than the simple
   single-action alternatives and the older built-in coordinator.
+- Mechanism note: on the same 13 traces, `SPP+PPF` is better on 9 traces and
+  `MLOP` is better on 4; both experts beat no-prefetch on 7. The active router
+  beats the weaker routee on 11 traces and is closer to the better routee on
+  10. It still has two pair-best catastrophic traces, `429.mcf-192B` and
+  `secret_compute_fp_45`; the pre-OpenEvolve `MoP-V1.2` reference had those
+  two plus `ligra_CF...`.
 - Artifacts: `results/stage2_openevolve/comparators/stage3_winnertakeall_20260429`
   `results/stage2_openevolve/comparators/stage3_oneshotfit_20260429`, and
   `results/stage2_openevolve/comparators/stage3_athenamab_20260429`.
