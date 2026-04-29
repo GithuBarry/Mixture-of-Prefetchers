@@ -543,3 +543,38 @@ Format:
 - Evidence: no heldout data was used. This is a protocol freeze only.
 - Artifacts: `docs/decisions/stage2_heldout_protocol.md`.
 - AI-assisted: no.
+
+## 2026-04-29 — Stage 2 OpenEvolve model comparison
+
+- Goal: compare accessible CMU AI Gateway models on the same frozen Stage 2
+  literal-policy surface before spending more search budget.
+- Decision: keep `MoP-V1.3`, budget `9216`, sticky `3`, weights
+  `[1.0, 0.55, 1.0]` as the active seed. Use `gpt-5-mini` first for the next
+  train-only OpenEvolve pass, with Claude Haiku 4.5 as a backup/diversity
+  generator. Do not broaden OpenEvolve to arbitrary code edits without a new
+  predeclared protocol.
+- Evidence: `gpt-5.4-mini` was initialized correctly but rejected by the
+  gateway prompt filter under both verbose and short prompts. `gpt-5.4-nano`
+  completed six iterations but produced no valid generated candidate; all six
+  were rejected by the literal-policy guard. Claude Haiku 4.5 completed six
+  iterations and produced two valid nearby policies, but its best new candidate
+  reached only `0.978245x` vs pair-best, `1.085771x` vs no-prefetch,
+  `1.129355x` vs weaker routee, and combined score `-0.001094`. `gpt-5-mini`
+  completed six iterations and produced three valid nearby policies; its best
+  new candidate reached `0.979503x`, `1.088507x`, `1.130048x`, and combined
+  score `0.000944`. The retained active seed remains higher at `0.980137x`,
+  `1.089214x`, `1.130177x`, and combined score `0.001776` on the same
+  10-trace train/search subset.
+- Caveat: this comparison is generator-quality evidence, not a new policy
+  promotion. Heldout traces were not used. The evaluator deliberately rejected
+  generated code outside `candidate_policy()` so model-specific code edits could
+  not alter parsers, metrics, splits, or simulator behavior.
+- Artifacts: `docs/decisions/stage2_model_comparison.md`,
+  `stage2/openevolve/model_comparison_ledger.jsonl`,
+  `stage2/openevolve/candidate_ledger.jsonl`,
+  `results/stage2_openevolve/modelcmp/gpt54mini_iter6_20260429`,
+  `results/stage2_openevolve/modelcmp/gpt54mini_short_iter6_20260429`,
+  `results/stage2_openevolve/modelcmp/gpt54nano_short_iter6_20260429`,
+  `results/stage2_openevolve/modelcmp/claude_haiku45_short_iter6_20260429`,
+  and `results/stage2_openevolve/modelcmp/gpt5mini_short_iter6_20260429`.
+- AI-assisted: yes.
