@@ -43,14 +43,15 @@ The repository now has the finished Stage 1 evidence package.
   24-trace Stage 1 suite (`17` train-side traces + `7` held-out traces).
   `data/processed/runs_summary.md` and `report/tables/router_ablation.md`
   reflect that finished Stage 1 snapshot.
-- Stage 2 search has a frozen boundary in `docs/operational/stage2_memo.md`.
+- Stage 2 search has a frozen boundary in
+  `docs/decisions/stage2_openevolve_start.md`.
 
 ## Which file answers which question?
 
 - "What is MoP-lite and what is in scope?"
   - `docs/outsider_guide.md`
-  - `docs/operational/mop_stage1_instruction.md`
-  - `docs/operational/stage2_memo.md`
+  - `docs/operational/mop_stage1_instruction_v2.md`
+  - `docs/decisions/stage2_openevolve_start.md`
 - "Which traces and instruction windows count as official?"
   - `docs/operational/experiment_setup.md`
   - `configs/trace_suites.json`

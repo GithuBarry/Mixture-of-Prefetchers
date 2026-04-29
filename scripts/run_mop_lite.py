@@ -220,6 +220,7 @@ def mop_flags(
     mop_accuracy_floor: int | None,
     mop_guarded_min_budget_share: int | None,
     mop_one_shot_epochs: int | None,
+    mop_score_weights: str | None,
 ) -> str:
     base = build_base_flags(config_module, athena_home, warmup, sim)
     spec0 = EXPERTS[expert0]
@@ -245,6 +246,10 @@ def mop_flags(
         flags += f" --mop_guarded_min_budget_share={mop_guarded_min_budget_share}"
     if mop_one_shot_epochs is not None:
         flags += f" --mop_one_shot_epochs={mop_one_shot_epochs}"
+    if mop_score_weights is not None:
+        weights = [float(x) for x in mop_score_weights.split(",")]
+        assert len(weights) == 3, "--mop-score-weights must have exactly three comma-separated values"
+        flags += f" --mop_score_weights={shlex.quote(mop_score_weights)}"
     return flags
 
 
@@ -462,6 +467,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mop-total-budget", type=int, default=None)
     parser.add_argument("--mop-accuracy-floor", type=int, default=None)
     parser.add_argument("--mop-guarded-min-budget-share", type=int, default=None)
+    parser.add_argument("--mop-score-weights", default=None,
+                        help="Override mop_score_weights as three comma-separated floats.")
     parser.add_argument(
         "--mop-one-shot-epochs",
         type=int,
@@ -506,6 +513,7 @@ def main() -> int:
     mop_accuracy_floor = args.mop_accuracy_floor
     mop_guarded_min_budget_share = args.mop_guarded_min_budget_share
     mop_one_shot_epochs = args.mop_one_shot_epochs
+    mop_score_weights = args.mop_score_weights
 
     if args.mode:
         mode = load_run_mode(root, args.mode)
@@ -534,6 +542,10 @@ def main() -> int:
             mop_guarded_min_budget_share = int(mop_knobs["mop_guarded_min_budget_share"])
         if mop_one_shot_epochs is None and "mop_one_shot_epochs" in mop_knobs:
             mop_one_shot_epochs = int(mop_knobs["mop_one_shot_epochs"])
+        if mop_score_weights is None and "mop_score_weights" in mop_knobs:
+            raw_weights = mop_knobs["mop_score_weights"]
+            assert isinstance(raw_weights, list), "mop_score_weights in run_modes must be a list"
+            mop_score_weights = ",".join(str(float(x)) for x in raw_weights)
 
     if warmup is None:
         warmup = 5_000_000
@@ -621,7 +633,7 @@ def main() -> int:
                     config_module, athena_home, warmup, sim,
                     expert_0, expert_1, experiment, args.seed, epoch_trace_prefix,
                     mop_total_budget, mop_accuracy_floor, mop_guarded_min_budget_share,
-                    mop_one_shot_epochs,
+                    mop_one_shot_epochs, mop_score_weights,
                 )
             elif kind == "builtin":
                 if args.epoch_trace:

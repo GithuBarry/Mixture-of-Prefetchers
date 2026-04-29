@@ -313,3 +313,27 @@ Format:
   alone, so those partial dirs are documented as compatibility risks, not
   completed evidence.
 - AI-assisted: yes.
+
+## 2026-04-29 — Stage 2 OpenEvolve scaffold smoke
+
+- Goal: start Stage 2 without changing the frozen Stage 1 evaluation boundary.
+- Decision: use L2C `MLOP + SPP+PPF` as the active one-story pair, with
+  `MoP-V1.2 ProbeSingle` as the main seed and `MoP-V1.1 Guarded` as backup.
+  The Stage 2 search surface is restricted to `candidate_policy()` in
+  `stage2/openevolve/initial_policy.py`; `WinnerTakeAll`, `OneShotFit`, and
+  constituent singles remain comparators only.
+- Evidence: the CMU AI Gateway was smoke-tested with the key supplied through
+  the environment only; no key was written to the repository. A real simulator
+  stage0 run reached `1.006177x` vs pair-best, `1.007034x` vs no-prefetch, and
+  `1.006678x` vs weaker routee on one trace. A three-trace stage1 seed run
+  reached `0.931329x` vs pair-best, `1.028310x` vs no-prefetch, and
+  `1.012950x` vs weaker routee. A reviewer found that candidate import/IO
+  leakage and stale-cache reuse were not fail-closed, so the evaluator was
+  tightened to literal-policy parsing, train/search split assertions, and
+  cache keys that include evaluator, runner, config, and split inputs. The
+  committed candidate ledger keeps only post-hardening seed reruns.
+- Artifacts: `docs/decisions/stage2_openevolve_start.md`,
+  `stage2/openevolve/`, `stage2/openevolve/candidate_ledger.jsonl`,
+  `results/stage2_openevolve/smoke_llama8b_iter1`, and
+  `results/stage2_openevolve/stage1_llama8b_full_iter3`.
+- AI-assisted: yes.

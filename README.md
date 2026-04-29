@@ -56,9 +56,14 @@ What is established:
 - the split protocol is frozen and respected
 - coordinator baselines are compared under one fair protocol
 - some coordinators deliver small `1+x` wins vs no-prefetch
-- the current `Pythia + SPP+PPF` rules lose in geomean to the pair-best single
+- the historical default `Pythia + SPP+PPF` rules lose in geomean to the
+  pair-best single
 
 That is enough to justify Stage 2 optimization without overselling Stage 1.
+
+Active Stage 2 work uses the train-only freeze in
+`docs/decisions/stage2_openevolve_start.md`: L2C `MLOP + SPP+PPF`,
+`MoP-V1.2` as the main policy seed, and `MoP-V1.1` as backup.
 
 ## Stage 1 finish names
 

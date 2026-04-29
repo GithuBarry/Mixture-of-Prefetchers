@@ -62,11 +62,23 @@ def mop_knob_flags(knobs: dict) -> str:
         "mop_accuracy_floor": "--mop-accuracy-floor",
         "mop_guarded_min_budget_share": "--mop-guarded-min-budget-share",
         "mop_one_shot_epochs": "--mop-one-shot-epochs",
+        "mop_score_weights": "--mop-score-weights",
     }
     unknown = sorted(set(knobs) - set(allowed))
     if unknown:
         raise ValueError(f"Unknown mop_knobs: {unknown}")
-    return " ".join(f"{allowed[key]} {int(knobs[key])}" for key in allowed if key in knobs)
+    parts = []
+    for key in allowed:
+        if key not in knobs:
+            continue
+        value = knobs[key]
+        if key == "mop_score_weights":
+            assert isinstance(value, list), "mop_score_weights must be a list"
+            value = ",".join(str(float(x)) for x in value)
+        else:
+            value = str(int(value))
+        parts.append(f"{allowed[key]} {json.dumps(value)}")
+    return " ".join(parts)
 
 
 def main() -> int:

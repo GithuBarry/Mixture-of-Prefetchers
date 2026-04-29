@@ -11,6 +11,6 @@ search boundaries, historical logs, or agent instructions.
 - `research_log.md`: chronological engineering and experiment log
 - `transparency_log.md`: decision log and confidence notes
 - `trace_inventory.md`: candidate trace pool and source mapping
-- `stage2_memo.md`: frozen Stage 2 search contract
-- `mop_stage1_instruction.md`: Stage 1 charter for agents
-- `mop_stage2_instruction.md`: Stage 2 charter for agents
+- `../decisions/stage2_openevolve_start.md`: frozen Stage 2 search contract
+- `mop_stage1_instruction_v2.md`: Stage 1 charter for agents
+- `mop_stage2_instruction_v2.md`: Stage 2 charter for agents

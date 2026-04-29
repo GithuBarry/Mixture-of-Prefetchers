@@ -2,6 +2,12 @@
 
 Date: 2026-04-28
 
+Update 2026-04-29: superseded for the active OpenEvolve launch by
+`docs/decisions/stage2_openevolve_start.md`. The active Stage 2 story uses
+L2C `MLOP + SPP+PPF`, starts from `MoP-V1.2 ProbeSingle`, keeps
+`MoP-V1.1 Guarded` as backup, and treats the older `Pythia + SPP+PPF`
+guarded seed as historical development evidence.
+
 Status: provisional Stage 2 seed; search-side confirmation is positive versus
 old `MoP-V0` (`MoPLite`) but still negative versus pair-best single.
 
