@@ -420,9 +420,9 @@ questions remain open:
 - Local MoP-lite config: `external/athena/config/mop_lite.ini`
 - Current processed dataset: `data/processed/runs.csv`
 - Current merged summary: `data/processed/runs_summary.md`
-- Current coordinator table: `report/tables/router_ablation.md`
-- Fair routing criterion table: `report/tables/routing_criterion.md`
-- Alternate-pair exploratory table: `report/tables/alternate_pair_exploration.md`
+- Historical coordinator table: `report/tables/legacy_stage1/router_ablation.md`
+- Historical routing criterion table: `report/tables/legacy_stage1/routing_criterion.md`
+- Historical alternate-pair table: `report/tables/legacy_stage1/alternate_pair_exploration.md`
 - Raw epoch traces: `results/mop_lite_search/runs/*/epoch_logs/*.csv` and
   `results/mop_lite_final/runs/*/epoch_logs/*.csv`
 

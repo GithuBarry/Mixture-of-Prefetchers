@@ -37,7 +37,9 @@ make -C external/athena -j$(nproc)
 python3 scripts/run_mop_lite.py --mode search_mode --workers 15 --results-dir results/mop_lite_search
 python3 scripts/run_mop_lite.py <heldout trace list and flags> --workers 15 --results-dir results/mop_lite_final
 python3 scripts/build_dataset.py --manifest results/mop_lite_search/manifest.jsonl --manifest results/mop_lite_final/manifest.jsonl
-python3 scripts/make_figures.py
+python3 scripts/make_stage2_final_assets.py \
+  --heldout-v12 results/stage2_openevolve/heldout/final_v12_reference_20260429 \
+  --heldout-v13 results/stage2_openevolve/heldout/final_v13_20260429
 ```
 
 That order reflects the full Stage 1 data flow.
@@ -49,7 +51,7 @@ That order reflects the full Stage 1 data flow.
 | Build | `make -C external/athena -j$(nproc)` | `external/athena/bin/champsim` |
 | Raw runs | `scripts/run_mop_lite.py` | `<results-dir>/runs/<run_group_id>/`, `<results-dir>/manifest.jsonl` |
 | Dataset | `scripts/build_dataset.py` | `data/processed/runs.csv`, `data/processed/runs_summary.md` |
-| Figures/tables | `scripts/make_figures.py` | `report/figures/*.png`, `report/tables/*.md` |
+| Final figures/tables | `scripts/make_stage2_final_assets.py` | `report/figures/stage2_*.png`, `report/tables/stage2_*.md` |
 
 ## Provenance of the pipeline
 
@@ -67,9 +69,9 @@ Athena.
 The current workspace contains the merged full-suite Stage 1 results.
 
 - `data/processed/runs_summary.md` reports 230 runs over 24 traces.
-- `report/tables/router_ablation.md` summarizes coordinator geomeans for the
+- `report/tables/legacy_stage1/router_ablation.md` summarizes coordinator geomeans for the
   full 17-trace training split and the 7-trace held-out split.
-- `report/tables/expert_pair_ablation.md` summarizes the committed
+- `report/tables/legacy_stage1/expert_pair_ablation.md` summarizes the committed
   `Pythia + SPP+PPF` pair across those runs.
 
 Treat `data/processed/runs.csv` as the analysis entry point for the current
@@ -104,7 +106,8 @@ Keep the three artifact layers in sync.
    `--results-dir`, to refresh raw artifacts.
 2. Run `scripts/build_dataset.py` with the manifests you want merged to refresh
    `data/processed/runs.csv`.
-3. Run `scripts/make_figures.py` to refresh `report/`.
+3. Run `scripts/make_stage2_final_assets.py` to refresh final report tables and
+   figures.
 
 That sequence keeps advisor-facing tables and figures tied to the current raw
 run set.

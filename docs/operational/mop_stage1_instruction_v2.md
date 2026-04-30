@@ -23,15 +23,15 @@ Anchor on these facts from the local artifact.
 - The current default `MoPLite` rule on the committed `Pythia + SPP+PPF` L2 pair trails the pair-best single expert badly on held-out traces.
   - `MoPLite` held-out geomean vs pair-best single = `0.918839`
   - `AthenaMAB` held-out geomean vs pair-best single = `0.956029`
-  - source: `report/tables/router_ablation.md`
+  - source: `report/tables/legacy_stage1/router_ablation.md`
 - Pair choice matters.
   - exploratory held-out `MLOP + SMS` with the same `MoPLite` rule reaches `0.984551` vs its pair-best single
   - exploratory held-out `MLOP + Pythia` reaches `1.000381` vs no-prefetch, though still below its pair-best single
-  - source: `report/tables/alternate_pair_exploration.md`
+  - source: `report/tables/legacy_stage1/alternate_pair_exploration.md`
 - Current failure mode is structural, not only numerical.
   - epoch diagnostics show heavy overuse of `both off` on some traces
   - current router logic maps low-confidence situations into zero action mass too often
-  - source: `report/tables/routing_criterion.md` and `external/athena/src/oogway.cc`
+  - source: `report/tables/legacy_stage1/routing_criterion.md` and `external/athena/src/oogway.cc`
 - The current project already has enough evidence to say the pipeline is real and the present rule is a weak coordinator.
 
 That means Stage 1 is now a **recovery and redesign stage**, not a “first implementation” stage.

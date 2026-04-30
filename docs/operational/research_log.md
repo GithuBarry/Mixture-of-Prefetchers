@@ -73,7 +73,9 @@ cleanup, and smoke-mode baseline consistency.
 ```bash
 python3 scripts/run_mop_lite.py --mode smoke_mode --skip-download --epoch-trace
 python3 scripts/build_dataset.py
-python3 scripts/make_figures.py
+python3 scripts/make_stage2_final_assets.py \
+  --heldout-v12 results/stage2_openevolve/heldout/final_v12_reference_20260429 \
+  --heldout-v13 results/stage2_openevolve/heldout/final_v13_20260429
 ```
 
 **Completed artifacts.**
@@ -135,7 +137,7 @@ the standard Stage 1 chain:
 
 - `data/processed/runs_summary.md` reports **10 runs** over **2 traces**.
 - Both smoke traces fall on the **train** side of the official split.
-- `report/tables/router_ablation.md` reports geomean `speedup_vs_best_single`
+- `report/tables/legacy_stage1/router_ablation.md` reports geomean `speedup_vs_best_single`
   of **0.959924x** for `AthenaMAB` and **0.958711x** for `MoPLite` in the
   hardened smoke rerun.
 - The best single expert on both smoke traces is `SPP+PPF`, according to the
@@ -235,7 +237,9 @@ python3 scripts/build_dataset.py \
   --out-csv data/processed/runs.csv \
   --out-summary data/processed/runs_summary.md
 
-python3 scripts/make_figures.py
+python3 scripts/make_stage2_final_assets.py \
+  --heldout-v12 results/stage2_openevolve/heldout/final_v12_reference_20260429 \
+  --heldout-v13 results/stage2_openevolve/heldout/final_v13_20260429
 ```
 
 **Completed artifacts.**

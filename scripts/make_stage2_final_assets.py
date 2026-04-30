@@ -439,6 +439,71 @@ def write_scale_model_table(rows: list[dict[str, str]], path: Path) -> None:
     path.write_text("\n".join(lines) + "\n")
 
 
+def policy_summary_rows(scale_rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    rows = [
+        {
+            "name": "MoP-V1",
+            "source": "manual reference",
+            "code_hash": "stage3_v12_current_20260429",
+            "code_router": "MoP-V1.2",
+            "budget": "8192",
+            "sticky_margin": "none",
+            "weights": "[1.0, 0.5, 1.0]",
+            "wider_speedup": "",
+            "final_train_speedup": "1.048",
+            "heldout_speedup": "0.998",
+        },
+        {
+            "name": "MoP-V2",
+            "source": "selected GPT-5.4-mini plus GPT-5.4-nano/local-grid policy",
+            "code_hash": "a52ed8a4151ad6cc",
+            "code_router": "MoP-V1.3",
+            "budget": "9216",
+            "sticky_margin": "3%",
+            "weights": "[1.0, 0.55, 1.0]",
+            "wider_speedup": "1.089",
+            "final_train_speedup": "1.066",
+            "heldout_speedup": "1.003",
+        },
+    ]
+    for row in scale_rows:
+        rows.append({
+            "name": f"V2 candidate from {row['model']}",
+            "source": "later model comparison sweep",
+            "code_hash": Path(row["evaluator_result_dir"]).name,
+            "code_router": "MoP-V1.3",
+            "budget": "see candidate ledger",
+            "sticky_margin": "see candidate ledger",
+            "weights": "see candidate ledger",
+            "wider_speedup": row["wider_eval_speedup_vs_prefetcher_off"],
+            "final_train_speedup": "",
+            "heldout_speedup": "",
+        })
+    return rows
+
+
+def write_policy_summary_table(rows: list[dict[str, str]], path: Path) -> None:
+    cols = [
+        "name",
+        "source",
+        "code_hash",
+        "code_router",
+        "budget",
+        "sticky_margin",
+        "weights",
+        "wider_speedup",
+        "final_train_speedup",
+        "heldout_speedup",
+    ]
+    lines = [
+        "| " + " | ".join(cols) + " |",
+        "| " + " | ".join("---" for _ in cols) + " |",
+    ]
+    for row in rows:
+        lines.append("| " + " | ".join(row[col] for col in cols) + " |")
+    path.write_text("\n".join(lines) + "\n")
+
+
 def setup_plot() -> None:
     plt.rcParams.update({
         "figure.facecolor": COLORS["white"],
@@ -470,6 +535,59 @@ def wrap_trace_label(trace: str, width: int = 34) -> str:
     if len(right) > width:
         right = right[: width - 1] + "..."
     return f"{left}\n{right}"
+
+
+def plot_v1_v2_trace_delta(
+    train_v12: Path,
+    train_v13: Path,
+    heldout_v12: Path,
+    heldout_v13: Path,
+    out_path: Path,
+) -> None:
+    setup_plot()
+    panels = [
+        ("13 training traces", by_trace(load_summary(train_v12)), by_trace(load_summary(train_v13)), "MoP-V1.2", "MoP-V1.3"),
+        ("7 heldout traces", by_trace(load_summary(heldout_v12)), by_trace(load_summary(heldout_v13)), "MoP-V1.2", "MoP-V1.3"),
+    ]
+    fig, axes = plt.subplots(1, 2, figsize=(13.2, 6.4), sharex=True)
+    for ax, (title, before, after, before_key, after_key) in zip(axes, panels, strict=True):
+        traces = sorted(set(before) & set(after))
+        rows = []
+        for trace in traces:
+            v1 = float(before[trace][before_key]["speedup_vs_baseline"])
+            v2 = float(after[trace][after_key]["speedup_vs_baseline"])
+            rows.append((trace, v1, v2, v2 - v1))
+        rows.sort(key=lambda item: item[3])
+        y = list(range(len(rows)))
+        colors = [METHOD_COLOR["OpenEvolve router"] if delta >= 0 else METHOD_COLOR["MoP-V1 manual router"] for _, _, _, delta in rows]
+        ax.barh(y, [delta for _, _, _, delta in rows], color=colors, edgecolor=COLORS["black"], linewidth=0.5)
+        ax.axvline(0.0, color=COLORS["black"], linestyle=":", linewidth=1.0)
+        ax.set_yticks(y)
+        ax.set_yticklabels([wrap_trace_label(trace, width=28) for trace, _, _, _ in rows], fontsize=8)
+        ax.set_title(title)
+        ax.set_xlabel("MoP-V2 speedup minus MoP-V1 speedup")
+        ax.grid(True, axis="x", linestyle=":")
+        for yi, (_, v1, v2, delta) in zip(y, rows, strict=True):
+            x = delta + (0.004 if delta >= 0 else -0.004)
+            ha = "left" if delta >= 0 else "right"
+            ax.text(x, yi, f"{v1:.3f}->{v2:.3f}", va="center", ha=ha, fontsize=7)
+    handles = [
+        Line2D([0], [0], color=METHOD_COLOR["OpenEvolve router"], linewidth=8, label="MoP-V2 faster than MoP-V1"),
+        Line2D([0], [0], color=METHOD_COLOR["MoP-V1 manual router"], linewidth=8, label="MoP-V1 faster than MoP-V2"),
+    ]
+    fig.legend(handles=handles, frameon=False, ncols=2, loc="lower center", bbox_to_anchor=(0.5, 0.04))
+    fig.suptitle("Per-trace change from MoP-V1 to MoP-V2", y=0.98)
+    fig.text(
+        0.02,
+        0.012,
+        "Each label shows speedup over disabled prefetching before and after OpenEvolve. Positive bars mean MoP-V2 improved that trace.",
+        ha="left",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.tight_layout(rect=(0, 0.10, 1, 0.94))
+    fig.savefig(out_path, dpi=180)
+    plt.close(fig)
 
 
 def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
@@ -1022,7 +1140,15 @@ def main() -> int:
         ],
     )
     write_scale_model_table(scale_rows, args.tables_dir / "stage2_scale_model_summary.md")
+    write_policy_summary_table(policy_summary_rows(scale_rows), args.tables_dir / "stage2_policy_summary.md")
     plot_pre_post(rows, args.figures_dir / "stage2_pre_post_geomean.png")
+    plot_v1_v2_trace_delta(
+        args.train_v12,
+        args.train_v13,
+        args.heldout_v12,
+        args.heldout_v13,
+        args.figures_dir / "stage2_v1_v2_trace_delta.png",
+    )
     plot_heldout_trace_profile(args.heldout_v12, args.heldout_v13, args.figures_dir / "stage2_heldout_trace_profile.png")
     plot_routing_behavior_stats(
         args.train_v12,

@@ -31,7 +31,7 @@ If you want the shortest path, read these in order:
 
 ## Current project state
 
-The repository now has the finished Stage 1 evidence package.
+The repository now has the finished OpenEvolve report package.
 
 - The project question is documented in `docs/outsider_guide.md`.
 - The charter-level source of truth for Stage 1 is
@@ -39,14 +39,9 @@ The repository now has the finished Stage 1 evidence package.
 - The official full evaluation design is frozen in
   `configs/trace_suites.json`, `configs/run_modes.json`, and
   `docs/operational/experiment_setup.md`.
-- The merged analysis artifacts summarize 230 completed runs over the full
-  24-trace Stage 1 suite (`17` train-side traces + `7` held-out traces).
-  `data/processed/runs_summary.md` and `report/tables/router_ablation.md`
-  reflect that finished Stage 1 snapshot.
-- Stage 2 search has a frozen boundary in
-  `docs/decisions/stage2_openevolve_start.md`.
-- The current train-only Stage 2 policy selection is summarized in
-  `docs/decisions/stage2_policy_sweep.md`.
+- The final writeup is `report/stage2_final_report.md`.
+- The current tables and figures come from `scripts/make_stage2_final_assets.py`.
+- Historical baseline tables are kept under `report/tables/legacy_stage1/`.
 
 ## Which file answers which question?
 
@@ -66,11 +61,11 @@ The repository now has the finished Stage 1 evidence package.
   - `docs/operational/environment.md`
   - `scripts/run_mop_lite.py`
   - `scripts/build_dataset.py`
-  - `scripts/make_figures.py`
+  - `scripts/make_stage2_final_assets.py`
 - "What has actually been run so far, and what happened?"
   - `docs/operational/research_log.md`
   - `data/processed/runs.csv`
-  - `report/tables/router_ablation.md`
+  - `report/tables/stage2_final_metrics.md`
 - "Why were specific design choices made?"
   - `docs/operational/transparency_log.md`
 - "What came from upstream Athena and what did this project add?"
@@ -87,8 +82,8 @@ The project has a simple evidence chain:
    `results/mop_lite/`.
 2. `scripts/build_dataset.py` converts those raw artifacts into the analysis
    table `data/processed/runs.csv`.
-3. `scripts/make_figures.py` regenerates `report/figures/` and `report/tables/`
-   only from `data/processed/runs.csv`.
+3. `scripts/make_stage2_final_assets.py` regenerates the final report tables
+   and figures from the selected simulator summaries and OpenEvolve records.
 
 That separation matters: `results/` is the raw evidence, `data/processed/` is
 the analysis entry point, and `report/` is a view over the dataset. After any
