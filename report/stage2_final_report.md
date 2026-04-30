@@ -14,7 +14,7 @@ The IPC result comes from cycle reduction under a fixed instruction window. On t
 
 ![Router geomean with disabled prefetching as 1x](figures/stage2_pre_post_geomean.png)
 
-*Caption: disabled prefetching is the black `1.000x` baseline, yellow marks the oracle-style per-trace best expert, orange is the manual `MoP-V1` router, and pink is the OpenEvolve-tuned `MoP-V2` router. Error bars and yellow bands are deterministic trace-bootstrap 95% CIs over traces.*
+*Caption: disabled prefetching is the black `1.000x` baseline, yellow marks the oracle-style per-trace best expert, orange is the manual `MoP-V1` router, and pink is the OpenEvolve-tuned `MoP-V2` router.*
 
 ## What We Built On Athena
 
@@ -63,6 +63,8 @@ The comparator hierarchy is:
 | Worse constituent prefetcher | minimum practical routing check |
 | Simple router baselines | `WinnerTakeAll`, `OneShotFit`, and Athena MAB |
 
+The simple router baselines are intentionally small. `WinnerTakeAll` picks the expert with the stronger previous-epoch usefulness score. `OneShotFit` probes the experts once, then keeps the better early winner. Athena MAB is Athena's multi-armed-bandit router baseline for the same expert pair.
+
 The expert pair supports the routing story because the two prefetchers have different strengths. On heldout, `SPP+PPF` is stronger overall at `1.024x` over disabled prefetching, while `MLOP` reaches `0.974x`. The router lands between disabled prefetching and the best expert in geomean.
 
 ## Before And After OpenEvolve
@@ -95,7 +97,7 @@ The heldout trace profile shows the remaining risk. On `secret_compute_fp_105`, 
 
 ![OpenEvolve model search trajectory](figures/stage2_scale_model_comparison.png)
 
-*Caption: left panel shows 3-trace quick-evaluation candidates. Faint points are raw candidate IPC speedups. Faint dashed lines show the incumbent selected by the combined evaluator score. Solid lines show best IPC seen so far. The y-axis has breaks, so visual distances across breaks are compressed. Right panel shows quick-evaluation circles plus 10-trace wider-validation triangles for selected candidates. Error bars are deterministic trace-bootstrap 95% CIs over traces.*
+*Caption: left panel shows 3-trace quick-evaluation candidates. Faint points are raw candidate IPC speedups. Faint dashed lines show the incumbent selected by the combined evaluator score. Solid lines show best IPC seen so far. The y-axis has breaks, so visual distances across breaks are compressed. Right panel shows quick-evaluation circles plus 10-trace wider-validation triangles for selected candidates.*
 
 OpenEvolve searched a tiny policy surface. The first small model-comparison pass requested 6 iterations per model. The larger sweeps requested 80 GPT-5 mini iterations, 80 GPT-5.4 iterations, and 30 Sonnet 4.6 iterations. The captured logs show approximate wall-clock times of `97.3` minutes for GPT-5 mini, `47.8` minutes for GPT-5.4, and `43.9` minutes for Sonnet 4.6 on the local setup used here.
 

@@ -185,10 +185,10 @@ addSlide(
         { name: "protocol-grid", width: fill, height: fill, columns: [fr(0.9), fr(1.1)], columnGap: 56 },
         [
           bulletList(["Expert pair: MLOP + SPP+PPF", "Cache level: L2C", "Most candidate iterations: 3 training traces", "Promising candidates: 10 training traces", "Final training-split validation: 13 traces", "Heldout: 7 traces after policy selection"], 28),
-          bulletList(["Performance baseline: disabled prefetching", "Best expert: max(MLOP, SPP+PPF) per trace", "Minimum check: beat the worse prefetcher", "Simple routers: WinnerTakeAll, OneShotFit, AthenaMAB"], 29),
+          bulletList(["Performance baseline: disabled prefetching", "Best expert: max(MLOP, SPP+PPF) per trace", "WinnerTakeAll: use the previous-epoch winner", "OneShotFit: probe once, then keep the early winner", "AthenaMAB: Athena's bandit router baseline"], 28),
         ],
       ),
-      text("The 13-trace training-split surface has complete local artifacts. The four other train traces are facesim, ligra_BFS, ligra_Triangle, and secret_compute_int_243.", {
+      text("The 13-trace training-split surface has complete simulator evidence in the submitted artifact. The four other train traces are facesim, ligra_BFS, ligra_Triangle, and secret_compute_int_243.", {
         name: "protocol-footer",
         width: fill,
         height: hug,
@@ -202,7 +202,7 @@ addSlide(
   column(
     { name: "root", width: fill, height: fill, padding: { x: 70, y: 56 }, gap: 18 },
     [
-      title("OpenEvolve improved the router", "Bars use disabled prefetching as 1x. Error bars are trace-bootstrap 95% CIs."),
+      title("OpenEvolve improved the router", "Bars use disabled prefetching as 1x. Yellow marks show the per-trace best expert."),
       image({
         name: "pre-post-figure",
         dataUrl: pngDataUrl("stage2_pre_post_geomean.png"),

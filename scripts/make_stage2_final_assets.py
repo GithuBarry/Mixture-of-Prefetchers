@@ -79,13 +79,6 @@ def format_ci(low: float, high: float, *, percent: bool = False) -> str:
     return f"[{low:.3f}, {high:.3f}]"
 
 
-def parse_ci(text: str) -> tuple[float, float]:
-    cleaned = text.strip().strip("[]").replace("%", "")
-    left, right = [part.strip() for part in cleaned.split(",")]
-    scale = 0.01 if "%" in text else 1.0
-    return float(left) * scale, float(right) * scale
-
-
 def load_summary(path: Path) -> list[dict[str, str]]:
     summary = path / "summary.csv"
     assert summary.exists(), f"Missing {summary}"
@@ -489,16 +482,6 @@ def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
         split_rows = [r for r in router_rows if r["split"] == split]
         cap_row = next(r for r in split_rows if r["method"] == "OpenEvolve router")
         cap = float(cap_row["best_expert_speedup"])
-        cap_low, cap_high = parse_ci(cap_row["best_expert_95ci"])
-        ax.fill_between(
-            [i - 0.32, i + 0.32],
-            [cap_low, cap_low],
-            [cap_high, cap_high],
-            color=METHOD_COLOR["best_expert"],
-            alpha=0.14,
-            linewidth=0,
-            zorder=1,
-        )
         ax.hlines(cap, i - 0.32, i + 0.32, color=COLORS["black"], linewidth=4.2, zorder=4)
         ax.hlines(cap, i - 0.32, i + 0.32, color=METHOD_COLOR["best_expert"], linewidth=2.6, zorder=5)
         ax.scatter(
@@ -517,7 +500,6 @@ def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
         for j, method in enumerate(methods):
             row = next(r for r in split_rows if r["method"] == method)
             value = float(row["speedup_vs_prefetcher_off"])
-            low, high = parse_ci(row["speedup_95ci"])
             x = i + (j - 0.5) * width
             ax.bar(
                 x,
@@ -529,17 +511,6 @@ def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
                 hatch="//" if method == "Manual router" else None,
                 linewidth=0.8,
                 label=method if i == 0 else None,
-            )
-            ax.errorbar(
-                [x],
-                [value],
-                yerr=[[value - low], [high - value]],
-                fmt="none",
-                ecolor=COLORS["black"],
-                elinewidth=1.1,
-                capsize=4,
-                capthick=1.1,
-                zorder=7,
             )
             ax.text(x, value + 0.006, f"{value:.3f}", ha="center", va="bottom", fontsize=8)
     ax.axhline(1.0, color=COLORS["black"], linestyle=":", linewidth=1.0, label="prefetcher off")
@@ -553,7 +524,7 @@ def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
     fig.text(
         0.02,
         0.01,
-        "Baseline: disabled prefetching at 1.000x. Error bars and yellow bands are deterministic trace-bootstrap 95% CIs over traces.",
+        "Baseline: disabled prefetching at 1.000x. Yellow diamond/line: per-trace best expert before geomean. Hatched orange bars: MoP-V1.",
         ha="left",
         va="bottom",
         fontsize=8,
@@ -835,48 +806,18 @@ def plot_scale_model_comparison(
     ax_low.grid(True, axis="y", linestyle=":")
     labels = [row["model"] for row in rows]
     quick = [float(row["quick_eval_speedup_vs_prefetcher_off"]) for row in rows]
-    quick_ci = [parse_ci(row["quick_eval_speedup_95ci"]) for row in rows]
     wider = [
         float(row["wider_eval_speedup_vs_prefetcher_off"]) if row["wider_eval_speedup_vs_prefetcher_off"] else float("nan")
         for row in rows
     ]
-    wider_ci = [
-        parse_ci(row["wider_eval_speedup_95ci"]) if row["wider_eval_speedup_95ci"] else (float("nan"), float("nan"))
-        for row in rows
-    ]
     x = list(range(len(labels)))
     ax_right.scatter(x, quick, marker="o", s=54, color=[model_colors[label] for label in labels], label="3-trace quick eval")
-    for xi, value, label, ci in zip(x, quick, labels, quick_ci, strict=True):
-        ax_right.errorbar(
-            [xi],
-            [value],
-            yerr=[[value - ci[0]], [ci[1] - value]],
-            fmt="none",
-            ecolor=COLORS["black"],
-            elinewidth=0.9,
-            capsize=3,
-            capthick=0.9,
-            alpha=0.75,
-            zorder=2,
-        )
-    for xi, value, label, ci in zip(x, wider, labels, wider_ci, strict=True):
+    for xi, value, label in zip(x, wider, labels, strict=True):
         if math.isnan(value):
             ax_right.scatter(xi, quick[xi] + 0.001, marker="x", s=60, color=model_colors[label], linewidth=2.0)
             ax_right.text(xi, quick[xi] + 0.003, "quick\nonly", ha="center", va="bottom", fontsize=8)
         else:
             ax_right.scatter(xi, value, marker="^", s=64, color=model_colors[label])
-            ax_right.errorbar(
-                [xi],
-                [value],
-                yerr=[[value - ci[0]], [ci[1] - value]],
-                fmt="none",
-                ecolor=COLORS["black"],
-                elinewidth=0.9,
-                capsize=3,
-                capthick=0.9,
-                alpha=0.75,
-                zorder=2,
-            )
     ax_right.axhline(active_confirm_nopref, color=COLORS["black"], linestyle="--", linewidth=1.8)
     ax_right.set_xticks(x)
     ax_right.set_xticklabels(["GPT-5\nmini", "GPT-5.4", "Sonnet\n4.6"])
@@ -936,7 +877,7 @@ def plot_scale_model_comparison(
     fig.text(
         0.02,
         0.025,
-        f"Faint points are candidates. Faint dashed lines show score-selected incumbent IPC. Solid lines show best IPC seen so far. Error bars are trace-bootstrap 95% CIs. Selected MoP-V2: {active_confirm_nopref:.3f}x.",
+        f"Faint points are candidates. Faint dashed lines show score-selected incumbent IPC. Solid lines show best IPC seen so far. Selected MoP-V2: {active_confirm_nopref:.3f}x.",
         ha="left",
         va="bottom",
         fontsize=8,
