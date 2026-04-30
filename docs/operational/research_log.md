@@ -36,17 +36,15 @@ so that the first real run generates analysis-ready artifacts end-to-end.
   - Supports `AthenaMAB` via a separate `builtin_flags()` path.
 - Added `scripts/build_dataset.py` that joins manifest + metrics + official
   split and writes `data/processed/runs.csv` + a summary markdown block.
-- Added `scripts/make_figures.py` (matplotlib, Agg backend) producing:
-  - `ipc_speedup_summary.png`
-  - `single_expert_profiles.png`
-  - `win_loss_mop_vs_best_single.png`
-  - Tables for router ablation, expert-pair ablation, and hardware budget.
+- Added `scripts/make_figures.py` (matplotlib, Agg backend). Those early plots
+  are now superseded by the maintained figures in `report/stage2_final_report.md`.
 - Froze the split artifact `data/splits/official_v1.json` (copy of
   `configs/trace_suites.json`) with sha256 side-car
   `data/splits/official_v1.sha256`.
 - Added `docs/operational/environment.md`, `docs/operational/dataset_schema.md`,
-  `docs/operational/research_log.md`, `docs/operational/transparency_log.md`, `docs/operational/stage2_memo.md`,
-  `report/outline.md`, `report/draft.md`.
+  `docs/operational/research_log.md`, `docs/operational/transparency_log.md`,
+  `docs/operational/stage2_memo.md`. The maintained final report is
+  `report/stage2_final_report.md`.
 
 **Verification.** `make -C external/athena -j$(nproc)` succeeded (exit 0).
 Only pre-existing upstream warnings were produced; no new warnings from the

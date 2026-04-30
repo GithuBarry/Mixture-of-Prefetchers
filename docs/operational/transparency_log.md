@@ -214,10 +214,8 @@ Format:
   question each.
 - Choice: (b).
 - Confidence: high.
-- Evidence: The figure set was simplified so `ipc_speedup_summary.png` uses only
-  prefetch-off normalization, `single_expert_profiles.png` answers where experts
-  differ, `mop_vs_reference_rows.png` separates pair-best from full-batch best,
-  and `router_compare_criterion.png` focuses only on router decisions.
+- Evidence: The early figure set was simplified around one question per figure.
+  The maintained final figures now live in `report/stage2_final_report.md`.
 - AI-assisted: yes.
 
 ### 2026-04-17 — Simplicity claim vs AthenaMAB phrased qualitatively, not as a byte-count win

@@ -77,39 +77,56 @@ def draw_inline_icon_text(
     y: float,
     width: float,
     color: colors.Color,
-    title_size: float = 15,
-    body_size: float = 12.5,
+    title_size: float = 22,
+    body_size: float = 20,
 ) -> float:
-    draw_icon(c, icon, x, y - 19, 24, color=color)
+    draw_icon(c, icon, x, y - 22, 28, color=color)
     c.setFillColor(BLACK)
     c.setFont("Helvetica-Bold", title_size)
     c.drawString(x + 34, y, title)
-    return draw_wrapped(c, body, x + 34, y - 19, width - 34, body_size, body_size + 4) - 4
+    return draw_wrapped(c, body, x + 34, y - 23, width - 34, body_size, body_size + 5) - 4
 
 
 def draw_section_title(c: canvas.Canvas, title: str, x: float, y: float, width: float, icon: str, color=PINK) -> float:
-    draw_icon(c, icon, x, y - 23, 31, color=color)
+    draw_icon(c, icon, x, y - 19, 32, color=color)
     c.setFillColor(BLACK)
-    c.setFont("Helvetica-Bold", 22)
+    c.setFont("Helvetica-Bold", 32)
     c.drawString(x + 43, y - 1, title)
     c.setStrokeColor(color)
     c.setLineWidth(3)
     c.line(x + 43, y - 10, x + min(width, 318), y - 10)
-    return y - 34
+    return y - 52
 
 
-def draw_bullets(c: canvas.Canvas, items: list[str], icons: list[str], x: float, y: float, width: float, size: float = 14) -> float:
+def draw_bullets(c: canvas.Canvas, items: list[str], icons: list[str], x: float, y: float, width: float, size: float = 24) -> float:
     c.setFont("Helvetica", size)
     palette = [DARKBLUE, PINK, PURPLE, ORANGE, BLUE]
     for idx, (item, icon) in enumerate(zip(items, icons, strict=True)):
-        draw_icon(c, icon, x, y - 5, 22, color=palette[idx % len(palette)])
-        y = draw_wrapped(c, item, x + 34, y, width - 34, size, size + 4)
-        y -= 7
+        draw_icon(c, icon, x, y - 9, 30, color=palette[idx % len(palette)])
+        y = draw_wrapped(c, item, x + 44, y, width - 44, size, size + 7)
+        y -= 8
     return y
 
 
 def draw_image(c: canvas.Canvas, path: Path, x: float, y: float, width: float, height: float) -> None:
     c.drawImage(str(path), x, y, width=width, height=height, preserveAspectRatio=True, anchor="c", mask="auto")
+
+
+def draw_mini_table(c: canvas.Canvas, title: str, rows: list[tuple[str, str]], x: float, y: float, width: float, icon: str, color: colors.Color) -> float:
+    draw_icon(c, icon, x, y - 25, 32, color=color)
+    c.setFillColor(BLACK)
+    c.setFont("Helvetica-Bold", 28)
+    c.drawString(x + 44, y, title)
+    y -= 34
+    y -= 8
+    label_w = width * 0.28
+    for label, value in rows:
+        c.setFillColor(color)
+        c.setFont("Helvetica-Bold", 22)
+        c.drawString(x + 44, y, label)
+        y = draw_wrapped(c, value, x + 44 + label_w, y, width - 44 - label_w, 22, 27, BLACK)
+        y -= 8
+    return y
 
 
 def main() -> int:
@@ -128,67 +145,64 @@ def main() -> int:
     c.setFillColor(WHITE)
     c.rect(0, 0, PAGE_W, PAGE_H, stroke=0, fill=1)
     c.setFillColor(colors.HexColor("#f7f9ff"))
-    c.rect(0, PAGE_H - 1.85 * inch, PAGE_W, 1.85 * inch, stroke=0, fill=1)
-    draw_icon(c, "rocket_launch", margin, PAGE_H - 1.25 * inch, 44, color=PINK)
+    c.rect(0, PAGE_H - 2.05 * inch, PAGE_W, 2.05 * inch, stroke=0, fill=1)
+    draw_icon(c, "rocket_launch", margin, PAGE_H - 1.38 * inch, 54, color=PINK)
     c.setFillColor(BLACK)
-    c.setFont("Helvetica-Bold", 46)
-    c.drawString(margin + 62, PAGE_H - 0.95 * inch, "Mixture-of-Prefetchers")
-    c.setFont("Helvetica", 20)
-    c.drawString(margin + 62, PAGE_H - 1.35 * inch, "A compact L2-cache router tuned by OpenEvolve")
+    c.setFont("Helvetica-Bold", 58)
+    c.drawString(margin + 76, PAGE_H - 0.92 * inch, "Mixture-of-Prefetchers")
+    c.setFont("Helvetica", 28)
+    c.drawString(margin + 76, PAGE_H - 1.43 * inch, "A compact L2-cache router tuned by OpenEvolve")
     c.setStrokeColor(PINK)
     c.setLineWidth(7)
-    c.line(margin, PAGE_H - 1.58 * inch, PAGE_W - margin, PAGE_H - 1.58 * inch)
+    c.line(margin, PAGE_H - 1.78 * inch, PAGE_W - margin, PAGE_H - 1.78 * inch)
 
     # Purpose strip.
-    purpose_y = PAGE_H - 2.35 * inch
+    purpose_y = PAGE_H - 2.55 * inch
     purpose_gap = 0.22 * inch
     purpose_w = (PAGE_W - 2 * margin - 3 * purpose_gap) / 4
-    draw_inline_icon_text(c, "compare_arrows", "Trace behavior shifts", "The stronger L2C prefetcher changes by workload, so one fixed expert leaves performance unused.", margin, purpose_y, purpose_w, DARKBLUE)
-    draw_inline_icon_text(c, "route", "Route cheaply", "MoP observes short epoch counters, then chooses how much budget each expert receives.", margin + purpose_w + purpose_gap, purpose_y, purpose_w, PINK)
-    draw_inline_icon_text(c, "tune", "Let search tune policy", "OpenEvolve adjusts compact routing constants while the simulator and evaluation protocol stay fixed.", margin + 2 * (purpose_w + purpose_gap), purpose_y, purpose_w, PURPLE)
-    draw_inline_icon_text(c, "fact_check", "Show the evidence", "Every plot uses prefetcher off as 1.000x and labels the best expert as a reference line.", margin + 3 * (purpose_w + purpose_gap), purpose_y, purpose_w, ORANGE)
+    draw_inline_icon_text(c, "compare_arrows", "Trace behavior shifts", "Best prefetcher changes by workload.", margin, purpose_y, purpose_w, DARKBLUE, 22, 19)
+    draw_inline_icon_text(c, "route", "Route cheaply", "Observe one 500K-instruction epoch, choose the next.", margin + purpose_w + purpose_gap, purpose_y, purpose_w, PINK, 22, 19)
+    draw_inline_icon_text(c, "tune", "Tune policy", "OpenEvolve edits compact routing constants.", margin + 2 * (purpose_w + purpose_gap), purpose_y, purpose_w, PURPLE, 22, 19)
+    draw_inline_icon_text(c, "fact_check", "Use one baseline", "Prefetcher off is 1.000x in every plot.", margin + 3 * (purpose_w + purpose_gap), purpose_y, purpose_w, ORANGE, 22, 19)
 
-    y_left = PAGE_H - 4.65 * inch
+    y_left = PAGE_H - 5.25 * inch
     y_left = draw_section_title(c, "What We Built On Athena", left, y_left, col_w, "memory")
     y_left = draw_inline_icon_text(
         c,
         "account_tree",
         "Contribution over Athena",
-        "Athena provides the simulator, cache hierarchy, L2C prefetchers, and existing comparison baselines. "
-        "Our work adds a two-prefetcher routing layer, epoch-level expert counters, fixed train and heldout trace protocol, "
-        "an OpenEvolve evaluator, and reproducible ledgers and plots.",
+        "Athena provides the simulator and L2C prefetchers. We add routing, epoch counters, fixed splits, OpenEvolve search, and rebuildable plots.",
         left,
         y_left,
         col_w,
         DARKBLUE,
-        15,
-        13,
+        23,
+        21,
     )
     y_left -= 14
     y_left = draw_bullets(
         c,
         [
-            "Expert pair: Athena MLOP + SPP+PPF at L2C.",
-            "MoP-V1: manual one-epoch probe router.",
-            "MoP-V2: OpenEvolve-tuned MoP-V1 with evolved budget, score weights, and close-score tie margin.",
-            "OpenEvolve could change only a compact policy dictionary. Trace split, baselines, parser, metrics, expert pair, cache level, and simulator internals stayed fixed.",
+            "Experts: MLOP + SPP+PPF at L2C.",
+            "MoP-V1: one-epoch probe router.",
+            "MoP-V2: OpenEvolve-tuned router.",
         ],
-        ["hub", "route", "tune", "rule"],
+        ["hub", "route", "tune"],
         left,
         y_left,
         col_w,
     )
 
-    y_right = PAGE_H - 4.65 * inch
+    y_right = PAGE_H - 5.25 * inch
     y_right = draw_section_title(c, "Evaluation Protocol", right, y_right, col_w, "dataset", color=PURPLE)
     y_right = draw_bullets(
         c,
         [
-            "All performance numbers use disabled prefetching as 1.000x.",
-            "Best expert is computed per trace as max(MLOP, SPP+PPF), then geomeaned.",
-            "Official split: 17 training traces and 7 heldout traces.",
-            "OpenEvolve search used training traces only. Heldout traces were evaluated after policy selection.",
-            "The simulator holds the retired-instruction window fixed, so IPC movement is effectively cycle movement.",
+            "Prefetcher off is the 1.000x baseline.",
+            "Best expert = max(MLOP, SPP+PPF).",
+            "Split: 17 training, 7 heldout.",
+            "Epoch: 500K retired instructions.",
+            "IPC tracks cycles under fixed instructions.",
         ],
         ["speed", "track_changes", "dataset", "shield", "cycle"],
         right,
@@ -196,95 +210,88 @@ def main() -> int:
         col_w,
     )
 
+    table_y = PAGE_H - 11.1 * inch
+    draw_mini_table(
+        c,
+        "Two Athena Experts",
+        [
+            ("MLOP", "Learns useful address offsets across multiple lookahead distances. Better on 4 of 13 validation traces."),
+            ("SPP+PPF", "Tracks page signatures and delta paths, then filters candidates with a perceptron. Better on 9 of 13."),
+        ],
+        left,
+        table_y,
+        col_w,
+        "hub",
+        DARKBLUE,
+    )
+    draw_mini_table(
+        c,
+        "Trace Sets",
+        [
+            ("Official", "24 traces: SPEC, PARSEC, Ligra, secret_compute."),
+            ("Training", "17 for search. Final validation used 13 available traces."),
+            ("Heldout", "7 frozen traces after policy selection."),
+            ("Window", "Validation 500K + 1M. Heldout 20M + 50M."),
+        ],
+        right,
+        table_y,
+        col_w,
+        "table_chart",
+        PURPLE,
+    )
+
     # Figure row 1
-    fig1_y = PAGE_H - 15.85 * inch
-    c.setFont("Helvetica-Bold", 18)
+    fig1_y = PAGE_H - 23.5 * inch
+    c.setFont("Helvetica-Bold", 26)
     c.setFillColor(BLACK)
     draw_icon(c, "bar_chart", left, fig1_y + 6.60 * inch, 28, color=PINK)
     c.setFillColor(BLACK)
-    c.drawString(left + 38, fig1_y + 6.78 * inch, "Before and after OpenEvolve")
-    draw_image(c, FIG / "stage2_pre_post_geomean.png", left, fig1_y + 0.55 * inch, col_w, 5.95 * inch)
+    c.drawString(left + 42, fig1_y + 6.80 * inch, "Before and after OpenEvolve")
+    draw_image(c, FIG / "stage2_pre_post_geomean.png", left, fig1_y + 0.65 * inch, col_w, 5.6 * inch)
     draw_wrapped(
         c,
         "Caption: bars compare disabled prefetching, each single expert, the manual MoP-V1 router, the OpenEvolve-tuned MoP-V2 router, and the best expert reference on the same heldout and training-validation surfaces.",
         left,
-        fig1_y + 0.30 * inch,
+        fig1_y + 0.28 * inch,
         col_w,
-        11,
-        14,
+        16,
+        20,
         colors.HexColor("#333333"),
     )
     draw_icon(c, "monitoring", right, fig1_y + 6.60 * inch, 28, color=PURPLE)
     c.setFillColor(BLACK)
-    c.setFont("Helvetica-Bold", 18)
-    c.drawString(right + 38, fig1_y + 6.78 * inch, "Search trajectory by model")
-    draw_image(c, FIG / "stage2_scale_model_comparison.png", right, fig1_y + 0.55 * inch, col_w, 5.95 * inch)
+    c.setFont("Helvetica-Bold", 26)
+    c.drawString(right + 42, fig1_y + 6.80 * inch, "Search trajectory by model")
+    draw_image(c, FIG / "stage2_scale_model_comparison.png", right, fig1_y + 0.65 * inch, col_w, 5.6 * inch)
     draw_wrapped(
         c,
-        "Caption: faint points are generated candidates. Solid traces show best-so-far weighted evaluator score, which combines speedup, percent of best expert, weaker-expert coverage, and tail-loss penalties.",
+        "Caption: faint points are generated candidates. Solid traces show best IPC seen so far. Dashed lines show the score-selected incumbent IPC.",
         right,
-        fig1_y + 0.30 * inch,
+        fig1_y + 0.28 * inch,
         col_w,
-        11,
-        14,
+        16,
+        20,
         colors.HexColor("#333333"),
     )
 
     # Figure row 2 spans the page.
-    fig2_y = 5.90 * inch
+    fig2_y = 1.0 * inch
     c.setFillColor(BLACK)
-    c.setFont("Helvetica-Bold", 18)
-    draw_icon(c, "analytics", left, fig2_y + 11.88 * inch, 28, color=DARKBLUE)
+    c.setFont("Helvetica-Bold", 26)
+    draw_icon(c, "analytics", left, fig2_y + 10.68 * inch, 28, color=DARKBLUE)
     c.setFillColor(BLACK)
-    c.drawString(left + 38, fig2_y + 12.05 * inch, "Heldout trace profile")
+    c.drawString(left + 42, fig2_y + 10.85 * inch, "Heldout trace profile")
     draw_wrapped(
         c,
         "Caption: each row is a heldout trace. Bars use disabled prefetching as 1.000x. MLOP and SPP+PPF sit above the MoP bars so the reader can see when the two experts disagree and where the router lands.",
         left + 38,
-        fig2_y + 11.78 * inch,
+        fig2_y + 10.50 * inch,
         PAGE_W - 2 * margin - 38,
-        11,
-        14,
+        16,
+        20,
         colors.HexColor("#333333"),
     )
-    draw_image(c, FIG / "stage2_heldout_trace_profile.png", left, fig2_y, PAGE_W - 2 * margin, 11.15 * inch)
-
-    # Bottom synthesis.
-    bottom_y = 2.1 * inch
-    c.setStrokeColor(LIGHTGREY)
-    c.setLineWidth(1.2)
-    c.line(margin, bottom_y + 1.2 * inch, PAGE_W - margin, bottom_y + 1.2 * inch)
-
-    c.setFont("Helvetica-Bold", 17)
-    c.setFillColor(BLACK)
-    draw_icon(c, "insights", left, bottom_y + 0.62 * inch, 26, color=PINK)
-    c.setFillColor(BLACK)
-    c.drawString(left + 34, bottom_y + 0.85 * inch, "Takeaway")
-    draw_wrapped(
-        c,
-        "For MLOP + SPP+PPF, MoP-V2 improves over the manual MoP-V1 router on training-split validation, "
-        "stays positive on heldout by the disabled-prefetching baseline, and keeps the best expert as a separate oracle-style reference.",
-        left + 34,
-        bottom_y + 0.55 * inch,
-        col_w - 34,
-        13,
-        17,
-    )
-
-    c.setFont("Helvetica-Bold", 17)
-    draw_icon(c, "fact_check", right, bottom_y + 0.62 * inch, 26, color=PURPLE)
-    c.setFillColor(BLACK)
-    c.drawString(right + 34, bottom_y + 0.85 * inch, "Auditability")
-    draw_wrapped(
-        c,
-        "Candidate ledgers record 374 attempts, including 306 valid scored rows and 68 fail-closed rows. "
-        "The detailed naming map, raw result paths, CI policy, and rebuild commands live in report/writing_logistics.md.",
-        right + 34,
-        bottom_y + 0.55 * inch,
-        col_w - 34,
-        13,
-        17,
-    )
+    draw_image(c, FIG / "stage2_heldout_trace_profile.png", left, fig2_y + 0.45 * inch, PAGE_W - 2 * margin, 8.85 * inch)
 
     c.setFillColor(BLACK)
     c.setFont("Helvetica", 10)

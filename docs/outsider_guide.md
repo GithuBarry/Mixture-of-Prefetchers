@@ -390,12 +390,12 @@ The current local result is:
   on some complementary traces, but still fails because its action policy is not
   reliable across the whole criterion set
 
-The report figures now separate those questions cleanly:
+The current report figures now separate those questions cleanly:
 
-- `ipc_speedup_summary.png` is only about beating prefetch-off
-- `single_expert_profiles.png` is about whether the experts genuinely differ
-- `win_loss_mop_vs_best_single.png` is about per-trace distance to the best expert
-- `router_compare_criterion.png` is about what the routers actually predicted and whether those actions included the better expert
+- `stage2_pre_post_geomean.png` compares disabled prefetching, `MoP-V1`, `MoP-V2`, and the per-trace best expert
+- `stage2_heldout_trace_profile.png` shows heldout per-trace expert complementarity and router placement
+- `stage2_routing_behavior_stats.png` shows selected-epoch share, budget share, and useful-prefetch share for `MoP-V1` and `MoP-V2`
+- `stage2_scale_model_comparison.png` shows OpenEvolve candidate trajectories by model
 
 That keeps the performance claim modest and leaves OpenEvolve tuning as the
 next mechanism to test.

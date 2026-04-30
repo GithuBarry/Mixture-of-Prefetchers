@@ -24,6 +24,7 @@ The main report uses public wording. Existing code and older logs keep `MoP-V1.2
 | --- | --- | --- |
 | Router geomean | `report/figures/stage2_pre_post_geomean.png` | disabled-prefetching baseline at `1.0x`, `MoP-V1` manual router, `MoP-V2` OpenEvolve router, best expert |
 | Heldout trace profile | `report/figures/stage2_heldout_trace_profile.png` | per-trace speedup for `MLOP`, `SPP+PPF`, public `MoP-V1`, and public `MoP-V2` |
+| Routing behavior stats | `report/figures/stage2_routing_behavior_stats.png` | selected epochs, budget share, and useful-prefetch share for public `MoP-V1` and public `MoP-V2` |
 | Model comparison | `report/figures/stage2_model_comparison.png` | first model-comparison pass, valid and rejected candidate counts |
 | OpenEvolve trajectory | `report/figures/stage2_scale_model_comparison.png` | valid generated candidates and best-so-far curves for GPT-5 mini, GPT-5.4, and Sonnet 4.6 |
 

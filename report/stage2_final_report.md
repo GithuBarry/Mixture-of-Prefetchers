@@ -14,7 +14,7 @@ The IPC result comes from cycle reduction under a fixed instruction window. On t
 
 ![Router geomean with disabled prefetching as 1x](figures/stage2_pre_post_geomean.png)
 
-*Caption: disabled prefetching is the black `1.000x` baseline, dark blue marks the oracle-style per-trace best expert, orange is the manual `MoP-V1` router, and pink is the OpenEvolve-tuned `MoP-V2` router.*
+*Caption: disabled prefetching is the black `1.000x` baseline, dark blue marks the per-trace best expert, orange is the manual `MoP-V1` router, and pink is the OpenEvolve-tuned `MoP-V2` router.*
 
 ## What We Built On Athena
 
@@ -34,13 +34,35 @@ The public router names in this report are:
 | `MoP-V1` | probes both experts for one epoch, then selects the higher-scoring expert | manual router |
 | `MoP-V2` | OpenEvolve-tuned `MoP-V1` with an evolved budget, score weights, and close-score tie margin | final OpenEvolve-selected router |
 
+The two experts are established research prefetchers already implemented in Athena:
+
+| Expert | What it is | Why it is useful here |
+| --- | --- | --- |
+| `MLOP` | Multi-Lookahead Offset Prefetcher, a 2019 DPC3 offset-prefetching design that evaluates multiple lookahead distances for offset prefetches. A 2022 survey describes it as state-of-the-art offset prefetching. | It is a simple strong offset-style expert and wins `4/13` training-validation traces in our final pair. |
+| `SPP+PPF` | Signature Path Prefetcher plus Perceptron-based Prefetch Filtering. SPP is a DPC2-era signature/path prefetcher. PPF is a 2019 DPC3 perceptron filter that lets SPP issue more aggressive candidates while filtering low-value prefetches. | It is the stronger expert in our pair by geomean and wins `9/13` training-validation traces. |
+
+For the current literature wording, the safe claim is that these are strong established baselines. The newest contest frontier has moved to prefetchers such as Berti, Pythia, and 2026 DPC4 designs. Our contribution is routing and search on top of Athena's available expert pair.
+
 The selected `MoP-V2` policy uses a `9216` per-epoch prefetch budget, which means about `18.4` prefetches per 1K retired instructions over a `500K`-instruction epoch. OpenEvolve chose that budget within the allowed policy surface. The same policy uses one initial dual-expert probe epoch, an accuracy floor of `30`, a `3%` close-score tie margin, and score weights `[1.0, 0.55, 1.0]` for accuracy, coverage, and traffic terms. The exact implementation keys live in [writing_logistics.md](writing_logistics.md).
 
-At runtime, the router reads previous-epoch per-expert issued and useful counters, the retired-instruction epoch boundary, and its own previous action. It can choose `MLOP`, `SPP+PPF`, both, or the prefetcher-off action, and it can split the per-epoch budget. OpenEvolve could change the literal `candidate_policy()` dictionary: router family, total budget, one-shot epochs, accuracy floor, tie margin, and score weights. The trace split, heldout traces, parser, metric definitions, baseline runs, expert pair, cache level, and simulator internals stayed fixed.
+An epoch is `500K` retired instructions. Retired instructions are instructions that complete at the simulated core. The router resets its epoch counters at epoch boundaries, reads the previous epoch's per-expert issued and useful prefetch counters, then chooses the next epoch's action. `MoP-V1` uses one initial dual-expert probe epoch, so it observes `500K` retired instructions before committing to one expert. The `1M` training-validation simulation window has two measured epochs, and the `50M` heldout simulation window has one hundred measured epochs after `20M` warmup epochs.
+
+At runtime, the router can choose `MLOP`, `SPP+PPF`, both, or the prefetcher-off action, and it can split the per-epoch budget. OpenEvolve could change the literal `candidate_policy()` dictionary: router family, total budget, one-shot epochs, accuracy floor, tie margin, and score weights. The trace split, heldout traces, parser, metric definitions, baseline runs, expert pair, cache level, and simulator internals stayed fixed.
 
 ## Trace Protocol
 
-The official split has 24 traces: 17 training traces and 7 heldout traces. OpenEvolve generated candidates on training traces only: 3-trace quick evaluation for most iterations, 10-trace wider validation for promising candidates, 13 available training traces for final training-split validation, then 7 frozen heldout traces after policy selection. The four other training traces in the official split are `facesim`, `ligra_BFS`, `ligra_Triangle`, and `secret_compute_int_243`.
+The official split has 24 traces: 17 training traces and 7 heldout traces. OpenEvolve generated candidates on training traces only: 3-trace quick evaluation for most iterations, 10-trace wider validation for promising candidates, 13 available training traces for final training-split validation, then 7 frozen heldout traces after policy selection. The four other training traces in the official split are `facesim`, `ligra_BFS`, `ligra_Triangle`, and `secret_compute_int_243`. They stayed in the official training split metadata, and the final validation table uses the 13 training traces with complete final-surface artifacts.
+
+The trace flow is:
+
+| Trace set | Count | Families represented | How it is used |
+| --- | ---: | --- | --- |
+| Official suite | 24 | SPEC, PARSEC, Ligra, secret_compute | Complete project trace inventory |
+| Training split | 17 | SPEC, PARSEC, Ligra, secret_compute | Search, model comparison, and selection |
+| Quick evaluation | 3 | training traces | Cheap OpenEvolve candidate filter |
+| Wider validation | 10 | training traces | Confirmation before expensive runs |
+| Final training-split validation | 13 | available training traces | Main quantitative result |
+| Heldout | 7 | SPEC, PARSEC, Ligra, secret_compute | Frozen post-selection sanity check |
 
 The fixed final setup is:
 
@@ -50,7 +72,7 @@ The fixed final setup is:
 | Expert pair | Athena `MLOP + SPP+PPF` L2-cache prefetchers |
 | Training traces in official split | 17 |
 | Final training-split validation | 13 training traces, `500K` warmup, `1M` simulation |
-| Heldout evaluation | 7 heldout traces, `5M` warmup, `10M` simulation |
+| Heldout evaluation | 7 heldout traces, `20M` warmup, `50M` simulation |
 | Router epoch length | `500K` retired instructions |
 | Selected per-epoch prefetch budget | `9216` |
 
@@ -72,6 +94,10 @@ The expert pair supports the routing story because the two prefetchers have diff
 ![Heldout trace profile](figures/stage2_heldout_trace_profile.png)
 
 *Caption: each heldout trace shows Expert 1 `MLOP`, Expert 2 `SPP+PPF`, `MoP-V1`, and `MoP-V2` as horizontal bars. The two experts use the same blue with different opacity. Disabled prefetching is the black `1.000x` reference line, and the legend is outside the plot area so all bars stay readable.*
+
+![Routing behavior stats](figures/stage2_routing_behavior_stats.png)
+
+*Caption: selected epochs, budget allocation, and useful-prefetch shares are aggregated from the final run summaries. The public labels are consistent across panels: `MoP-V1` is the manual one-epoch probe router, and `MoP-V2` is the OpenEvolve-selected router.*
 
 | Surface | Manual `MoP-V1` | OpenEvolve `MoP-V2` | Best expert |
 | --- | ---: | ---: | ---: |
@@ -104,6 +130,20 @@ OpenEvolve searched a tiny policy surface. The first small model-comparison pass
 OpenEvolve selected candidates with the evaluator's combined objective: `log(percent of best expert) + 0.25 * log(speedup vs disabled prefetching) + 0.20 * log(speedup vs worse prefetcher) - 0.12 * tail-loss rate - 0.03 * off-action rate`. The trajectory plot still shows IPC speedup, so the score-selected incumbent line can move down in IPC when a new candidate improves the combined objective.
 
 Search cost is reported as model iterations, generated candidates, and simulator evaluations. The candidate ledger contains 374 rows: 306 valid scored rows and 68 fail-closed rows. Valid rows break down into 7 one-trace smoke rows, 243 quick-evaluation rows, 46 wider-validation rows, and 10 final training-split validation rows. Invalid candidates received the configured failure score and remained in the ledger for auditability.
+
+The run-cost summary is:
+
+| Category | Value |
+| --- | ---: |
+| Model iterations requested | `190` |
+| Ledger rows | `374` |
+| Valid scored rows | `306` |
+| Fail-closed rows | `68` |
+| Smoke rows | `7` |
+| Quick-evaluation rows | `243` |
+| Wider-validation rows | `46` |
+| Final training-validation rows | `10` |
+| Gateway spend observed by project owner | `$0.150` |
 
 The scale-run summary is:
 

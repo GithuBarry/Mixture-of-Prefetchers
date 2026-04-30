@@ -4,10 +4,10 @@
 Produces under report/figures/ and report/tables/:
 
   figures/
-    ipc_speedup_summary.png              combined speedup summary figure
-    win_loss_mop_vs_best_single.png      MoP-lite delta vs best single (bar, sorted)
-    single_expert_profiles.png          per-trace winning single-expert profile
-    mop_vs_reference_rows.png           per-trace MoPLite vs reference rows
+    legacy_stage1/stage1_legacy_speedup_summary.png        combined speedup summary
+    legacy_stage1/stage1_legacy_win_loss.png               MoP-lite delta vs best single
+    legacy_stage1/stage1_legacy_expert_profile.png         per-trace winning expert profile
+    legacy_stage1/stage1_legacy_reference_rows.png         per-trace MoPLite reference rows
 
   tables/
     router_ablation.md                   per-router geomean speedups (train + heldout)
@@ -173,7 +173,7 @@ def fig_speedup_summary(rows: list[dict], out_path: Path) -> None:
     plt.close(fig)
 
 
-def fig_mop_vs_reference_rows(rows: list[dict], out_path: Path) -> None:
+def fig_stage1_legacy_reference_rows(rows: list[dict], out_path: Path) -> None:
     plot_rows = [r for r in rows if r["experiment_kind"] != "baseline"]
     mop_rows = [r for r in plot_rows if r["experiment"] == "MoPLite"]
     if not mop_rows:
@@ -363,7 +363,7 @@ def fig_win_loss(rows: list[dict], out_path: Path) -> None:
 
 # -- Figure 4: single-expert winner profile + MoPLite -----------------------------
 
-def fig_single_expert_profiles(rows: list[dict], out_path: Path) -> None:
+def fig_stage1_legacy_expert_profile(rows: list[dict], out_path: Path) -> None:
     singles = [r for r in rows if r["experiment_kind"] == "single" and r.get("split_side") in {"train", "heldout"}]
     if not singles:
         skip_output(out_path, "no single-expert rows")
@@ -529,7 +529,7 @@ def table_hardware_budget(out_path: Path) -> None:
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--csv", type=Path, default=repo_root() / "data" / "processed" / "runs.csv")
-    p.add_argument("--figures-dir", type=Path, default=repo_root() / "report" / "figures")
+    p.add_argument("--figures-dir", type=Path, default=repo_root() / "report" / "figures" / "legacy_stage1")
     p.add_argument("--tables-dir",  type=Path, default=repo_root() / "report" / "tables")
     return p.parse_args()
 
@@ -539,12 +539,12 @@ def main() -> int:
     args.figures_dir.mkdir(parents=True, exist_ok=True)
     args.tables_dir.mkdir(parents=True, exist_ok=True)
     rows = load_rows(args.csv)
-    fig_speedup_summary       (rows, args.figures_dir / "ipc_speedup_summary.png")
-    fig_mop_vs_reference_rows (rows, args.figures_dir / "mop_vs_reference_rows.png")
+    fig_speedup_summary       (rows, args.figures_dir / "stage1_legacy_speedup_summary.png")
+    fig_stage1_legacy_reference_rows(rows, args.figures_dir / "stage1_legacy_reference_rows.png")
     (args.figures_dir / "ipc_speedup_vs_nopref.png").unlink(missing_ok=True)
     (args.figures_dir / "ipc_speedup_vs_best_single.png").unlink(missing_ok=True)
-    fig_win_loss              (rows, args.figures_dir / "win_loss_mop_vs_best_single.png")
-    fig_single_expert_profiles(rows, args.figures_dir / "single_expert_profiles.png")
+    fig_win_loss              (rows, args.figures_dir / "stage1_legacy_win_loss.png")
+    fig_stage1_legacy_expert_profile(rows, args.figures_dir / "stage1_legacy_expert_profile.png")
     (args.figures_dir / "accuracy_vs_traffic.png").unlink(missing_ok=True)
     table_router_ablation     (rows, args.tables_dir / "router_ablation.md")
     table_expert_pair         (rows, args.tables_dir / "expert_pair_ablation.md")

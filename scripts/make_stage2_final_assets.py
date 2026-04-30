@@ -616,6 +616,99 @@ def plot_heldout_trace_profile(heldout_v12: Path, heldout_v13: Path, out_path: P
     plt.close(fig)
 
 
+def router_behavior_totals(result_dir: Path, router: str) -> dict[str, float]:
+    rows = [row for row in load_summary(result_dir) if row["experiment"] == router]
+    assert rows, f"Missing router {router} in {result_dir}"
+    totals = {
+        "selected_mlop": sum(float(row["pref0_selected_epochs"]) for row in rows),
+        "selected_spp": sum(float(row["pref1_selected_epochs"]) for row in rows),
+        "budget_mlop": sum(float(row["pref0_budget_total"]) for row in rows),
+        "budget_spp": sum(float(row["pref1_budget_total"]) for row in rows),
+        "useful_mlop": sum(float(row["pref0_useful_total"]) for row in rows),
+        "useful_spp": sum(float(row["pref1_useful_total"]) for row in rows),
+    }
+    return totals
+
+
+def share_pair(totals: dict[str, float], left_key: str, right_key: str) -> tuple[float, float]:
+    left = totals[left_key]
+    right = totals[right_key]
+    denom = left + right
+    if denom <= 0:
+        return 0.0, 0.0
+    return left / denom, right / denom
+
+
+def plot_routing_behavior_stats(
+    train_v12: Path,
+    train_v13: Path,
+    heldout_v12: Path,
+    heldout_v13: Path,
+    out_path: Path,
+) -> None:
+    setup_plot()
+    specs = [
+        ("Train MoP-V1", router_behavior_totals(train_v12, "MoP-V1.2")),
+        ("Train MoP-V2", router_behavior_totals(train_v13, "MoP-V1.3")),
+        ("Heldout MoP-V1", router_behavior_totals(heldout_v12, "MoP-V1.2")),
+        ("Heldout MoP-V2", router_behavior_totals(heldout_v13, "MoP-V1.3")),
+    ]
+    panels = [
+        ("Selected epochs", "selected_mlop", "selected_spp"),
+        ("Budget allocation", "budget_mlop", "budget_spp"),
+        ("Useful prefetches", "useful_mlop", "useful_spp"),
+    ]
+    fig, axes = plt.subplots(1, 3, figsize=(13.2, 4.8), sharey=True)
+    y = list(range(len(specs)))
+    for ax, (title, mlop_key, spp_key) in zip(axes, panels, strict=True):
+        mlop_shares = []
+        spp_shares = []
+        for _, totals in specs:
+            mlop_share, spp_share = share_pair(totals, mlop_key, spp_key)
+            mlop_shares.append(mlop_share)
+            spp_shares.append(spp_share)
+        ax.barh(y, mlop_shares, color=COLORS["blue"], edgecolor=COLORS["black"], linewidth=0.6, label="MLOP")
+        ax.barh(
+            y,
+            spp_shares,
+            left=mlop_shares,
+            color=COLORS["blue"],
+            alpha=0.45,
+            edgecolor=COLORS["black"],
+            linewidth=0.6,
+            label="SPP+PPF",
+        )
+        for yi, mlop_share, spp_share in zip(y, mlop_shares, spp_shares, strict=True):
+            if mlop_share >= 0.12:
+                ax.text(mlop_share / 2, yi, f"{mlop_share:.0%}", ha="center", va="center", fontsize=8)
+            if spp_share >= 0.12:
+                ax.text(mlop_share + spp_share / 2, yi, f"{spp_share:.0%}", ha="center", va="center", fontsize=8)
+        ax.set_title(title)
+        ax.set_xlim(0, 1)
+        ax.set_xlabel("Share of recorded router activity")
+        ax.grid(True, axis="x", linestyle=":")
+    axes[0].set_yticks(y)
+    axes[0].set_yticklabels([label for label, _ in specs])
+    axes[0].invert_yaxis()
+    handles = [
+        Line2D([0], [0], color=COLORS["blue"], linewidth=8, label="Expert 1: MLOP"),
+        Line2D([0], [0], color=COLORS["blue"], alpha=0.45, linewidth=8, label="Expert 2: SPP+PPF"),
+    ]
+    fig.legend(handles=handles, frameon=False, ncols=2, loc="lower center", bbox_to_anchor=(0.5, 0.055))
+    fig.suptitle("Routing behavior stats: MoP-V1 manual router to MoP-V2 OpenEvolve router", y=0.98)
+    fig.text(
+        0.02,
+        0.012,
+        "Shares are aggregated from final run summaries. MoP-V1 and MoP-V2 use the same expert order: MLOP first, SPP+PPF second.",
+        ha="left",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.tight_layout(rect=(0, 0.16, 1, 0.94))
+    fig.savefig(out_path, dpi=180)
+    plt.close(fig)
+
+
 def plot_model_comparison(ledger_path: Path, out_path: Path) -> None:
     setup_plot()
     records = [json.loads(line) for line in ledger_path.read_text().splitlines() if line.strip()]
@@ -931,6 +1024,13 @@ def main() -> int:
     write_scale_model_table(scale_rows, args.tables_dir / "stage2_scale_model_summary.md")
     plot_pre_post(rows, args.figures_dir / "stage2_pre_post_geomean.png")
     plot_heldout_trace_profile(args.heldout_v12, args.heldout_v13, args.figures_dir / "stage2_heldout_trace_profile.png")
+    plot_routing_behavior_stats(
+        args.train_v12,
+        args.train_v13,
+        args.heldout_v12,
+        args.heldout_v13,
+        args.figures_dir / "stage2_routing_behavior_stats.png",
+    )
     plot_model_comparison(args.model_ledger, args.figures_dir / "stage2_model_comparison.png")
     active_screen = required_ledger_record_for_hash(args.candidate_ledger, "a52ed8a4151ad6cc", "stage1")
     active_confirm = required_ledger_record_for_hash(args.candidate_ledger, "a52ed8a4151ad6cc", "stage2")
