@@ -58,7 +58,9 @@ The public router names are:
 | `MoP-V1` | Manual one-probe router |
 | `MoP-V2` | OpenEvolve-tuned one-probe router |
 
-The raw code names and router type numbers are listed in `report/writing_logistics.md` for reproducibility.
+The raw code names and router type numbers are listed in the included writing logistics note for reproducibility.
+
+The public repository for this project is [https://github.com/GithuBarry/Mixture-of-Prefetchers/](https://github.com/GithuBarry/Mixture-of-Prefetchers/).
 
 OpenEvolve edited a small `candidate_policy()` dictionary. It could change:
 
@@ -71,7 +73,7 @@ OpenEvolve edited a small `candidate_policy()` dictionary. It could change:
 | Close-score margin | `0%` | `3%` |
 | Score weights | `[1.0, 0.5, 1.0]` | `[1.0, 0.55, 1.0]` |
 
-The `9216` budget means about `18.4` prefetches per 1K retired instructions over a `500K`-instruction epoch. OpenEvolve chose that budget from the allowed policy dictionary. The simulator, parser, traces, metric definitions, cache level, expert pair, and fixed expert baselines stayed fixed during the search.
+The `9216` budget means about `18.4` prefetches per 1K retired instructions over a `500K`-instruction epoch. OpenEvolve chose that budget from the allowed policy dictionary. The fair attribution is the whole final policy: larger budget, slightly higher coverage weight, and a close-score margin. The IPC comparison is defensible because the selected policy and the manual router are evaluated with the same simulator, trace split, expert pair, fixed retired-instruction windows, and disabled-prefetching baseline. A budget-only ablation would be the next check for causal attribution.
 
 The OpenEvolve score was:
 
@@ -117,7 +119,7 @@ On heldout, the gain is smaller. `MoP-V2` reaches `1.003x` over disabled prefetc
 
 ![Per-trace change from MoP-V1 to MoP-V2](figures/stage2_v1_v2_trace_delta.png)
 
-*Caption: each bar is `MoP-V2` speedup minus `MoP-V1` speedup on the same trace. Positive pink bars show traces where OpenEvolve improved the manual router. Orange bars show traces where the manual router was faster. Each label shows the before and after speedup over disabled prefetching.*
+*Caption: each bar is `MoP-V2` speedup minus `MoP-V1` speedup on the same trace. Positive pink bars show traces where OpenEvolve improved the manual router. Orange bars show traces where the manual router was faster. Labels show speedup deltas, with before and after speedup shown for the largest movement in each panel.*
 
 The heldout trace profile shows expert complementarity and router placement.
 

@@ -4,9 +4,10 @@ This repository builds a small router on top of the Athena simulator to coordina
 
 Start with the final report:
 
-1. `report/stage2_final_report.md`
-2. `slides/mop_stage2_final/output/output.pptx`
-3. `report/writing_logistics.md`
+1. `deliverables/MoP-Final/MoP-Final-report.md`
+2. `deliverables/MoP-Final/MoP-Final-slides.pptx`
+3. `deliverables/MoP-Final/MoP-Final-poster.pdf`
+4. `deliverables/MoP-Final/writing_logistics.md`
 
 ## Current Result
 
@@ -86,5 +87,5 @@ Raw simulator outputs live under ignored `results/...` paths on the producing ma
 - `scripts/make_stage2_final_assets.py`: final report table and figure builder
 - `stage2/openevolve/evaluator.py`: OpenEvolve evaluator
 - `stage2/openevolve/candidate_ledger.jsonl`: candidate record file
-- `report/`: report, figures, tables, and writing logistics
+- `deliverables/MoP-Final/`: clean report, poster, slides, figures, tables, and writing logistics
 - `slides/mop_stage2_final/`: presentation source, previews, and PowerPoint output

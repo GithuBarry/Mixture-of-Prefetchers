@@ -565,7 +565,7 @@ def plot_v1_v2_trace_delta(
         ("13 training traces", by_trace(load_summary(train_v12)), by_trace(load_summary(train_v13)), "MoP-V1.2", "MoP-V1.3"),
         ("7 heldout traces", by_trace(load_summary(heldout_v12)), by_trace(load_summary(heldout_v13)), "MoP-V1.2", "MoP-V1.3"),
     ]
-    fig, axes = plt.subplots(1, 2, figsize=(14.8, 6.6), sharex=True)
+    fig, axes = plt.subplots(2, 1, figsize=(12.8, 10.4), sharex=True)
     for ax, (title, before, after, before_key, after_key) in zip(axes, panels, strict=True):
         traces = sorted(set(before) & set(after))
         rows = []
@@ -579,22 +579,21 @@ def plot_v1_v2_trace_delta(
         ax.barh(y, [delta for _, _, _, delta in rows], color=colors, edgecolor=COLORS["black"], linewidth=0.5)
         ax.axvline(0.0, color=COLORS["black"], linestyle=":", linewidth=1.0)
         ax.set_yticks(y)
-        ax.set_yticklabels([wrap_trace_label(trace, width=28) for trace, _, _, _ in rows], fontsize=8)
+        ax.set_yticklabels([wrap_trace_label(trace, width=42) for trace, _, _, _ in rows], fontsize=8)
         ax.set_title(title)
         ax.set_xlabel("MoP-V2 speedup minus MoP-V1 speedup")
         ax.grid(True, axis="x", linestyle=":")
-        ax.set_xlim(-0.055, 0.178)
-        label_x = 0.164
+        ax.set_xlim(-0.055, 0.232)
+        max_abs_delta = max(abs(delta) for _, _, _, delta in rows)
         for yi, (_, v1, v2, delta) in zip(y, rows, strict=True):
-            ax.text(
-                label_x,
-                yi,
-                f"{v1:.3f}->{v2:.3f}",
-                va="center",
-                ha="right",
-                fontsize=7,
-                bbox={"facecolor": COLORS["white"], "edgecolor": "none", "pad": 0.8, "alpha": 0.82},
-            )
+            if abs(delta) < 0.005:
+                continue
+            x = delta + (0.004 if delta >= 0 else -0.004)
+            ha = "left" if delta >= 0 else "right"
+            label = f"{delta:+.3f}"
+            if abs(delta) == max_abs_delta:
+                label = f"{label} ({v1:.3f}->{v2:.3f})"
+            ax.text(x, yi, label, va="center", ha=ha, fontsize=7)
     handles = [
         Line2D([0], [0], color=METHOD_COLOR["OpenEvolve router"], linewidth=8, label="MoP-V2 faster than MoP-V1"),
         Line2D([0], [0], color=METHOD_COLOR["MoP-V1 manual router"], linewidth=8, label="MoP-V1 faster than MoP-V2"),
@@ -604,7 +603,7 @@ def plot_v1_v2_trace_delta(
     fig.text(
         0.02,
         0.012,
-        "Each label shows speedup over disabled prefetching before and after OpenEvolve. Positive bars mean MoP-V2 improved that trace.",
+        "Labels show the speedup delta. The largest absolute delta in each panel also shows before and after speedup over disabled prefetching.",
         ha="left",
         va="bottom",
         fontsize=8,

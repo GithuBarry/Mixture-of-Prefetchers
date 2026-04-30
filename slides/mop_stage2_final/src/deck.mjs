@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   Presentation,
   PresentationFile,
@@ -34,10 +34,9 @@ const COLORS = {
   lightgrey: "#d9d9d9",
 };
 
-const FIGURE_ROOT =
-  "/Users/barry/Library/Mobile Documents/com~apple~CloudDocs/Carnegie Mellon/15740/Proj/Mixture-of-Prefetchers/report/figures";
-const ASSET_ROOT =
-  "/Users/barry/Library/Mobile Documents/com~apple~CloudDocs/Carnegie Mellon/15740/Proj/Mixture-of-Prefetchers/report/assets/material_symbols";
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+const FIGURE_ROOT = path.join(REPO_ROOT, "report", "figures");
+const ASSET_ROOT = path.join(REPO_ROOT, "report", "assets", "material_symbols");
 
 const deck = Presentation.create({ slideSize: { width: 1920, height: 1080 } });
 
@@ -806,7 +805,7 @@ addSlide(
               "Seven heldout traces make the heldout result a sanity check with visible per-trace variation.",
               "secret_compute_fp_105 remains the largest heldout loss relative to best expert.",
               "Malformed or out-of-contract OpenEvolve candidates stay in the candidate record with failure scores.",
-              "Reproduction paths, naming map, and generated-file list live in report/writing_logistics.md.",
+              "Reproduction paths, naming map, and generated-file list live in the writing logistics note.",
             ],
             26,
           ),

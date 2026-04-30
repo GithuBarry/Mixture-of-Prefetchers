@@ -6,6 +6,8 @@ Use these files when you need exact reproduction steps, schema definitions,
 search boundaries, historical logs, or agent instructions.
 
 - `experiment_setup.md`: official trace suite, split, run modes, and command examples
+- `current_status.md`: current branch, deliverables, finished work, remaining work, and tracked requests
+- `user_preferences.md`: stable user preferences for reporting, evaluation, plotting, and git handling
 - `environment.md`: toolchain, trace handling, artifact flow, and regeneration order
 - `dataset_schema.md`: exact meaning of `data/processed/runs.csv`
 - `research_log.md`: chronological engineering and experiment log

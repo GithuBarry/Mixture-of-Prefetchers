@@ -27,7 +27,9 @@ If you want the shortest path, read these in order:
    run modes, and exact command-generation path.
 3. `docs/operational/environment.md` - the reproducibility contract: toolchain,
    trace handling, producers for each artifact, and regeneration order.
-4. `docs/operational/README.md` - the index of the remaining operational docs.
+4. `docs/operational/current_status.md` - current status, finished work,
+   remaining work, and tracked final-cleanup requests.
+5. `docs/operational/README.md` - the index of the remaining operational docs.
 
 ## Current project state
 
@@ -39,7 +41,7 @@ The repository now has the finished OpenEvolve report package.
 - The official full evaluation design is frozen in
   `configs/trace_suites.json`, `configs/run_modes.json`, and
   `docs/operational/experiment_setup.md`.
-- The final writeup is `report/stage2_final_report.md`.
+- The clean final writeup is `deliverables/MoP-Final/MoP-Final-report.md`.
 - The current tables and figures come from `scripts/make_stage2_final_assets.py`.
 - Historical baseline tables are kept under `report/tables/legacy_stage1/`.
 
@@ -63,6 +65,7 @@ The repository now has the finished OpenEvolve report package.
   - `scripts/build_dataset.py`
   - `scripts/make_stage2_final_assets.py`
 - "What has actually been run so far, and what happened?"
+  - `docs/operational/current_status.md`
   - `docs/operational/research_log.md`
   - `data/processed/runs.csv`
   - `report/tables/stage2_final_metrics.md`
