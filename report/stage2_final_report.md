@@ -2,7 +2,7 @@
 
 ## Executive Read
 
-We used OpenEvolve, a large-language-model program search framework, to tune a compact router that chooses between two Athena L2-cache prefetchers. The expert pair is `MLOP + SPP+PPF` at L2C. The final router is `MoP-V2`, an OpenEvolve-tuned version of the `MoP-V1` one-epoch probe router.
+We used OpenEvolve, a large-language-model program search framework, to tune a compact router that chooses between two Athena L2-cache prefetchers. `MLOP` and `SPP+PPF` are existing Athena L2-cache prefetchers. The router chooses among them at epoch boundaries, using recent usefulness counters to decide which prefetcher receives the next epoch's budget. The final router is `MoP-V2`, an OpenEvolve-tuned version of the `MoP-V1` one-epoch probe router.
 
 All performance numbers in this report use disabled prefetching as `1.0x`. The per-trace best expert is computed as `max(MLOP, SPP+PPF)` for each trace, then geomeaned across the trace set. The router is judged by how close it gets to that best-expert reference while staying above disabled prefetching.
 
@@ -14,7 +14,7 @@ The IPC result comes from cycle reduction under a fixed instruction window. On t
 
 ![Router geomean with disabled prefetching as 1x](figures/stage2_pre_post_geomean.png)
 
-*Caption: disabled prefetching is the black `1.000x` baseline, yellow marks the per-trace best expert, orange is the manual `MoP-V1` router, and pink is the OpenEvolve-tuned `MoP-V2` router.*
+*Caption: disabled prefetching is the black `1.000x` baseline, yellow marks the oracle-style per-trace best expert, orange is the manual `MoP-V1` router, and pink is the OpenEvolve-tuned `MoP-V2` router. Error bars and yellow bands are deterministic trace-bootstrap 95% CIs over traces.*
 
 ## What We Built On Athena
 
@@ -40,7 +40,7 @@ At runtime, the router reads previous-epoch per-expert issued and useful counter
 
 ## Trace Protocol
 
-The official split has 24 traces: 17 training traces and 7 heldout traces. OpenEvolve search used training traces. The quick evaluator used 3 training traces. Wider validation used 10 training traces. Final training-split validation used the 13 locally available training traces with complete artifacts in this checkout. The four other training traces in the official split are `facesim`, `ligra_BFS`, `ligra_Triangle`, and `secret_compute_int_243`. Heldout evaluation used the 7 frozen heldout traces after policy selection.
+The official split has 24 traces: 17 training traces and 7 heldout traces. OpenEvolve generated candidates on training traces only: 3-trace quick evaluation for most iterations, 10-trace wider validation for promising candidates, 13 available training traces for final training-split validation, then 7 frozen heldout traces after policy selection. The four other training traces in the official split are `facesim`, `ligra_BFS`, `ligra_Triangle`, and `secret_compute_int_243`.
 
 The fixed final setup is:
 
@@ -95,11 +95,13 @@ The heldout trace profile shows the remaining risk. On `secret_compute_fp_105`, 
 
 ![OpenEvolve model search trajectory](figures/stage2_scale_model_comparison.png)
 
-*Caption: all points are OpenEvolve-generated candidates, colored by evolver model. The left panel is the 3-trace quick evaluation surface, and the right panel shows quick-evaluation circles plus 10-trace wider-validation triangles. The y-axis is speedup over disabled prefetching, while best experts are labeled separately as reference values.*
+*Caption: left panel shows 3-trace quick-evaluation candidates. Faint points are raw candidate IPC speedups. Faint dashed lines show the incumbent selected by the combined evaluator score. Solid lines show best IPC seen so far. The y-axis has breaks, so visual distances across breaks are compressed. Right panel shows quick-evaluation circles plus 10-trace wider-validation triangles for selected candidates. Error bars are deterministic trace-bootstrap 95% CIs over traces.*
 
 OpenEvolve searched a tiny policy surface. The first small model-comparison pass requested 6 iterations per model. The larger sweeps requested 80 GPT-5 mini iterations, 80 GPT-5.4 iterations, and 30 Sonnet 4.6 iterations. The captured logs show approximate wall-clock times of `97.3` minutes for GPT-5 mini, `47.8` minutes for GPT-5.4, and `43.9` minutes for Sonnet 4.6 on the local setup used here.
 
-Search cost is reported as model iterations, generated candidates, and simulator evaluations. The candidate ledger contains 374 rows: 306 valid scored rows and 68 fail-closed rows. Valid rows break down into 7 one-trace smoke rows, 243 quick-evaluation rows, 46 wider-validation rows, and 10 final training-split validation rows. Failed rows include malformed policy dictionaries, disallowed helper code, unknown policy keys, and simulator command failures.
+OpenEvolve selected candidates with the evaluator's combined objective: `log(percent of best expert) + 0.25 * log(speedup vs disabled prefetching) + 0.20 * log(speedup vs worse prefetcher) - 0.12 * tail-loss rate - 0.03 * off-action rate`. The trajectory plot still shows IPC speedup, so the score-selected incumbent line can move down in IPC when a new candidate improves the combined objective.
+
+Search cost is reported as model iterations, generated candidates, and simulator evaluations. The candidate ledger contains 374 rows: 306 valid scored rows and 68 fail-closed rows. Valid rows break down into 7 one-trace smoke rows, 243 quick-evaluation rows, 46 wider-validation rows, and 10 final training-split validation rows. Invalid candidates received the configured failure score and remained in the ledger for auditability.
 
 The scale-run summary is:
 
@@ -111,7 +113,7 @@ The scale-run summary is:
 
 The quick-evaluation winners were close. The full GPT-5.4 sweep found a late best candidate at iteration 79 and reached `1.088x` over disabled prefetching on the 10-trace validation surface. Wider validation kept the selected `MoP-V2` policy because it reached `1.089x` on the same 10-trace surface and then `1.066x` on the 13-trace training-split validation surface. A higher 10-trace hit reached `1.090x`, then failed the 13-trace confirmation path through simulator failures, which the ledger preserved as failed candidate rows.
 
-The repository artifacts record iteration and candidate counts. A CMU AI Gateway billing export is absent from the committed evidence, so dollar cost should be read from the gateway dashboard rather than inferred from the repo.
+The repository artifacts record iteration and candidate counts. Gateway dollar cost comes from the CMU AI Gateway dashboard.
 
 ## Result Scope
 
@@ -125,6 +127,7 @@ The evaluation boundaries are clean:
 - instruction count stays fixed within tiny simulator-rounding error
 - the final method stays inside a compact router policy surface
 - malformed or out-of-contract OpenEvolve candidates receive failure scores and stay in the ledger
+- bootstrap intervals quantify sensitivity to the sampled trace set, with one simulator run per trace and configuration
 
 The main limitation is the heldout size. Seven traces can show a useful sanity check, yet the training-split validation signal carries most of the quantitative weight. The heldout result supports a modest generalization claim with mixed per-trace behavior, and the trace-level plot shows where the policy still needs work.
 

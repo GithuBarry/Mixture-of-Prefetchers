@@ -184,7 +184,7 @@ addSlide(
       grid(
         { name: "protocol-grid", width: fill, height: fill, columns: [fr(0.9), fr(1.1)], columnGap: 56 },
         [
-          bulletList(["Expert pair: MLOP + SPP+PPF", "Cache level: L2C", "Search: 10 training traces", "Training-split validation: 13 local traces", "Heldout: 7 traces after policy selection"], 29),
+          bulletList(["Expert pair: MLOP + SPP+PPF", "Cache level: L2C", "Most candidate iterations: 3 training traces", "Promising candidates: 10 training traces", "Final training-split validation: 13 traces", "Heldout: 7 traces after policy selection"], 28),
           bulletList(["Performance baseline: disabled prefetching", "Best expert: max(MLOP, SPP+PPF) per trace", "Minimum check: beat the worse prefetcher", "Simple routers: WinnerTakeAll, OneShotFit, AthenaMAB"], 29),
         ],
       ),
@@ -202,7 +202,7 @@ addSlide(
   column(
     { name: "root", width: fill, height: fill, padding: { x: 70, y: 56 }, gap: 18 },
     [
-      title("OpenEvolve improved the router", "Bars use disabled prefetching as 1x. Yellow marks show the per-trace best expert."),
+      title("OpenEvolve improved the router", "Bars use disabled prefetching as 1x. Error bars are trace-bootstrap 95% CIs."),
       image({
         name: "pre-post-figure",
         dataUrl: pngDataUrl("stage2_pre_post_geomean.png"),
@@ -238,7 +238,7 @@ addSlide(
   column(
     { name: "root", width: fill, height: fill, padding: { x: 70, y: 56 }, gap: 18 },
     [
-      title("OpenEvolve search trajectory", "Left: 3-trace quick evaluation. Right: 10-trace wider validation. Lines show best-so-far by weighted score."),
+      title("OpenEvolve search trajectory", "Faint dashed lines are score-selected incumbent IPC. Solid lines are best IPC seen so far."),
       image({
         name: "scale-models",
         dataUrl: pngDataUrl("stage2_scale_model_comparison.png"),
@@ -256,7 +256,7 @@ addSlide(
   column(
     { name: "root", width: fill, height: fill, padding: { x: 92, y: 70 }, gap: 34 },
     [
-      title("The evaluator made search auditable", "Candidate programs changed a literal policy dictionary."),
+      title("The evaluator made search auditable", "Candidate programs changed a literal policy dictionary. Weighted score combines best-expert closeness, IPC, weaker-prefetcher margin, and tail-loss penalties."),
       grid(
         { name: "audit-grid", width: fill, height: fill, columns: [fr(1), fr(1)], columnGap: 60 },
         [
@@ -264,7 +264,7 @@ addSlide(
           bulletList(["Recorded failures", "Simulator failures", "Unknown policy keys", "Helper/import code", "Missing evolve markers"], 29),
         ],
       ),
-      text("Ledger: 374 candidates, 306 valid scored rows, 68 fail-closed rows. Malformed or crashed candidates receive combined_score = -10.0.", {
+      text("Ledger: 374 candidates, 306 valid scored rows, 68 fail-closed rows. Invalid or crashed candidates received the configured failure score and stayed in the audit ledger.", {
         name: "audit-footer",
         width: fill,
         height: hug,

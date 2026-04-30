@@ -7,6 +7,7 @@ import argparse
 import csv
 import json
 import math
+import random
 from pathlib import Path
 
 import matplotlib
@@ -56,6 +57,35 @@ def geomean(values: list[float]) -> float:
     return math.exp(sum(math.log(v) for v in values) / len(values))
 
 
+def bootstrap_geomean_ci(
+    values: list[float],
+    *,
+    samples: int = 10_000,
+    seed: int = 15740,
+) -> tuple[float, float]:
+    assert values
+    rng = random.Random(seed)
+    n = len(values)
+    estimates = []
+    for _ in range(samples):
+        estimates.append(geomean([values[rng.randrange(n)] for _ in range(n)]))
+    estimates.sort()
+    return estimates[int(0.025 * samples)], estimates[int(0.975 * samples) - 1]
+
+
+def format_ci(low: float, high: float, *, percent: bool = False) -> str:
+    if percent:
+        return f"[{100.0 * low:.1f}%, {100.0 * high:.1f}%]"
+    return f"[{low:.3f}, {high:.3f}]"
+
+
+def parse_ci(text: str) -> tuple[float, float]:
+    cleaned = text.strip().strip("[]").replace("%", "")
+    left, right = [part.strip() for part in cleaned.split(",")]
+    scale = 0.01 if "%" in text else 1.0
+    return float(left) * scale, float(right) * scale
+
+
 def load_summary(path: Path) -> list[dict[str, str]]:
     summary = path / "summary.csv"
     assert summary.exists(), f"Missing {summary}"
@@ -69,9 +99,37 @@ def by_trace(rows: list[dict[str, str]]) -> dict[str, dict[str, dict[str, str]]]
     return out
 
 
+def trace_speedups(result_dir: Path, experiment: str) -> list[float]:
+    traces = by_trace(load_summary(result_dir))
+    vals = [float(traces[trace][experiment]["speedup_vs_baseline"]) for trace in sorted(traces)]
+    assert vals
+    return vals
+
+
+def trace_router_records(result_dir: Path, router: str) -> list[dict[str, float]]:
+    traces = by_trace(load_summary(result_dir))
+    records = []
+    for trace in sorted(traces):
+        trace_rows = traces[trace]
+        r = float(trace_rows[router]["speedup_vs_baseline"])
+        e0 = float(trace_rows["MLOP"]["speedup_vs_baseline"])
+        e1 = float(trace_rows["SPP+PPF"]["speedup_vs_baseline"])
+        pair_best = max(e0, e1)
+        weaker = min(e0, e1)
+        records.append({
+            "router": r,
+            "pair_best": pair_best,
+            "weaker": weaker,
+            "vs_pair_best": r / pair_best,
+            "vs_weaker": r / weaker,
+            "both_gt_1": float(e0 > 1.0 and e1 > 1.0),
+        })
+    assert records
+    return records
+
+
 def summarize_router(result_dir: Path, router: str) -> dict[str, float]:
-    rows = load_summary(result_dir)
-    traces = by_trace(rows)
+    records = trace_router_records(result_dir, router)
     vs_base: list[float] = []
     vs_pair: list[float] = []
     vs_weaker: list[float] = []
@@ -81,27 +139,34 @@ def summarize_router(result_dir: Path, router: str) -> dict[str, float]:
     catastrophic = 0
     both_gt_1 = 0
     closer = 0
-    for trace_rows in traces.values():
-        r = float(trace_rows[router]["speedup_vs_baseline"])
-        e0 = float(trace_rows["MLOP"]["speedup_vs_baseline"])
-        e1 = float(trace_rows["SPP+PPF"]["speedup_vs_baseline"])
-        pair_best = max(e0, e1)
-        weaker = min(e0, e1)
+    for record in records:
+        r = record["router"]
+        pair_best = record["pair_best"]
+        weaker = record["weaker"]
         vs_base.append(r)
-        vs_pair.append(r / pair_best)
-        vs_weaker.append(r / weaker)
+        vs_pair.append(record["vs_pair_best"])
+        vs_weaker.append(record["vs_weaker"])
         pair_best_vs_base.append(pair_best)
         weaker_vs_base.append(weaker)
         beats_weaker += r > weaker
         catastrophic += (r / pair_best) < 0.95
-        both_gt_1 += e0 > 1.0 and e1 > 1.0
+        both_gt_1 += int(record["both_gt_1"])
         closer += abs(pair_best - r) <= abs(r - weaker)
+    router_ci = bootstrap_geomean_ci(vs_base)
+    pair_best_ci = bootstrap_geomean_ci(pair_best_vs_base)
+    pair_ratio_ci = bootstrap_geomean_ci(vs_pair)
     return {
-        "n": float(len(traces)),
+        "n": float(len(records)),
         "gm_vs_nopref": geomean(vs_base),
+        "gm_vs_nopref_ci_low": router_ci[0],
+        "gm_vs_nopref_ci_high": router_ci[1],
         "gm_vs_pair_best": geomean(vs_pair),
+        "gm_vs_pair_best_ci_low": pair_ratio_ci[0],
+        "gm_vs_pair_best_ci_high": pair_ratio_ci[1],
         "gm_vs_weaker": geomean(vs_weaker),
         "pair_best_vs_nopref": geomean(pair_best_vs_base),
+        "pair_best_vs_nopref_ci_low": pair_best_ci[0],
+        "pair_best_vs_nopref_ci_high": pair_best_ci[1],
         "weaker_vs_nopref": geomean(weaker_vs_base),
         "beats_weaker": float(beats_weaker),
         "catastrophic": float(catastrophic),
@@ -111,10 +176,14 @@ def summarize_router(result_dir: Path, router: str) -> dict[str, float]:
 
 
 def summarize_single(result_dir: Path, experiment: str) -> dict[str, float]:
-    rows = load_summary(result_dir)
-    vals = [float(row["speedup_vs_baseline"]) for row in rows if row["experiment"] == experiment]
-    assert vals
-    return {"n": float(len(vals)), "gm_vs_nopref": geomean(vals)}
+    vals = trace_speedups(result_dir, experiment)
+    ci = bootstrap_geomean_ci(vals)
+    return {
+        "n": float(len(vals)),
+        "gm_vs_nopref": geomean(vals),
+        "gm_vs_nopref_ci_low": ci[0],
+        "gm_vs_nopref_ci_high": ci[1],
+    }
 
 
 def load_metric_json(row: dict[str, str]) -> dict:
@@ -170,8 +239,15 @@ def metric_table(
             "method": label,
             "n": str(int(metrics["n"])),
             "speedup_vs_prefetcher_off": f"{metrics['gm_vs_nopref']:.3f}",
+            "speedup_95ci": format_ci(metrics["gm_vs_nopref_ci_low"], metrics["gm_vs_nopref_ci_high"]),
             "best_expert_speedup": f"{metrics['pair_best_vs_nopref']:.3f}",
+            "best_expert_95ci": format_ci(metrics["pair_best_vs_nopref_ci_low"], metrics["pair_best_vs_nopref_ci_high"]),
             "percent_of_best_expert": f"{100.0 * metrics['gm_vs_pair_best']:.1f}%",
+            "percent_of_best_expert_95ci": format_ci(
+                metrics["gm_vs_pair_best_ci_low"],
+                metrics["gm_vs_pair_best_ci_high"],
+                percent=True,
+            ),
             "beats_worse_prefetcher": f"{int(metrics['beats_weaker'])}/{int(metrics['n'])}",
             "below_95pct_of_best_expert": f"{int(metrics['catastrophic'])}/{int(metrics['n'])}",
             "closer_to_best_expert": f"{int(metrics['closer_to_better'])}/{int(metrics['n'])}",
@@ -185,8 +261,11 @@ def metric_table(
                 "method": experiment,
                 "n": str(int(metrics["n"])),
                 "speedup_vs_prefetcher_off": f"{metrics['gm_vs_nopref']:.3f}",
+                "speedup_95ci": format_ci(metrics["gm_vs_nopref_ci_low"], metrics["gm_vs_nopref_ci_high"]),
                 "best_expert_speedup": "",
+                "best_expert_95ci": "",
                 "percent_of_best_expert": "",
+                "percent_of_best_expert_95ci": "",
                 "beats_worse_prefetcher": "",
                 "below_95pct_of_best_expert": "",
                 "closer_to_best_expert": "",
@@ -201,8 +280,11 @@ def write_markdown_table(rows: list[dict[str, str]], path: Path) -> None:
         "method",
         "n",
         "speedup_vs_prefetcher_off",
+        "speedup_95ci",
         "best_expert_speedup",
+        "best_expert_95ci",
         "percent_of_best_expert",
+        "percent_of_best_expert_95ci",
         "beats_worse_prefetcher",
         "below_95pct_of_best_expert",
         "closer_to_best_expert",
@@ -276,6 +358,12 @@ def required_ledger_record_for_hash(ledger_path: Path, code_hash: str, stage: st
     return record
 
 
+def record_speedup_ci(record: dict) -> tuple[float, float]:
+    result_dir = Path(record["result_dir"])
+    router = record["policy"]["router"]
+    return bootstrap_geomean_ci(trace_speedups(result_dir, router), seed=15740 + len(router) + len(record["stage"]))
+
+
 def ledger_record_for_metrics(ledger_path: Path, metrics: dict, stage: str) -> dict | None:
     records = [json.loads(line) for line in ledger_path.read_text().splitlines() if line.strip()]
     candidates = [r for r in records if r.get("stage") == stage and r.get("metrics", {}).get("stage_passed") == 1.0]
@@ -297,6 +385,8 @@ def scale_model_rows(ledger_path: Path, scale_runs: list[tuple[str, Path]]) -> l
         code_hash = stage1_record.get("code_hash", "") if stage1_record else ""
         confirmed = ledger_record_for_hash(ledger_path, code_hash, "stage2") if code_hash else None
         confirmed_metrics = confirmed["metrics"] if confirmed else None
+        quick_ci = record_speedup_ci(stage1_record) if stage1_record else None
+        confirmed_ci = record_speedup_ci(confirmed) if confirmed else None
         screen_nopref = float(metrics["gm_vs_nopref"])
         screen_pair_best_ratio = float(metrics["gm_vs_pair_best"])
         confirmed_nopref = float(confirmed_metrics["gm_vs_nopref"]) if confirmed_metrics else None
@@ -306,10 +396,12 @@ def scale_model_rows(ledger_path: Path, scale_runs: list[tuple[str, Path]]) -> l
             "iterations_seen": str(int(latest["current_iteration"])),
             "best_screen_iter": str(int(best["iteration"])),
             "quick_eval_speedup_vs_prefetcher_off": f"{screen_nopref:.3f}",
+            "quick_eval_speedup_95ci": format_ci(*quick_ci) if quick_ci else "",
             "quick_eval_best_expert_speedup": f"{screen_nopref / screen_pair_best_ratio:.3f}",
             "quick_eval_percent_of_best_expert": f"{100.0 * screen_pair_best_ratio:.1f}%",
             "quick_eval_weighted_score": f"{float(metrics['combined_score']):.3f}",
             "wider_eval_speedup_vs_prefetcher_off": f"{confirmed_nopref:.3f}" if confirmed_nopref else "",
+            "wider_eval_speedup_95ci": format_ci(*confirmed_ci) if confirmed_ci else "",
             "wider_eval_best_expert_speedup": (
                 f"{confirmed_nopref / confirmed_pair_best_ratio:.3f}"
                 if confirmed_nopref and confirmed_pair_best_ratio
@@ -319,6 +411,7 @@ def scale_model_rows(ledger_path: Path, scale_runs: list[tuple[str, Path]]) -> l
             "wider_eval_weighted_score": f"{float(confirmed_metrics['combined_score']):.3f}" if confirmed_metrics else "",
             "openevolve_output_dir": str(path),
             "evaluator_result_dir": f"results/stage2_openevolve/stage1/{code_hash}" if code_hash else "",
+            "wider_evaluator_result_dir": confirmed["result_dir"] if confirmed else "",
         })
     return rows
 
@@ -329,15 +422,18 @@ def write_scale_model_table(rows: list[dict[str, str]], path: Path) -> None:
         "iterations_seen",
         "best_screen_iter",
         "quick_eval_speedup_vs_prefetcher_off",
+        "quick_eval_speedup_95ci",
         "quick_eval_best_expert_speedup",
         "quick_eval_percent_of_best_expert",
         "quick_eval_weighted_score",
         "wider_eval_speedup_vs_prefetcher_off",
+        "wider_eval_speedup_95ci",
         "wider_eval_best_expert_speedup",
         "wider_eval_percent_of_best_expert",
         "wider_eval_weighted_score",
         "openevolve_output_dir",
         "evaluator_result_dir",
+        "wider_evaluator_result_dir",
     ]
     lines = [
         "| " + " | ".join(cols) + " |",
@@ -393,6 +489,16 @@ def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
         split_rows = [r for r in router_rows if r["split"] == split]
         cap_row = next(r for r in split_rows if r["method"] == "OpenEvolve router")
         cap = float(cap_row["best_expert_speedup"])
+        cap_low, cap_high = parse_ci(cap_row["best_expert_95ci"])
+        ax.fill_between(
+            [i - 0.32, i + 0.32],
+            [cap_low, cap_low],
+            [cap_high, cap_high],
+            color=METHOD_COLOR["best_expert"],
+            alpha=0.14,
+            linewidth=0,
+            zorder=1,
+        )
         ax.hlines(cap, i - 0.32, i + 0.32, color=COLORS["black"], linewidth=4.2, zorder=4)
         ax.hlines(cap, i - 0.32, i + 0.32, color=METHOD_COLOR["best_expert"], linewidth=2.6, zorder=5)
         ax.scatter(
@@ -411,6 +517,7 @@ def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
         for j, method in enumerate(methods):
             row = next(r for r in split_rows if r["method"] == method)
             value = float(row["speedup_vs_prefetcher_off"])
+            low, high = parse_ci(row["speedup_95ci"])
             x = i + (j - 0.5) * width
             ax.bar(
                 x,
@@ -422,6 +529,17 @@ def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
                 hatch="//" if method == "Manual router" else None,
                 linewidth=0.8,
                 label=method if i == 0 else None,
+            )
+            ax.errorbar(
+                [x],
+                [value],
+                yerr=[[value - low], [high - value]],
+                fmt="none",
+                ecolor=COLORS["black"],
+                elinewidth=1.1,
+                capsize=4,
+                capthick=1.1,
+                zorder=7,
             )
             ax.text(x, value + 0.006, f"{value:.3f}", ha="center", va="bottom", fontsize=8)
     ax.axhline(1.0, color=COLORS["black"], linestyle=":", linewidth=1.0, label="prefetcher off")
@@ -435,7 +553,7 @@ def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
     fig.text(
         0.02,
         0.01,
-        "Baseline: disabled prefetching at 1.000x. Yellow diamond/line: per-trace best expert before geomean. Hatched orange bars: MoP-V1.",
+        "Baseline: disabled prefetching at 1.000x. Error bars and yellow bands are deterministic trace-bootstrap 95% CIs over traces.",
         ha="left",
         va="bottom",
         fontsize=8,
@@ -632,19 +750,35 @@ def plot_scale_model_comparison(
             edgecolor="none",
             label="_nolegend_",
         )
-        best_points: list[tuple[int, float]] = []
+        score_incumbent_points: list[tuple[int, float]] = []
+        ipc_best_points: list[tuple[int, float]] = []
         best_score = -float("inf")
-        best_speedup = float("nan")
+        score_incumbent_speedup = float("nan")
+        best_ipc_speedup = -float("inf")
         for candidate in candidates:
+            candidate_speedup = float(candidate["metrics"]["gm_vs_nopref"])
             score = float(candidate["metrics"]["combined_score"])
             if score >= best_score:
                 best_score = score
-                best_speedup = float(candidate["metrics"]["gm_vs_nopref"])
-            best_points.append((int(candidate["iteration_found"]), best_speedup))
-        if best_points:
+                score_incumbent_speedup = candidate_speedup
+            best_ipc_speedup = max(best_ipc_speedup, candidate_speedup)
+            iteration = int(candidate["iteration_found"])
+            score_incumbent_points.append((iteration, score_incumbent_speedup))
+            ipc_best_points.append((iteration, best_ipc_speedup))
+        if score_incumbent_points:
             ax.step(
-                [point[0] for point in best_points],
-                [point[1] for point in best_points],
+                [point[0] for point in score_incumbent_points],
+                [point[1] for point in score_incumbent_points],
+                where="post",
+                color=model_colors[label],
+                linewidth=1.5,
+                linestyle="--",
+                alpha=0.45,
+                label="_nolegend_",
+            )
+            ax.step(
+                [point[0] for point in ipc_best_points],
+                [point[1] for point in ipc_best_points],
                 where="post",
                 color=model_colors[label],
                 linewidth=2.2,
@@ -701,18 +835,48 @@ def plot_scale_model_comparison(
     ax_low.grid(True, axis="y", linestyle=":")
     labels = [row["model"] for row in rows]
     quick = [float(row["quick_eval_speedup_vs_prefetcher_off"]) for row in rows]
+    quick_ci = [parse_ci(row["quick_eval_speedup_95ci"]) for row in rows]
     wider = [
         float(row["wider_eval_speedup_vs_prefetcher_off"]) if row["wider_eval_speedup_vs_prefetcher_off"] else float("nan")
         for row in rows
     ]
+    wider_ci = [
+        parse_ci(row["wider_eval_speedup_95ci"]) if row["wider_eval_speedup_95ci"] else (float("nan"), float("nan"))
+        for row in rows
+    ]
     x = list(range(len(labels)))
     ax_right.scatter(x, quick, marker="o", s=54, color=[model_colors[label] for label in labels], label="3-trace quick eval")
-    for xi, value, label in zip(x, wider, labels, strict=True):
+    for xi, value, label, ci in zip(x, quick, labels, quick_ci, strict=True):
+        ax_right.errorbar(
+            [xi],
+            [value],
+            yerr=[[value - ci[0]], [ci[1] - value]],
+            fmt="none",
+            ecolor=COLORS["black"],
+            elinewidth=0.9,
+            capsize=3,
+            capthick=0.9,
+            alpha=0.75,
+            zorder=2,
+        )
+    for xi, value, label, ci in zip(x, wider, labels, wider_ci, strict=True):
         if math.isnan(value):
             ax_right.scatter(xi, quick[xi] + 0.001, marker="x", s=60, color=model_colors[label], linewidth=2.0)
             ax_right.text(xi, quick[xi] + 0.003, "quick\nonly", ha="center", va="bottom", fontsize=8)
         else:
             ax_right.scatter(xi, value, marker="^", s=64, color=model_colors[label])
+            ax_right.errorbar(
+                [xi],
+                [value],
+                yerr=[[value - ci[0]], [ci[1] - value]],
+                fmt="none",
+                ecolor=COLORS["black"],
+                elinewidth=0.9,
+                capsize=3,
+                capthick=0.9,
+                alpha=0.75,
+                zorder=2,
+            )
     ax_right.axhline(active_confirm_nopref, color=COLORS["black"], linestyle="--", linewidth=1.8)
     ax_right.set_xticks(x)
     ax_right.set_xticklabels(["GPT-5\nmini", "GPT-5.4", "Sonnet\n4.6"])
@@ -755,13 +919,15 @@ def plot_scale_model_comparison(
         for label in model_colors
     ]
     handles.extend([
+        Line2D([0], [0], color=COLORS["lightgrey"], linestyle="--", linewidth=2.0, label="score-selected incumbent IPC"),
+        Line2D([0], [0], color=COLORS["black"], linestyle="-", linewidth=2.0, label="best IPC seen so far"),
         Line2D([0], [0], color=COLORS["black"], linestyle="--", linewidth=2.0, label="selected MoP-V2"),
         Line2D([0], [0], color=METHOD_COLOR["best_expert"], linewidth=2.0, label="best expert"),
     ])
     fig.legend(
         handles=handles,
         frameon=False,
-        ncols=3,
+        ncols=4,
         loc="lower center",
         bbox_to_anchor=(0.5, 0.115),
         columnspacing=1.3,
@@ -770,7 +936,7 @@ def plot_scale_model_comparison(
     fig.text(
         0.02,
         0.025,
-        f"Left: 3-trace quick evaluation with y-axis breaks at 1.015-1.025 and above the main band. Right: 10-trace wider validation. Selected MoP-V2: {active_confirm_nopref:.3f}x.",
+        f"Faint points are candidates. Faint dashed lines show score-selected incumbent IPC. Solid lines show best IPC seen so far. Error bars are trace-bootstrap 95% CIs. Selected MoP-V2: {active_confirm_nopref:.3f}x.",
         ha="left",
         va="bottom",
         fontsize=8,
