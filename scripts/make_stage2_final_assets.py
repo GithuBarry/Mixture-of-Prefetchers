@@ -18,7 +18,6 @@ from matplotlib.lines import Line2D  # noqa: E402
 
 
 COLORS = {
-    "yellow": "#ffb000",
     "orange": "#fe6100",
     "pink": "#dc267f",
     "purple": "#785ef0",
@@ -34,6 +33,8 @@ METHOD_COLOR = {
     "SPP+PPF": COLORS["purple"],
     "Manual router": COLORS["orange"],
     "OpenEvolve router": COLORS["pink"],
+    "MoP-V1 manual router": COLORS["orange"],
+    "MoP-V2 OpenEvolve router": COLORS["pink"],
     "MoP-V1.2": COLORS["orange"],
     "MoP-V1.3": COLORS["pink"],
     "best_expert": COLORS["darkblue"],
@@ -221,10 +222,10 @@ def metric_table(
 ) -> list[dict[str, str]]:
     rows = []
     specs = [
-        ("training-split validation", "Manual router", train_v12, "MoP-V1.2"),
-        ("training-split validation", "OpenEvolve router", train_v13, "MoP-V1.3"),
-        ("heldout", "Manual router", heldout_v12, "MoP-V1.2"),
-        ("heldout", "OpenEvolve router", heldout_v13, "MoP-V1.3"),
+        ("training-split validation", "MoP-V1 manual router", train_v12, "MoP-V1.2"),
+        ("training-split validation", "MoP-V2 OpenEvolve router", train_v13, "MoP-V1.3"),
+        ("heldout", "MoP-V1 manual router", heldout_v12, "MoP-V1.2"),
+        ("heldout", "MoP-V2 OpenEvolve router", heldout_v13, "MoP-V1.3"),
     ]
     for split, label, path, router in specs:
         metrics = summarize_router(path, router)
@@ -473,19 +474,15 @@ def wrap_trace_label(trace: str, width: int = 34) -> str:
 
 def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
     setup_plot()
-    router_rows = [r for r in rows if r["method"] in {"Manual router", "OpenEvolve router"}]
+    router_rows = [r for r in rows if r["method"] in {"MoP-V1 manual router", "MoP-V2 OpenEvolve router"}]
     splits = ["training-split validation", "heldout"]
-    methods = ["Manual router", "OpenEvolve router"]
-    display_labels = {
-        "Manual router": "MoP-V1 manual router",
-        "OpenEvolve router": "MoP-V2 OpenEvolve router",
-    }
+    methods = ["MoP-V1 manual router", "MoP-V2 OpenEvolve router"]
     fig, ax = plt.subplots(figsize=(10, 4.8))
     width = 0.34
     cap_label_done = False
     for i, split in enumerate(splits):
         split_rows = [r for r in router_rows if r["split"] == split]
-        cap_row = next(r for r in split_rows if r["method"] == "OpenEvolve router")
+        cap_row = next(r for r in split_rows if r["method"] == "MoP-V2 OpenEvolve router")
         cap = float(cap_row["best_expert_speedup"])
         ax.hlines(cap, i - 0.32, i + 0.32, color=METHOD_COLOR["best_expert"], linewidth=2.8, zorder=5)
         ax.scatter(
@@ -510,11 +507,11 @@ def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
                 value,
                 width=width,
                 color=METHOD_COLOR[method],
-                alpha=0.65 if method == "Manual router" else 1.0,
+                alpha=0.65 if method == "MoP-V1 manual router" else 1.0,
                 edgecolor=COLORS["black"],
-                hatch="//" if method == "Manual router" else None,
+                hatch="//" if method == "MoP-V1 manual router" else None,
                 linewidth=0.8,
-                label=display_labels[method] if i == 0 else None,
+                label=method if i == 0 else None,
             )
             ax.text(x, value + 0.006, f"{value:.3f}", ha="center", va="bottom", fontsize=8)
     ax.axhline(1.0, color=COLORS["black"], linestyle=":", linewidth=1.0, label="prefetcher off")

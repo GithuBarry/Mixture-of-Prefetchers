@@ -3,8 +3,8 @@
   "pptx": "/Users/barry/Library/Mobile Documents/com~apple~CloudDocs/Carnegie Mellon/15740/Proj/Mixture-of-Prefetchers/slides/mop_stage2_final/output/output.pptx",
   "checks": {
     "pptx_package": {
-      "slide_count": 8,
-      "media_count": 3,
+      "slide_count": 12,
+      "media_count": 10,
       "chart_count": 0,
       "zero_byte_media": [],
       "invalid_png_media": [],
