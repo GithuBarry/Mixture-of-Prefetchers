@@ -111,7 +111,7 @@ addSlide(
             style: { fontSize: 76, bold: true, color: COLORS.black },
           }),
           rule({ name: "cover-rule", width: fixed(360), stroke: COLORS.pink, weight: 8 }),
-          text("A small L2C router that closes the train-window gap and clears no-prefetch on heldout", {
+          text("A small L2C router that closes the train-window pair-best gap and clears no-prefetch on heldout", {
             name: "cover-thesis",
             width: fill,
             height: hug,
@@ -163,13 +163,13 @@ addSlide(
   column(
     { name: "root", width: fill, height: fill, padding: { x: 92, y: 70 }, gap: 34 },
     [
-      title("What we added to Athena", "Athena stays the simulator and prefetcher substrate; MoP is the coordination layer and evaluation harness."),
+      title("What we added to Athena", "Athena is the simulator substrate. Our work is the router, sandboxed search, ledgers, and report pipeline."),
       grid(
         { name: "build-grid", width: fill, height: fill, columns: [fr(1), fr(1), fr(1)], columnGap: 48 },
         [
-          bulletList(["Athena", "ChampSim-derived simulator", "Existing L2C prefetchers", "AthenaMAB comparator"], 27),
-          bulletList(["MoP layer", "Router aliases V0 through V1.3", "Epoch action logging", "Budget and sticky controls"], 27),
-          bulletList(["Evaluation", "Official train/heldout split", "Candidate ledger", "Parser-preserving report assets"], 27),
+          bulletList(["Athena substrate", "ChampSim-derived simulator", "Existing L2C prefetchers", "AthenaMAB comparator"], 27),
+          bulletList(["Our MoP layer", "Router aliases V0 through V1.3", "Epoch action logging", "Budget and sticky controls"], 27),
+          bulletList(["Our evidence layer", "Frozen train/heldout split", "OpenEvolve candidate ledger", "Parser-preserving report assets"], 27),
         ],
       ),
     ],
@@ -188,6 +188,12 @@ addSlide(
           bulletList(["Primary comparator: pair-best single", "Secondary comparator: no-prefetch", "Practical floor: weaker expert", "Simple coordinators: WinnerTakeAll, OneShotFit, AthenaMAB"], 29),
         ],
       ),
+      text("Selection used train/search surfaces. Heldout appears only after the seed is fixed.", {
+        name: "protocol-footer",
+        width: fill,
+        height: hug,
+        style: { fontSize: 22, color: COLORS.black },
+      }),
     ],
   ),
 );
@@ -196,7 +202,7 @@ addSlide(
   column(
     { name: "root", width: fill, height: fill, padding: { x: 70, y: 56 }, gap: 18 },
     [
-      title("OpenEvolve improved the train-window router", "The same MLOP + SPP+PPF pair is compared before and after OpenEvolve."),
+      title("OpenEvolve improved the train-window router", "MoP-V1.3 improves both train-window comparators, then shows a smaller heldout lift."),
       image({
         name: "pre-post-figure",
         dataUrl: pngDataUrl("stage2_pre_post_geomean.png"),
@@ -214,7 +220,7 @@ addSlide(
   column(
     { name: "root", width: fill, height: fill, padding: { x: 70, y: 56 }, gap: 18 },
     [
-      title("Heldout shows the balanced-router story", "The router clears no-prefetch in geomean and remains below the stronger single expert."),
+      title("Heldout shows a modest geomean lift", "Heldout clears no-prefetch by geomean, while trace-level placement shows why pair-best remains the upper bar."),
       image({
         name: "heldout-profile",
         dataUrl: pngDataUrl("stage2_heldout_trace_profile.png"),
@@ -232,7 +238,7 @@ addSlide(
   column(
     { name: "root", width: fill, height: fill, padding: { x: 70, y: 56 }, gap: 18 },
     [
-      title("Three model sweeps found nearby policies", "Scaled search improved the cheap screen, and wider confirmation kept the frozen seed."),
+      title("Model sweeps improved screens, confirmation kept the seed", "Scaled search found similar cheap-screen candidates, then 10-trace confirmation preserved the active seed at 0.9801x."),
       image({
         name: "scale-models",
         dataUrl: pngDataUrl("stage2_scale_model_comparison.png"),
@@ -258,6 +264,12 @@ addSlide(
           bulletList(["Recorded failures", "Simulator SIGBUS rows", "Unknown policy keys", "Helper/import code", "Missing evolve markers"], 29),
         ],
       ),
+      text("Ledger: 290 candidates, 225 valid scored rows, 65 fail-closed rows. Malformed or crashed candidates receive combined_score = -10.0.", {
+        name: "audit-footer",
+        width: fill,
+        height: hug,
+        style: { fontSize: 22, color: COLORS.black },
+      }),
     ],
   ),
 );
@@ -269,8 +281,8 @@ addSlide(
       title("Defensible claims"),
       bulletList(
         [
-          "Stage 2 improved the Stage 1 router family on train-window evidence.",
-          "The selected router beats no-prefetch in train-window and heldout geomean.",
+          "Primary defended claim: Stage 2 closes the train-window gap against pair-best single.",
+          "Heldout claim: the selected router clears no-prefetch in geomean.",
           "The selected router beats simple coordination baselines on the 13-trace train-window surface.",
           "Pair-best single remains the upper comparator, which keeps the claim honest.",
           "The final artifacts preserve raw metric paths, ledgers, configs, and generated figures.",

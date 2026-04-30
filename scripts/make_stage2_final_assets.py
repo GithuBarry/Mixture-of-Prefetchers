@@ -187,6 +187,12 @@ def ledger_record_for_hash(ledger_path: Path, code_hash: str, stage: str) -> dic
     return matches[-1]
 
 
+def required_ledger_record_for_hash(ledger_path: Path, code_hash: str, stage: str) -> dict:
+    record = ledger_record_for_hash(ledger_path, code_hash, stage)
+    assert record is not None, f"Missing {stage} record for {code_hash} in {ledger_path}"
+    return record
+
+
 def ledger_record_for_metrics(ledger_path: Path, metrics: dict, stage: str) -> dict | None:
     records = [json.loads(line) for line in ledger_path.read_text().splitlines() if line.strip()]
     candidates = [r for r in records if r.get("stage") == stage and r.get("metrics", {}).get("stage_passed") == 1.0]
@@ -431,7 +437,12 @@ def plot_model_comparison(ledger_path: Path, out_path: Path) -> None:
     plt.close(fig)
 
 
-def plot_scale_model_comparison(rows: list[dict[str, str]], out_path: Path) -> None:
+def plot_scale_model_comparison(
+    rows: list[dict[str, str]],
+    out_path: Path,
+    active_screen_pair_best: float,
+    active_confirm_pair_best: float,
+) -> None:
     setup_plot()
     labels = [row["model"] for row in rows]
     screen = [float(row["screen_gm_vs_pair_best"]) for row in rows]
@@ -439,11 +450,10 @@ def plot_scale_model_comparison(rows: list[dict[str, str]], out_path: Path) -> N
         float(row["confirmed_10_trace_pair_best"]) if row["confirmed_10_trace_pair_best"] else float("nan")
         for row in rows
     ]
-    active_stage2 = 0.9801372167719825
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.2))
     x = list(range(len(labels)))
     axes[0].bar(x, screen, color=COLORS["blue"], edgecolor=COLORS["black"], linewidth=0.8)
-    axes[0].axhline(0.9358978060739194, color=COLORS["black"], linestyle=":", linewidth=1.1, label="active seed screen")
+    axes[0].axhline(active_screen_pair_best, color=COLORS["black"], linestyle=":", linewidth=1.1, label="active seed screen")
     axes[0].set_title("Scaled search improved the cheap screen")
     axes[0].set_ylabel("3-trace geomean vs pair-best")
     axes[0].set_ylim(0.932, 0.942)
@@ -461,7 +471,7 @@ def plot_scale_model_comparison(rows: list[dict[str, str]], out_path: Path) -> N
         )
         if not math.isnan(value):
             axes[1].text(xi, value + 0.0004, f"{value:.3f}", ha="center", va="bottom", fontsize=8)
-    axes[1].axhline(active_stage2, color=COLORS["pink"], linewidth=1.6, label="active seed 10-trace")
+    axes[1].axhline(active_confirm_pair_best, color=COLORS["pink"], linewidth=1.6, label="active seed 10-trace")
     axes[1].set_title("Wider confirmation kept the frozen seed")
     axes[1].set_ylabel("10-trace geomean vs pair-best")
     axes[1].set_ylim(0.976, 0.982)
@@ -514,7 +524,14 @@ def main() -> int:
     plot_pre_post(rows, args.figures_dir / "stage2_pre_post_geomean.png")
     plot_heldout_trace_profile(args.heldout_v13, args.figures_dir / "stage2_heldout_trace_profile.png")
     plot_model_comparison(args.model_ledger, args.figures_dir / "stage2_model_comparison.png")
-    plot_scale_model_comparison(scale_rows, args.figures_dir / "stage2_scale_model_comparison.png")
+    active_screen = required_ledger_record_for_hash(args.candidate_ledger, "a52ed8a4151ad6cc", "stage1")
+    active_confirm = required_ledger_record_for_hash(args.candidate_ledger, "a52ed8a4151ad6cc", "stage2")
+    plot_scale_model_comparison(
+        scale_rows,
+        args.figures_dir / "stage2_scale_model_comparison.png",
+        float(active_screen["metrics"]["gm_vs_pair_best"]),
+        float(active_confirm["metrics"]["gm_vs_pair_best"]),
+    )
     return 0
 
 
