@@ -23,6 +23,7 @@ COLORS = {
     "pink": "#dc267f",
     "purple": "#785ef0",
     "blue": "#648fff",
+    "darkblue": "#3f6fd1",
     "black": "#000000",
     "white": "#ffffff",
     "lightgrey": "#d9d9d9",
@@ -35,7 +36,7 @@ METHOD_COLOR = {
     "OpenEvolve router": COLORS["pink"],
     "MoP-V1.2": COLORS["orange"],
     "MoP-V1.3": COLORS["pink"],
-    "best_expert": COLORS["yellow"],
+    "best_expert": COLORS["darkblue"],
 }
 
 EVOLVE_MODEL_COLOR = {
@@ -527,7 +528,7 @@ def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
     fig.text(
         0.02,
         0.01,
-        "Baseline: disabled prefetching at 1.000x. Yellow diamond/line: per-trace best expert before geomean.",
+        "Baseline: disabled prefetching at 1.000x. Dark-blue diamond/line: per-trace best expert before geomean.",
         ha="left",
         va="bottom",
         fontsize=8,

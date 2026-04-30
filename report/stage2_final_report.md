@@ -14,7 +14,7 @@ The IPC result comes from cycle reduction under a fixed instruction window. On t
 
 ![Router geomean with disabled prefetching as 1x](figures/stage2_pre_post_geomean.png)
 
-*Caption: disabled prefetching is the black `1.000x` baseline, yellow marks the oracle-style per-trace best expert, orange is the manual `MoP-V1` router, and pink is the OpenEvolve-tuned `MoP-V2` router.*
+*Caption: disabled prefetching is the black `1.000x` baseline, dark blue marks the oracle-style per-trace best expert, orange is the manual `MoP-V1` router, and pink is the OpenEvolve-tuned `MoP-V2` router.*
 
 ## What We Built On Athena
 

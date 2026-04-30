@@ -28,6 +28,7 @@ const COLORS = {
   pink: "#dc267f",
   purple: "#785ef0",
   blue: "#648fff",
+  darkblue: "#3f6fd1",
   black: "#000000",
   white: "#ffffff",
   lightgrey: "#d9d9d9",
@@ -202,7 +203,7 @@ addSlide(
   column(
     { name: "root", width: fill, height: fill, padding: { x: 70, y: 56 }, gap: 18 },
     [
-      title("OpenEvolve improved the router", "Bars use disabled prefetching as 1x. Yellow marks show the per-trace best expert."),
+      title("OpenEvolve improved the router", "Bars use disabled prefetching as 1x. Dark blue marks the per-trace best expert."),
       image({
         name: "pre-post-figure",
         dataUrl: pngDataUrl("stage2_pre_post_geomean.png"),
