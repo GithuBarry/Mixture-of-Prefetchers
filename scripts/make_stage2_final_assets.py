@@ -393,15 +393,18 @@ def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
         split_rows = [r for r in router_rows if r["split"] == split]
         cap_row = next(r for r in split_rows if r["method"] == "OpenEvolve router")
         cap = float(cap_row["best_expert_speedup"])
+        ax.hlines(cap, i - 0.32, i + 0.32, color=COLORS["black"], linewidth=4.2, zorder=4)
+        ax.hlines(cap, i - 0.32, i + 0.32, color=METHOD_COLOR["best_expert"], linewidth=2.6, zorder=5)
         ax.scatter(
             [i],
             [cap],
-            marker="_",
-            s=900,
-            color=METHOD_COLOR["best_expert"],
-            linewidth=2.2,
+            marker="D",
+            s=58,
+            facecolor=METHOD_COLOR["best_expert"],
+            edgecolor=COLORS["black"],
+            linewidth=0.9,
             label="best expert" if not cap_label_done else None,
-            zorder=4,
+            zorder=6,
         )
         ax.text(i, cap + 0.006, f"best {cap:.3f}", ha="center", va="bottom", fontsize=8)
         cap_label_done = True
@@ -416,6 +419,7 @@ def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
                 color=METHOD_COLOR[method],
                 alpha=0.65 if method == "Manual router" else 1.0,
                 edgecolor=COLORS["black"],
+                hatch="//" if method == "Manual router" else None,
                 linewidth=0.8,
                 label=method if i == 0 else None,
             )
@@ -431,7 +435,7 @@ def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
     fig.text(
         0.02,
         0.01,
-        "Baseline: disabled prefetching at 1.000x. Yellow mark: per-trace best expert before geomean.",
+        "Baseline: disabled prefetching at 1.000x. Yellow diamond/line: per-trace best expert before geomean. Hatched orange bars: MoP-V1.",
         ha="left",
         va="bottom",
         fontsize=8,
