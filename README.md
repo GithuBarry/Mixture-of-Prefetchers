@@ -1,168 +1,103 @@
 # Mixture-of-Prefetchers
 
-This repository is a Stage 1 systems-research baseline for **two-expert L2
-prefetcher coordination** on top of the Athena simulator.
+This repository builds a small router on top of the Athena simulator to coordinate two L2-cache prefetchers. The current finished story uses `MLOP + SPP+PPF` at L2C and an OpenEvolve-selected router called `MoP-V1.3`.
 
-The concrete question is:
+Start with the final report:
 
-> Can a small epoch-based controller coordinate two strong L2 prefetchers under
-> explicit traffic and usefulness constraints, and beat fair baselines?
+1. `report/stage2_final_report.md`
+2. `slides/mop_stage2_final/output/output.pptx`
+3. `report/writing_logistics.md`
 
-The current answer is:
+## Current Result
 
-- **yes, sometimes against no-prefetch**
-- **not yet against the strongest single expert of the coordinated pair**
+All headline performance is IPC speedup relative to disabled prefetching. The oracle best prefetcher is shown separately as a cap, computed as `max(MLOP, SPP+PPF)` on each trace.
 
-That negative result is still useful. The repo now contains the full baseline
-package needed for Stage 2: working code, fixed splits, manifests, processed
-data, figures, tables, and human-written logs.
+| Surface | Selected router | Speedup vs disabled prefetching | Oracle best cap |
+| --- | --- | ---: | ---: |
+| 13-trace training validation | `MoP-V1.3` | `1.066243x` | `1.084810x` |
+| 7-trace heldout | `MoP-V1.3` | `1.003270x` | `1.024333x` |
 
-## Current readout
+The manual reference router is `MoP-V1.2`. It reaches `1.047685x` on the same 13-trace training-validation surface and `0.998069x` on heldout.
 
-Completed Stage 1 evidence currently covers:
+## What We Added To Athena
 
-- `17` train-side traces
-- `7` held-out traces
-- the full `24`-trace Stage 1 suite
+Athena provides the simulator, cache hierarchy, prefetchers, and baseline machinery. This repo adds:
 
-Held-out-first summary:
+- an epoch-based L2C router for two constituent prefetchers
+- MoP router variants `MoP-V1.1`, `MoP-V1.2`, and `MoP-V1.3`
+- per-expert issued/useful counters and budget controls
+- fixed train and heldout split handling
+- an OpenEvolve policy-search sandbox
+- candidate ledgers, generated tables, generated figures, and a slide deck
 
-- against **no-prefetch**, the strongest held-out coordinator is `AthenaMAB` at
-  `1.0378x`
-- against the **pair-best single expert** (`Pythia` / `SPP+PPF`), no coordinator
-  reaches `1.0x`; the strongest is `AthenaMAB` at `0.9560x`
-- `MoP-V0` (`MoPLite`) reaches `0.9974x` vs no-prefetch and `0.9188x` vs pair-best single
-  on held-out
+## Trace Protocol
 
-Train-side summary:
+The official split has 24 traces:
 
-- vs no-prefetch, `AthenaMAB` is strongest at `1.0095x`
-- vs pair-best single, no coordinator reaches `1.0x`; `AthenaMAB` is strongest
-  at `0.9619x`
-- `MoP-V0` (`MoPLite`) reaches `0.9986x` vs no-prefetch and `0.9515x` vs pair-best single
+- 17 training traces
+- 7 heldout traces
 
-So the current `MoP-V0` (`MoPLite`) rule is **not** the strongest coordinator in this repo,
-and it does **not** beat the pair-best single expert in geomean on either split.
+OpenEvolve search used training traces. The quick evaluator used 3 training traces, wider validation used 10 training traces, and final training validation used the 13 training traces available in this checkout. Heldout evaluation used the 7 frozen heldout traces after policy selection.
 
-## What this means
+Simulation windows:
 
-Stage 1 succeeds as a **baseline and measurement foundation**, not as a
-headline coordination win.
+- quick and training-validation runs: `500K` warmup, `1M` simulation
+- heldout runs: `5M` warmup, `10M` simulation
+- router epoch length: `500K` retired instructions
 
-What is established:
+## Router Names
 
-- the simulator path is working and reproducible
-- the two-expert control surface is implemented and logged
-- the split protocol is frozen and respected
-- coordinator baselines are compared under one fair protocol
-- some coordinators deliver small `1+x` wins vs no-prefetch
-- the historical default `Pythia + SPP+PPF` rules lose in geomean to the
-  pair-best single
+| Name | Meaning |
+| --- | --- |
+| `MoP-V1.1` | guarded router with budget-share protection |
+| `MoP-V1.2` | one-epoch probe, then higher-scoring expert selection |
+| `MoP-V1.3` | `MoP-V1.2` plus a sticky margin for close expert scores |
 
-That is enough to justify Stage 2 optimization without overselling Stage 1.
+The selected `MoP-V1.3` policy is:
 
-Active Stage 2 work uses the train-only freeze in
-`docs/decisions/stage2_openevolve_start.md`: L2C `MLOP + SPP+PPF`,
-`MoP-V1.2` as the main policy seed, and `MoP-V1.1` as backup.
-
-## Stage 1 finish names
-
-The Stage 1 freeze keeps the old router names as CLI aliases but uses clearer
-reporting names:
-
-| Name | Legacy alias | Router type | Role |
-| --- | --- | ---: | --- |
-| `MoP-V0` | `MoPLite` | 4 | Original score-sign baseline |
-| `MoP-V1.1` | `MoPLiteGuarded` | 5 | Guarded fallback / budget-share variant |
-| `MoP-V1.2` | `ProbeThenWinner` | 6 | ProbeSingle candidate with `mop_one_shot_epochs=1` in Stage 1 finish modes |
-
-Held-out traces remain reserved for final Stage 2 confirmation. The Stage 1
-finish screens and confirmations use train/search data only.
-
-## What to look at
-
-Start here:
-
-1. `docs/outsider_guide.md`
-2. `report/draft.md`
-3. `report/figures/ipc_speedup_summary.png`
-4. `report/figures/single_expert_profiles.png`
-5. `report/tables/router_ablation.md`
-6. `report/tables/routing_criterion.md`
-7. `report/tables/alternate_pair_exploration.md`
-
-Key source-of-truth files:
-
-- project guide: `docs/outsider_guide.md`
-- operational index: `docs/README.md`
-- split and run modes: `configs/trace_suites.json`, `configs/run_modes.json`
-- environment and artifact flow: `docs/operational/environment.md`
-- dataset schema: `docs/operational/dataset_schema.md`
-- research log: `docs/operational/research_log.md`
-- transparency log: `docs/operational/transparency_log.md`
-
-## Repository structure
-
-- `external/athena/`: vendored Athena / ChampSim simulator
-- `scripts/run_mop_lite.py`: main experiment runner
-- `scripts/build_dataset.py`: manifest + metrics -> `data/processed/runs.csv`
-- `scripts/make_figures.py`: `runs.csv` -> report figures and tables
-- `data/processed/`: merged Stage 1 dataset
-- `report/`: draft report, figures, and tables
-
-## Artifact flow
-
-The evidence chain is simple and strict:
-
-1. `scripts/run_mop_lite.py` writes raw artifacts and an append-only manifest
-2. `scripts/build_dataset.py` turns manifests + metrics into `runs.csv`
-3. `scripts/make_figures.py` rebuilds all report figures/tables from `runs.csv`
-
-That separation is deliberate:
-
-- `results/` = raw evidence
-- `data/processed/` = analysis entry point
-- `report/` = presentation layer
-
-## Reproducing the completed Stage 1 dataset
-
-```bash
-git submodule update --init --recursive
-make -C external/athena -j$(nproc)
-
-# search-side batch
-python3 scripts/run_mop_lite.py --mode search_mode --workers 15 --results-dir results/mop_lite_search
-
-# remaining train-side traces
-python3 scripts/run_mop_lite.py <remaining train trace list and flags> --workers 15 --results-dir results/mop_lite_train_extra
-
-# held-out batch
-python3 scripts/run_mop_lite.py --trace 437.leslie3d-134B --trace 459.GemsFDTD-1169B --trace 471.omnetpp-188B --trace parsec_2.1.canneal.simlarge.prebuilt.drop_4750M.length_250M --trace parsec_2.1.streamcluster.simlarge.prebuilt.drop_0M.length_250M --trace ligra_BC.com-lj.ungraph.gcc_6.3.0_O3.drop_500M.length_250M --trace secret_compute_fp_105 --warmup-instructions 20000000 --simulation-instructions 50000000 --expert-0 Pythia --expert-1 SPP+PPF --router FixedSplit --router WinnerTakeAll --router RandomRouter --router OneShotFit --router MoPLite --builtin AthenaMAB --single-baseline MLOP --single-baseline SMS --workers 15 --skip-download --results-dir results/mop_lite_final
-
-# merged dataset + figures
-python3 scripts/build_dataset.py --manifest results/mop_lite_search/manifest.jsonl --manifest results/mop_lite_train_extra/manifest.jsonl --manifest results/mop_lite_final/manifest.jsonl
-python3 scripts/make_figures.py
+```python
+{
+    "router": "MoP-V1.3",
+    "mop_total_budget": 9216,
+    "mop_one_shot_epochs": 1,
+    "mop_accuracy_floor": 30,
+    "mop_guarded_min_budget_share": 10,
+    "mop_sticky_margin_pct": 3,
+    "mop_score_weights": [1.0, 0.55, 1.0],
+}
 ```
 
-## Upstream vs local work
+## OpenEvolve Runs
 
-Upstream Athena provides:
+The candidate ledger contains 290 rows:
 
-- the simulator foundation
-- single-expert prefetchers such as `Pythia`, `SPP+PPF`, `MLOP`, `SMS`
-- Athena's builtin `AthenaMAB` coordinator
+- 225 valid scored rows
+- 65 fail-closed rows
 
-This repository adds:
+The larger model sweeps requested:
 
-- the scoped Stage 1 protocol
-- local `oogway.cc` changes for the MoP-lite study
-- simple router baselines (`FixedSplit`, `WinnerTakeAll`, `RandomRouter`, `OneShotFit`, `MoP-V0` / `MoPLite`)
-- manifests, dataset building, figure generation, and advisor-facing docs
+- GPT-5 mini: 80 iterations
+- GPT-5.4: 30 iterations
+- Sonnet 4.6: 30 iterations
 
-## Bottom line
+The repo records iterations, candidates, simulator outcomes, and generated artifacts. Gateway dollar billing should be read from the CMU AI Gateway dashboard.
 
-If you want the shortest honest summary:
+## Rebuilding The Report Assets
 
-- **the baseline is real and reproducible**
-- **the current `MoP-V0` (`MoPLite`) rule is not yet better than the strongest single expert**
-- **Stage 2 should optimize the control surface, not re-litigate the measurement setup**
+```bash
+python3 scripts/make_stage2_final_assets.py \
+  --heldout-v12 results/stage2_openevolve/heldout/final_v12_reference_20260429 \
+  --heldout-v13 results/stage2_openevolve/heldout/final_v13_20260429
+```
+
+Raw simulator outputs live under ignored `results/...` paths on the producing machine. The committed report, tables, figures, ledgers, and slide deck are the portable evidence layer.
+
+## Repository Map
+
+- `external/athena/`: vendored Athena and ChampSim-derived simulator
+- `scripts/run_mop_lite.py`: main experiment runner
+- `scripts/make_stage2_final_assets.py`: final report table and figure builder
+- `stage2/openevolve/evaluator.py`: OpenEvolve evaluator
+- `stage2/openevolve/candidate_ledger.jsonl`: candidate audit ledger
+- `report/`: report, figures, tables, and writing logistics
+- `slides/mop_stage2_final/`: presentation source, previews, and PowerPoint output

@@ -1,29 +1,39 @@
-# Stage 2 OpenEvolve Final Report
+# Mixture-of-Prefetchers OpenEvolve Report
 
 ## Executive Read
 
-We built a compact Mixture-of-Prefetchers coordinator on top of Athena's L2C prefetcher infrastructure, then used OpenEvolve to search a tiny policy surface. The selected story is `MLOP + SPP+PPF` at L2C, with `MoP-V1.3` as the evolved sticky-single router. The work beyond Athena is the routing layer, the train/heldout protocol, the OpenEvolve policy sandbox, the candidate ledger, and the report pipeline that turns simulator artifacts into tables, plots, and a presentation deck.
+We used OpenEvolve, a large-language-model program search framework, to tune a compact router that chooses between two Athena L2-cache prefetchers. The expert pair is `MLOP + SPP+PPF` at L2C. The final router is `MoP-V1.3`, a sticky single-expert router selected by OpenEvolve.
 
-The strongest claim is train-window gap closing. On the 13-trace train-window confirmation surface, the pre-OpenEvolve `MoP-V1.2` reference reached `0.964637x` vs the pair-best single and `1.047685x` vs no-prefetch. The post-OpenEvolve `MoP-V1.3 sticky 3` seed reached `0.982884x` vs pair-best and `1.066243x` vs no-prefetch. It also beat the weaker expert on `11/13` traces, compared with `9/13` for `MoP-V1.2`, and reduced catastrophic traces from `3/13` to `2/13`.
+All performance numbers in this report use disabled prefetching as `1.0x`. The per-trace oracle best prefetcher is shown as a cap: for each trace, it is `max(MLOP, SPP+PPF)`, then geomeaned across the trace set. The router is judged by how close it gets to that cap while staying above disabled prefetching.
 
-The heldout result is a modest generalization result. On seven heldout traces, `MoP-V1.3` reached `0.979437x` vs pair-best and `1.003270x` vs no-prefetch. `MoP-V1.2` reached `0.975893x` vs pair-best and `0.998069x` vs no-prefetch. The selected router clears no-prefetch on heldout and remains below the best constituent single, which is a fair outcome for this project because the main comparator hierarchy kept pair-best first. The trace-level story is mixed: `MoP-V1.3` improves the large `secret_compute_fp_105` tail loss from `0.8217x` to `0.8896x` vs pair-best, while its weaker-expert win count is `5/7` and its closer-to-better count is `3/7`.
+The main result is a stronger 13-trace training-validation router. The manual `MoP-V1.2` router reaches `1.047685x` IPC speedup over disabled prefetching. The OpenEvolve-selected `MoP-V1.3` router reaches `1.066243x`. The oracle cap on the same traces is `1.084810x`, so `MoP-V1.3` reaches `0.982884x` of the cap. It also beats the worse constituent prefetcher on `11/13` traces and has `2/13` traces below `0.95x` of the cap.
+
+The heldout result is smaller and still positive by the disabled-prefetching baseline. On seven heldout traces, `MoP-V1.3` reaches `1.003270x` over disabled prefetching. The oracle cap is `1.024333x`, and `MoP-V1.3` reaches `0.979437x` of that cap. This is a modest generalization result, and it is the right claim size for the data.
+
+The IPC result comes from cycle reduction under a fixed instruction window. On the 13-trace training-validation run, `MoP-V1.3` has instruction-count ratio `0.999999462x` and cycle-count ratio `0.937877x` relative to disabled prefetching. On heldout, the instruction-count ratio is `1.000000009x` and the cycle-count ratio is `0.996737x`. The advisor-facing answer is: the simulator holds the retired-instruction window fixed, so IPC movement is effectively cycle movement.
+
+![Router geomean with disabled prefetching as 1x](figures/stage2_pre_post_geomean.png)
 
 ## What We Built On Athena
 
-Athena provided the simulator, cache hierarchy, existing prefetchers, and the original `AthenaMAB` comparison point. Our contribution sits above that substrate: a router family that chooses or budgets constituent L2C prefetchers, epoch-level action and usefulness accounting, a fixed trace protocol, OpenEvolve candidate generation under a narrow policy API, and artifact tooling that makes the resulting claims auditable.
+Athena provides the simulator, cache hierarchy, L2C prefetchers, and existing comparison baselines. Our work sits above that substrate:
 
-We added router aliases and implementation paths for:
+- a two-prefetcher routing layer for Athena L2C
+- epoch-level counters for each expert, including issued and useful prefetches
+- router variants that select one expert, preserve a guarded budget share, or add sticky single-expert behavior
+- a fixed train and heldout trace protocol
+- an OpenEvolve evaluator that accepts a small literal policy dictionary
+- ledgers and plots that rebuild from simulator summaries
 
-| Name | Meaning | Role |
+The router names in the code mean:
+
+| Name | Behavior | Role in this report |
 | --- | --- | --- |
-| `MoP-V0` | Original `MoPLite` | Stage 1 baseline router |
-| `MoP-V1.1 Guarded` | Original `MoPLiteGuarded` | Stage 1 backup with guardrails |
-| `MoP-V1.2 ProbeSingle` | Original `ProbeThenWinner` | Stage 1 finalist and pre-OpenEvolve reference |
-| `MoP-V1.3 StickySingle` | OpenEvolve seed family | Stage 2 selected policy family |
+| `MoP-V1.1` | guarded router with budget-share protection | backup manual family |
+| `MoP-V1.2` | probes both experts for one epoch, then selects the higher-scoring expert | manual before-OpenEvolve reference |
+| `MoP-V1.3` | `MoP-V1.2` plus a sticky margin that keeps the previous single-expert action when scores are close | final OpenEvolve-selected router |
 
-The implementation surface for OpenEvolve was deliberately small. Candidates could edit only `candidate_policy()` and return a literal dictionary with router choice, total budget, one-shot epochs, guarded share, sticky margin, and three score weights. The evaluator rejected helper code, imports, file access, trace names, metric-key leakage, unknown policy keys, and malformed evolve blocks.
-
-The important policy that survived confirmation is:
+The selected policy is:
 
 ```python
 {
@@ -37,169 +47,102 @@ The important policy that survived confirmation is:
 }
 ```
 
+`mop_total_budget` is the per-epoch prefetch budget. `mop_one_shot_epochs` is the initial dual-expert probe window. `mop_guarded_min_budget_share` is each expert's minimum share when the guarded family is active. `mop_sticky_margin_pct` is the score tie band for `MoP-V1.3`. `mop_score_weights` weight the accuracy, coverage, and traffic terms used by the router score.
+
+At runtime, the router reads previous-epoch per-expert issued and useful counters, the retired-instruction epoch boundary, and its own previous action. It can choose `MLOP`, `SPP+PPF`, both, or the prefetcher-off action, and it can split the per-epoch budget. OpenEvolve could change the literal `candidate_policy()` dictionary: router family, total budget, one-shot epochs, accuracy floor, guarded minimum share, sticky margin, and score weights. The trace split, heldout traces, parser, metric definitions, baseline runs, expert pair, cache level, and simulator internals stayed fixed.
+
 ## Trace Protocol
 
-Stage 1 selected L2C as the cache level and `MLOP + SPP+PPF` as the expert pair using train/search evidence. Heldout traces stayed reserved for final confirmation. The evidence set used the official split in `data/splits/official_v1.json`: 17 train traces and 7 heldout traces, with 10-trace and 13-trace train/search subsets for OpenEvolve confirmation.
+The official split has 24 traces: 17 training traces and 7 heldout traces. OpenEvolve search used training traces. The quick evaluator used 3 training traces. Wider validation used 10 training traces. Final training validation used the 13 training traces available in this checkout. Heldout evaluation used the 7 frozen heldout traces after policy selection.
 
-The `official_v1` split is the frozen trace split. Its original recommended-pair metadata predates the Stage 1 finish-screen decision. Stage 2 keeps the trace split fixed and uses the Stage 1 train/search choice of `MLOP + SPP+PPF`.
+The fixed final setup is:
 
-The evaluation comparator hierarchy stayed fixed:
+| Item | Value |
+| --- | --- |
+| Cache level | L2C |
+| Expert pair | Athena `MLOP + SPP+PPF` L2-cache prefetchers |
+| Training traces in official split | 17 |
+| Quick OpenEvolve evaluator | 3 training traces, `500K` warmup, `1M` simulation |
+| Wider OpenEvolve validation | 10 training traces, `500K` warmup, `1M` simulation |
+| Final training validation | 13 training traces, `500K` warmup, `1M` simulation |
+| Heldout evaluation | 7 heldout traces, `5M` warmup, `10M` simulation |
+| Router epoch length | `500K` retired instructions |
+| Selected per-epoch prefetch budget | `9216` |
+
+The comparator hierarchy is:
 
 | Comparator | Purpose |
 | --- | --- |
-| Pair-best constituent single | Primary standard for router quality |
-| No-prefetch | Secondary sanity baseline |
-| Weaker constituent single | Practical minimum for routing value |
-| WinnerTakeAll, OneShotFit, AthenaMAB | Simple coordination baselines |
+| Disabled prefetching | universal `1.0x` baseline for performance |
+| Per-trace oracle best prefetcher | cap from `max(MLOP, SPP+PPF)` on each trace |
+| Worse constituent prefetcher | minimum practical routing check |
+| Simple router baselines | `WinnerTakeAll`, `OneShotFit`, and Athena MAB |
 
-The trace choice supports the story because `MLOP` and `SPP+PPF` have different strengths, while both can still produce useful speedups on parts of the split. On heldout, `SPP+PPF` is the stronger single overall at `1.023725x` vs no-prefetch, while `MLOP` sits at `0.974379x`. The router's geomean lands between no-prefetch and the pair-best single, and the per-trace placement shows useful routing on some traces plus residual tail risk on `secret_compute_fp_105`.
+The expert pair supports the routing story because the two prefetchers have different strengths. On heldout, `SPP+PPF` is stronger overall at `1.023725x` over disabled prefetching, while `MLOP` reaches `0.974379x`. The router lands between disabled prefetching and the oracle cap in geomean.
 
-## Pre-OpenEvolve And Post-OpenEvolve Performance
-
-![Pre/post geomean contrast](figures/stage2_pre_post_geomean.png)
-
-| Surface | Pre-OpenEvolve `MoP-V1.2` | Post-OpenEvolve `MoP-V1.3` | Read |
-| --- | ---: | ---: | --- |
-| 13-trace train-window vs pair-best | `0.964637` | `0.982884` | large gap close |
-| 13-trace train-window vs no-prefetch | `1.047685` | `1.066243` | stronger baseline speedup |
-| 13-trace train-window vs weaker expert | `1.096428` | `1.117600` | stronger floor |
-| Beats weaker expert | `9/13` | `11/13` | broader practical wins |
-| Catastrophic traces vs pair-best | `3/13` | `2/13` | lower tail risk |
-| 7-trace heldout vs pair-best | `0.975893` | `0.979437` | small heldout lift |
-| 7-trace heldout vs no-prefetch | `0.998069` | `1.003270` | clears baseline |
-
-The 13-trace train-window result also beats the simple coordination baselines:
-
-| Method | Geomean vs pair-best | Geomean vs no-prefetch | Beats weaker | Catastrophic |
-| --- | ---: | ---: | ---: | ---: |
-| `MoP-V1.3 sticky 3` | `0.982884` | `1.066243` | `11/13` | `2/13` |
-| `WinnerTakeAll` | `0.942771` | `1.024749` | `7/13` | `5/13` |
-| `OneShotFit` | `0.943456` | `1.026820` | `6/13` | `5/13` |
-| `AthenaMAB` | `0.942077` | `1.021295` | `6/13` | `5/13` |
-
-These coordination-baseline comparisons are train-window checks. Heldout confirmation focuses on the frozen pre/post routers and the constituent singles.
-
-Raw ledger excerpt for the selected train-window contrast:
-
-```json
-"candidate": "current-checkout MoP-V1.2 reference", "metrics": {"beats_weaker_rate": 0.6923076923076923, "catastrophic_rate": 0.23076923076923078, "combined_score": -0.03363851952364746, "gm_vs_nopref": 1.0476848980087445, "gm_vs_pair_best": 0.9646368735247647, "gm_vs_weaker": 1.096428499605789, "n_traces": 13.0}
-```
-
-```json
-"candidate": "post-OpenEvolve MoP-V1.3 sticky 3", "metrics": {"beats_weaker_rate": 0.8461538461538461, "catastrophic_rate": 0.15384615384615385, "combined_score": 0.0025467018402465964, "gm_vs_nopref": 1.0662425357579794, "gm_vs_pair_best": 0.9828844587135206, "gm_vs_weaker": 1.1176001948856458, "n_traces": 13.0}
-```
-
-## OpenEvolve Model Scaling
-
-![Scaled model comparison](figures/stage2_scale_model_comparison.png)
-
-We used small smoke runs first, then scaled with `gpt-5-mini`, `gpt-5.4`, and Claude Sonnet 4.6. A gateway model probe on April 29, 2026 found GPT-5 and Anthropic models available for this key, while Kimi models were absent from that response. The largest sweep was the 80-iteration GPT-5 mini run, with 30-iteration sweeps for GPT-5.4 and Sonnet 4.6. The committed configs keep `max_iterations: 1` as a cheap default, and the actual scale runs used explicit CLI overrides:
-
-```bash
-PYTHONPATH=external/openevolve STAGE2_EVAL_STAGE=stage1 \
-  python3 external/openevolve/openevolve-run.py \
-  stage2/openevolve/initial_policy.py stage2/openevolve/evaluator.py \
-  --config stage2/openevolve/config_scale_gpt5mini.yaml \
-  --output results/stage2_openevolve/scale/gpt5mini_stage1_iter80_20260430 \
-  --iterations 80
-```
-
-```bash
-PYTHONPATH=external/openevolve STAGE2_EVAL_STAGE=stage1 \
-  python3 external/openevolve/openevolve-run.py \
-  stage2/openevolve/initial_policy.py stage2/openevolve/evaluator.py \
-  --config stage2/openevolve/config_scale_gpt54.yaml \
-  --output results/stage2_openevolve/scale/gpt54_stage1_iter30_20260430 \
-  --iterations 30
-```
-
-```bash
-PYTHONPATH=external/openevolve STAGE2_EVAL_STAGE=stage1 \
-  python3 external/openevolve/openevolve-run.py \
-  stage2/openevolve/initial_policy.py stage2/openevolve/evaluator.py \
-  --config stage2/openevolve/config_scale_claude_sonnet46.yaml \
-  --output results/stage2_openevolve/scale/claude_sonnet46_stage1_iter30_20260430 \
-  --iterations 30
-```
-
-The local logs record:
-
-```text
-gpt5mini: Starting process-based evolution from iteration 1 for 80 iterations (total: 81)
-gpt54: Starting process-based evolution from iteration 1 for 30 iterations (total: 31)
-sonnet46: Starting process-based evolution from iteration 1 for 30 iterations (total: 31)
-```
-
-| Model | Best cheap-screen result | 10-trace confirmation |
-| --- | ---: | ---: |
-| `gpt-5-mini` | `0.940345x` vs pair-best, combined `-0.088985` | `0.979050x`, combined `0.000477` |
-| `gpt-5.4` | `0.939387x` vs pair-best, combined `-0.089064` | Screen result trailed promoted hits |
-| Claude Sonnet 4.6 | `0.940183x` vs pair-best, combined `-0.088685` | `0.979135x`, combined `0.000481` |
-
-The scaled model search found nearby policies with slightly stronger cheap-screen scores, especially Sonnet 4.6. Wider confirmation kept the frozen `MoP-V1.3 sticky 3` seed because its 10-trace result remained stronger at `0.980137x` vs pair-best and combined `0.001776`.
-
-Selection used confirmation status plus cheap-screen rank. A higher 10-trace hit, `53e5b8b728c0a657`, reached `0.982001x` vs pair-best and combined `0.004400`, then failed 13-trace confirmation. The frozen `a52ed8a4151ad6cc` seed reached `0.980137x` on the 10-trace surface and `0.982884x` on the 13-trace train-window confirmation surface.
-
-The malformed and failed candidates are useful evidence about evaluator rigor. The ledger includes command failures from simulator `SIGBUS`, rejected helper/import code, unknown policy keys such as `both_on_rate`, `single_action_rate`, `mop_budget_ratio`, and `mop_budget_multiplier`, and missing evolve markers. These candidates were scored as failed and kept in the ledger.
-
-## Heldout Handling
+## Before And After OpenEvolve
 
 ![Heldout trace profile](figures/stage2_heldout_trace_profile.png)
 
-The `MoP-V1.3` heldout run completed normally in `results/stage2_openevolve/heldout/final_v13_20260429`. The matching `MoP-V1.2` reference completed all 28 raw metric files in `results/stage2_openevolve/heldout/final_v12_reference_20260429`, while the runner exited before writing the full roll-up. I rebuilt its `summary.csv` from the 28 raw metric JSON files using `scripts/rebuild_mop_summary_from_metrics.py`, which calls the same parser and summary writer used by the normal runner. The provenance file is `results/stage2_openevolve/heldout/final_v12_reference_20260429/summary_rebuild_provenance.json`.
+| Surface | Manual `MoP-V1.2` | OpenEvolve `MoP-V1.3` | Oracle cap |
+| --- | ---: | ---: | ---: |
+| 13-trace training validation, speedup vs disabled prefetching | `1.047685` | `1.066243` | `1.084810` |
+| 13-trace training validation, ratio to oracle cap | `0.964637` | `0.982884` | `1.000000` |
+| 13-trace training validation, beats worse prefetcher | `9/13` | `11/13` |  |
+| 13-trace training validation, below `0.95x` oracle cap | `3/13` | `2/13` |  |
+| 7-trace heldout, speedup vs disabled prefetching | `0.998069` | `1.003270` | `1.024333` |
+| 7-trace heldout, ratio to oracle cap | `0.975893` | `0.979437` | `1.000000` |
 
-That reconstruction changes no metrics. It supplies the missing table layer from complete raw simulator outputs.
+The 13-trace training-validation result also beats the simple router baselines on the same surface:
 
-Rebuild command:
+| Method | Speedup vs disabled prefetching | Ratio to oracle cap | Beats worse prefetcher | Below `0.95x` oracle cap |
+| --- | ---: | ---: | ---: | ---: |
+| OpenEvolve `MoP-V1.3` | `1.066243` | `0.982884` | `11/13` | `2/13` |
+| winner-take-all router | `1.024749` | `0.942771` | `7/13` | `5/13` |
+| one-shot fit router | `1.026820` | `0.943456` | `6/13` | `5/13` |
+| Athena MAB router baseline | `1.021295` | `0.942077` | `6/13` | `5/13` |
 
-```bash
-python3 scripts/rebuild_mop_summary_from_metrics.py \
-  --results-dir results/stage2_openevolve/heldout/final_v12_reference_20260429 \
-  --expert-0 MLOP \
-  --expert-1 SPP+PPF \
-  --expected-runs 28
-```
+The heldout trace profile shows the remaining risk. On `secret_compute_fp_105`, `MoP-V1.3` improves the tail loss from the manual router, yet it remains the largest heldout loss relative to the oracle cap.
 
-Validation excerpt:
+## OpenEvolve Search
 
-```json
-{"metric_files": 28, "source": "rebuild_mop_summary_from_metrics.py", "traces": ["437.leslie3d-134B", "459.GemsFDTD-1169B", "471.omnetpp-188B", "ligra_BC.com-lj.ungraph.gcc_6.3.0_O3.drop_500M.length_250M", "parsec_2.1.canneal.simlarge.prebuilt.drop_4750M.length_250M", "parsec_2.1.streamcluster.simlarge.prebuilt.drop_0M.length_250M", "secret_compute_fp_105"]}
-```
+![OpenEvolve model search trajectory](figures/stage2_scale_model_comparison.png)
 
-The reconstructed V1.2 heldout `summary.csv` has SHA-256 prefix `9660fd425d4b5dc4`. The normal V1.3 heldout `summary.csv` has SHA-256 prefix `579caecda79b4cae`. The generated final metric table has SHA-256 prefix `d49332f21ba00979`.
+OpenEvolve searched a tiny policy surface. The first small model-comparison pass requested 6 iterations per model. The larger sweeps requested 80 GPT-5 mini iterations, 30 GPT-5.4 iterations, and 30 Sonnet 4.6 iterations. The captured logs show approximate wall-clock times of `97.3` minutes for GPT-5 mini, `40.2` minutes for GPT-5.4, and `43.9` minutes for Sonnet 4.6 on the local setup used here.
 
-## Claims We Can Defend
+Search cost is reported as model iterations, generated candidates, and simulator evaluations. The candidate ledger contains 290 rows: 225 valid scored rows and 65 fail-closed rows. Valid rows break down into 7 one-trace smoke rows, 163 quick-evaluation rows, 45 wider-validation rows, and 10 final training-validation rows. Failed rows include malformed policy dictionaries, disallowed helper code, unknown policy keys, and simulator command failures.
 
-1. Stage 1 established a clean and conservative expert-pair story at L2C: `MLOP + SPP+PPF` creates a routing problem with meaningful expert spread.
-2. Stage 2 OpenEvolve improved the router family on train-window evidence by moving from `MoP-V1.2` to `MoP-V1.3 sticky 3`.
-3. The selected router beats no-prefetch in train-window and heldout geomean.
-4. The selected router stays below pair-best single in geomean, which keeps the scientific claim honest.
-5. The selected router beats simple coordination baselines on the 13-trace train-window surface.
-6. Larger OpenEvolve sweeps found stronger cheap-screen hits, and the confirmation path preserved the frozen seed.
+The scale-run summary is:
 
-The most likely reviewer concern is selection leakage. The trace protocol answers it directly: Stage 1 selected the cache level and pair on train/search evidence, Stage 2 searched only train/search surfaces, and heldout was used after the seed was fixed. The next concern is whether OpenEvolve merely found a fragile number tweak. The evaluator answers that by constraining candidates to a small literal policy dictionary, logging every candidate, and scoring malformed or simulator-failed candidates as failures. The final concern is whether the router beats the best possible routee. Our claim is deliberately narrower: the evolved router closes much of the train-window pair-best gap, clears no-prefetch on heldout, and gives a balanced combined behavior for two routees with different strengths.
+| Model | Iterations requested | Best quick-evaluation speedup vs disabled prefetching | Wider-validation speedup vs disabled prefetching |
+| --- | ---: | ---: | ---: |
+| GPT-5 mini | 80 | `1.034404` | `1.087110` |
+| GPT-5.4 | 30 | `1.036363` | quick evaluation pass |
+| Sonnet 4.6 | 30 | `1.035037` | `1.087326` |
 
-## Artifacts
+The quick-evaluation winners were close. Wider validation kept the selected `MoP-V1.3` policy because it reached `1.089214x` over disabled prefetching on the 10-trace validation surface and then `1.066243x` on the 13-trace training-validation surface. A higher 10-trace hit reached `1.089827x`, then failed the 13-trace confirmation path through simulator failures, which the ledger preserved as failed candidate rows.
 
-Reproducibility surface: this commit contains the report tables, figures, OpenEvolve ledgers, slide deck, slide previews, and slide quality report. Raw simulator outputs live under ignored `results/stage2_openevolve/...` paths on the producing machine. The committed ledgers are the stable audit layer for candidate outcomes, and the ignored raw result directories are the simulator evidence layer used to rebuild summaries and figures.
+The repository artifacts record iteration and candidate counts. A CMU AI Gateway billing export is absent from the committed evidence, so dollar cost should be read from the gateway dashboard rather than inferred from the repo.
 
-| Artifact | Path |
-| --- | --- |
-| Final metrics table | `report/tables/stage2_final_metrics.md` |
-| Scaled model table | `report/tables/stage2_scale_model_summary.md` |
-| Pre/post geomean figure | `report/figures/stage2_pre_post_geomean.png` |
-| Heldout trace profile figure | `report/figures/stage2_heldout_trace_profile.png` |
-| Model comparison figure | `report/figures/stage2_model_comparison.png` |
-| Scaled model figure | `report/figures/stage2_scale_model_comparison.png` |
-| Stage 2 evaluator | `stage2/openevolve/evaluator.py` |
-| Candidate ledger | `stage2/openevolve/candidate_ledger.jsonl` |
-| Frozen policy seed | `stage2/openevolve/initial_policy.py` |
-| Slide deck | `slides/mop_stage2_final/output/output.pptx` |
-| Slide deck previews | `slides/mop_stage2_final/scratch/slide-01.png` through `slide-08.png` |
-| Slide deck quality report | `slides/mop_stage2_final/scratch/quality-report.json` |
+## What The Evidence Supports
 
-| Claim | Rebuild command | Primary artifact | Validation evidence |
-| --- | --- | --- | --- |
-| Final metric table and figures | `python3 scripts/make_stage2_final_assets.py --heldout-v12 results/stage2_openevolve/heldout/final_v12_reference_20260429 --heldout-v13 results/stage2_openevolve/heldout/final_v13_20260429` | `report/tables/stage2_final_metrics.md` | 28 heldout V1.2 metric JSON files, 28 heldout V1.3 metric JSON files |
-| V1.2 heldout summary rebuild | `python3 scripts/rebuild_mop_summary_from_metrics.py --results-dir results/stage2_openevolve/heldout/final_v12_reference_20260429 --expert-0 MLOP --expert-1 SPP+PPF --expected-runs 28` | `summary_rebuild_provenance.json` | `metric_files: 28`, seven listed heldout traces |
-| Scaled GPT-5 mini run | OpenEvolve launch with `--config stage2/openevolve/config_scale_gpt5mini.yaml --iterations 80` | `results/stage2_openevolve/scale/gpt5mini_stage1_iter80_20260430` | checkpoint 80 log line and `stage2_scale_model_summary.md` |
+The strongest defensible claim is:
+
+> A small OpenEvolve-searched router on top of Athena L2C improves the manual router for `MLOP + SPP+PPF`, reaches `1.066243x` IPC speedup over disabled prefetching on 13 training-validation traces, and reaches `1.003270x` on 7 heldout traces while remaining below the per-trace oracle best prefetcher cap.
+
+The scientific boundaries are clean:
+
+- heldout traces are used after policy selection
+- performance plots use disabled prefetching as the `1.0x` baseline
+- the oracle best prefetcher is a separate cap
+- instruction count stays fixed within tiny simulator-rounding error
+- the final method stays inside a compact router policy surface
+- malformed or out-of-contract OpenEvolve candidates receive failure scores and stay in the ledger
+
+The main limitation is the heldout size. Seven traces can show a useful sanity check, yet the training-validation signal carries most of the quantitative weight. The heldout result supports a modest generalization claim, and the trace-level plot shows where the policy still needs work.
+
+## Reproduction Notes
+
+The detailed path ledger, naming map, generated-file list, and code/report naming discrepancies live in [writing_logistics.md](writing_logistics.md). That file is intentionally separate from the main report so this document can read like a result summary.
+
+The generated tables use public column names, and the logistics note maps those names back to raw ledger keys such as `gm_vs_nopref` and `gm_vs_pair_best`.

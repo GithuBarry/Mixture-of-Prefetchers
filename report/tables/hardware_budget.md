@@ -1,18 +1,18 @@
-# MoP-lite hardware / storage budget (Stage 1)
+# Router Hardware And Storage Budget
 
-Scope-locked Stage 1 control surface (see charter § MoP-lite control surface):
+The selected OpenEvolve policy uses `MoP-V1.3` with a per-epoch prefetch budget of `9216`. The router stores a small amount of epoch-level state and updates once every `500K` retired instructions.
 
-| Component                    | Configuration                              | Approx. storage |
-| ---                          | ---                                        | ---             |
-| Per-epoch counters (2 experts)| `pref_issued[2]`, `pref_useful[2]` (uint64)| 32 B            |
-| Usefulness/coverage cache    | `pref_acc[2]`, coverage deltas (float)     | 16 B            |
-| Budget registers             | `mop_total_budget`, share per expert       | 8 B             |
-| Router state                 | `action` (3 values), epoch counter         | 4 B             |
-| One-shot fit scratchpad      | `score_sum[2]`, `score_count`              | 24 B            |
-| Score weights (frozen)       | 3 floats                                   | 12 B            |
-| Accuracy floor / fixed ratio | 2 uint8                                    | 2 B             |
-| **Total (rounded)**          |                                            | **≈ 100 B**     |
+| Component | Configuration | Approx. storage |
+| --- | --- | ---: |
+| Per-expert counters | issued and useful counters for `MLOP` and `SPP+PPF` | 32 B |
+| Score state | accuracy, coverage, traffic summaries | 24 B |
+| Budget registers | total budget and per-expert shares | 12 B |
+| Router state | previous action, epoch counter, sticky margin state | 8 B |
+| One-epoch probe scratchpad | score sums and counts | 24 B |
+| Score weights | three floats | 12 B |
+| Threshold knobs | accuracy floor and guarded share | 4 B |
+| Rounded total | compact epoch-level metadata | about 120 B |
 
-The epoch length is 500 000 retired instructions (`og_instr_epoch_len`), so
-update frequency ≈ 2 kHz at 1 GHz effective IPC — entirely negligible
-arithmetic cost. No per-access ML inference is introduced in Stage 1.
+The router adds epoch-level arithmetic. It does no per-access model inference. With a `500K` retired-instruction epoch, the overhead is dominated by normal simulator bookkeeping rather than router computation.
+
+Historical note: older MoP-lite tables used a `2048` default budget from `external/athena/config/mop_lite.ini`. The selected OpenEvolve policy in the final report uses `9216`.

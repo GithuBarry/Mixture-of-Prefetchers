@@ -111,7 +111,7 @@ addSlide(
             style: { fontSize: 76, bold: true, color: COLORS.black },
           }),
           rule({ name: "cover-rule", width: fixed(360), stroke: COLORS.pink, weight: 8 }),
-          text("A small L2C router that closes the train-window pair-best gap and clears no-prefetch on heldout", {
+          text("A small L2-cache router that improves IPC over disabled prefetching and tracks an oracle best-prefetcher cap", {
             name: "cover-thesis",
             width: fill,
             height: hug,
@@ -122,13 +122,13 @@ addSlide(
       column(
         { name: "cover-metrics", width: fill, height: fill, gap: 36 },
         [
-          text("0.9829x", {
+          text("1.0662x", {
             name: "cover-metric-1",
             width: fill,
             height: hug,
             style: { fontSize: 78, bold: true, color: COLORS.pink },
           }),
-          text("train-window vs pair-best", {
+          text("13-trace training validation vs disabled prefetching", {
             name: "cover-label-1",
             width: fill,
             height: hug,
@@ -140,7 +140,7 @@ addSlide(
             height: hug,
             style: { fontSize: 78, bold: true, color: COLORS.blue },
           }),
-          text("heldout vs no-prefetch", {
+          text("7-trace heldout vs disabled prefetching", {
             name: "cover-label-2",
             width: fill,
             height: hug,
@@ -148,7 +148,7 @@ addSlide(
           }),
         ],
       ),
-      text("CMU 15-740 class project, Stage 2 OpenEvolve report", {
+      text("CMU 15-740 class project, OpenEvolve training-validation report", {
         name: "cover-footer",
         columnSpan: 2,
         width: fill,
@@ -168,8 +168,8 @@ addSlide(
         { name: "build-grid", width: fill, height: fill, columns: [fr(1), fr(1), fr(1)], columnGap: 48 },
         [
           bulletList(["Athena substrate", "ChampSim-derived simulator", "Existing L2C prefetchers", "AthenaMAB comparator"], 27),
-          bulletList(["Our MoP layer", "Router aliases V0 through V1.3", "Epoch action logging", "Budget and sticky controls"], 27),
-          bulletList(["Our evidence layer", "Frozen train/heldout split", "OpenEvolve candidate ledger", "Parser-preserving report assets"], 27),
+          bulletList(["Our router layer", "MoP-V1.2 manual router", "MoP-V1.3 sticky router", "Epoch counters and budget controls"], 27),
+          bulletList(["Our evidence layer", "17 train traces, 7 heldout traces", "OpenEvolve candidate ledger", "Generated tables and figures"], 27),
         ],
       ),
     ],
@@ -180,15 +180,15 @@ addSlide(
   column(
     { name: "root", width: fill, height: fill, padding: { x: 92, y: 70 }, gap: 34 },
     [
-      title("Protocol: pair-best first, no-prefetch second"),
+      title("Protocol: disabled prefetching is 1x"),
       grid(
         { name: "protocol-grid", width: fill, height: fill, columns: [fr(0.9), fr(1.1)], columnGap: 56 },
         [
-          bulletList(["Expert pair: MLOP + SPP+PPF", "Cache level: L2C", "17 train traces", "7 heldout traces", "Heldout used after selection freeze"], 29),
-          bulletList(["Primary comparator: pair-best single", "Secondary comparator: no-prefetch", "Practical floor: weaker expert", "Simple coordinators: WinnerTakeAll, OneShotFit, AthenaMAB"], 29),
+          bulletList(["Expert pair: MLOP + SPP+PPF", "Cache level: L2C", "Search: 10 training traces", "Training validation: 13 traces", "Heldout: 7 traces after policy selection"], 29),
+          bulletList(["Performance baseline: disabled prefetching", "Oracle cap: max(MLOP, SPP+PPF) per trace", "Minimum check: beat the worse prefetcher", "Simple routers: WinnerTakeAll, OneShotFit, AthenaMAB"], 29),
         ],
       ),
-      text("Selection used train/search surfaces. Heldout appears only after the seed is fixed.", {
+      text("Quick evaluation used 3 training traces. Wider validation used 10 training traces. Heldout runs after policy selection.", {
         name: "protocol-footer",
         width: fill,
         height: hug,
@@ -202,7 +202,7 @@ addSlide(
   column(
     { name: "root", width: fill, height: fill, padding: { x: 70, y: 56 }, gap: 18 },
     [
-      title("OpenEvolve improved the train-window router", "MoP-V1.3 improves both train-window comparators, then shows a smaller heldout lift."),
+      title("OpenEvolve improved the router", "Bars use disabled prefetching as 1x. Black caps show the per-trace oracle best prefetcher."),
       image({
         name: "pre-post-figure",
         dataUrl: pngDataUrl("stage2_pre_post_geomean.png"),
@@ -220,7 +220,7 @@ addSlide(
   column(
     { name: "root", width: fill, height: fill, padding: { x: 70, y: 56 }, gap: 18 },
     [
-      title("Heldout shows a modest geomean lift", "Heldout clears no-prefetch by geomean, while trace-level placement shows why pair-best remains the upper bar."),
+      title("Heldout shows a modest geomean lift", "Each trace uses disabled prefetching as 1x, with the oracle cap marked separately."),
       image({
         name: "heldout-profile",
         dataUrl: pngDataUrl("stage2_heldout_trace_profile.png"),
@@ -238,7 +238,7 @@ addSlide(
   column(
     { name: "root", width: fill, height: fill, padding: { x: 70, y: 56 }, gap: 18 },
     [
-      title("Model sweeps improved screens, confirmation kept the seed", "Scaled search found similar cheap-screen candidates, then 10-trace confirmation preserved the active seed at 0.9801x."),
+      title("OpenEvolve search trajectory", "Faint points are valid generated candidates. Lines show best-so-far by weighted score."),
       image({
         name: "scale-models",
         dataUrl: pngDataUrl("stage2_scale_model_comparison.png"),
@@ -256,12 +256,12 @@ addSlide(
   column(
     { name: "root", width: fill, height: fill, padding: { x: 92, y: 70 }, gap: 34 },
     [
-      title("The evaluator made search auditable", "Candidate programs were allowed to change only a literal policy dictionary."),
+      title("The evaluator made search auditable", "Candidate programs changed a literal policy dictionary."),
       grid(
         { name: "audit-grid", width: fill, height: fill, columns: [fr(1), fr(1)], columnGap: 60 },
         [
           bulletList(["Allowed outputs", "Router choice", "Budget split knobs", "Sticky margin", "Score weights"], 29),
-          bulletList(["Recorded failures", "Simulator SIGBUS rows", "Unknown policy keys", "Helper/import code", "Missing evolve markers"], 29),
+          bulletList(["Recorded failures", "Simulator failures", "Unknown policy keys", "Helper/import code", "Missing evolve markers"], 29),
         ],
       ),
       text("Ledger: 290 candidates, 225 valid scored rows, 65 fail-closed rows. Malformed or crashed candidates receive combined_score = -10.0.", {
@@ -281,11 +281,11 @@ addSlide(
       title("Defensible claims"),
       bulletList(
         [
-          "Primary defended claim: Stage 2 closes the train-window gap against pair-best single.",
-          "Heldout claim: the selected router clears no-prefetch in geomean.",
-          "The selected router beats simple coordination baselines on the 13-trace train-window surface.",
-          "Pair-best single remains the upper comparator, which keeps the claim honest.",
-          "The final artifacts preserve raw metric paths, ledgers, configs, and generated figures.",
+          "Primary claim: OpenEvolve improves IPC speedup over disabled prefetching on 13 training-validation traces.",
+          "Heldout claim: the selected router reaches 1.0033x over disabled prefetching on seven heldout traces.",
+          "Instruction-count ratios stay at 0.999999462x on training validation and 1.000000009x on heldout.",
+          "The oracle best prefetcher remains a cap, which keeps the claim sized correctly.",
+          "Reproduction paths and naming details live in report/writing_logistics.md.",
         ],
         31,
       ),

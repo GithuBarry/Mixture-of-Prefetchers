@@ -3,6 +3,22 @@
 This document is for a reader who knows computer architecture in general but
 does not know this repository.
 
+## Current OpenEvolve Result
+
+The current final writeup is `report/stage2_final_report.md`. That report supersedes the older baseline-centered sections below for the finished OpenEvolve story.
+
+The selected setup is:
+
+- cache level: L2C
+- expert pair: `MLOP + SPP+PPF`
+- selected router: `MoP-V1.3`
+- performance baseline: disabled prefetching at `1.0x`
+- oracle cap: per-trace `max(MLOP, SPP+PPF)`
+
+The official split has 24 traces: 17 training traces and 7 heldout traces. OpenEvolve search used training traces, while the heldout traces were evaluated after policy selection. The selected router reaches `1.066243x` IPC speedup over disabled prefetching on 13 training-validation traces and `1.003270x` on 7 heldout traces.
+
+Use `report/writing_logistics.md` for the mapping between public report names and raw artifact names such as `stage1`, `stage2`, `stage3`, `gm_vs_nopref`, and `gm_vs_pair_best`.
+
 ## What This Repository Is
 
 This repository studies whether a small router can make a better L2 prefetching

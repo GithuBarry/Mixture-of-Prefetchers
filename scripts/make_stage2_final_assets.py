@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build final Stage 2 report tables and figures from raw run artifacts."""
+"""Build final OpenEvolve report tables and figures from raw run artifacts."""
 
 from __future__ import annotations
 
@@ -29,9 +29,10 @@ COLORS = {
 METHOD_COLOR = {
     "MLOP": COLORS["blue"],
     "SPP+PPF": COLORS["purple"],
-    "MoP-V1.2": COLORS["orange"],
+    "Manual router": COLORS["orange"],
+    "OpenEvolve router": COLORS["pink"],
     "MoP-V1.3": COLORS["pink"],
-    "pair-best": COLORS["black"],
+    "oracle": COLORS["black"],
 }
 
 
@@ -60,6 +61,8 @@ def summarize_router(result_dir: Path, router: str) -> dict[str, float]:
     vs_base: list[float] = []
     vs_pair: list[float] = []
     vs_weaker: list[float] = []
+    pair_best_vs_base: list[float] = []
+    weaker_vs_base: list[float] = []
     beats_weaker = 0
     catastrophic = 0
     both_gt_1 = 0
@@ -73,6 +76,8 @@ def summarize_router(result_dir: Path, router: str) -> dict[str, float]:
         vs_base.append(r)
         vs_pair.append(r / pair_best)
         vs_weaker.append(r / weaker)
+        pair_best_vs_base.append(pair_best)
+        weaker_vs_base.append(weaker)
         beats_weaker += r > weaker
         catastrophic += (r / pair_best) < 0.95
         both_gt_1 += e0 > 1.0 and e1 > 1.0
@@ -82,6 +87,8 @@ def summarize_router(result_dir: Path, router: str) -> dict[str, float]:
         "gm_vs_nopref": geomean(vs_base),
         "gm_vs_pair_best": geomean(vs_pair),
         "gm_vs_weaker": geomean(vs_weaker),
+        "pair_best_vs_nopref": geomean(pair_best_vs_base),
+        "weaker_vs_nopref": geomean(weaker_vs_base),
         "beats_weaker": float(beats_weaker),
         "catastrophic": float(catastrophic),
         "both_routees_gt_1": float(both_gt_1),
@@ -96,6 +103,39 @@ def summarize_single(result_dir: Path, experiment: str) -> dict[str, float]:
     return {"n": float(len(vals)), "gm_vs_nopref": geomean(vals)}
 
 
+def load_metric_json(row: dict[str, str]) -> dict:
+    return json.loads(Path(row["metrics"]).read_text())
+
+
+def summarize_instruction_check(result_dir: Path, router: str, label: str) -> dict[str, str]:
+    rows = load_summary(result_dir)
+    traces = by_trace(rows)
+    instr_ratios: list[float] = []
+    cycle_ratios: list[float] = []
+    ipc_speedups: list[float] = []
+    max_instr_delta = 0.0
+    for trace_rows in traces.values():
+        base = load_metric_json(trace_rows["Baseline"])
+        routed = load_metric_json(trace_rows[router])
+        base_instr = float(base["Core_0_total_instructions"])
+        routed_instr = float(routed["Core_0_total_instructions"])
+        base_cycles = float(base["Core_0_cycles"])
+        routed_cycles = float(routed["Core_0_cycles"])
+        instr_ratio = routed_instr / base_instr
+        instr_ratios.append(instr_ratio)
+        cycle_ratios.append(routed_cycles / base_cycles)
+        ipc_speedups.append(float(trace_rows[router]["speedup_vs_baseline"]))
+        max_instr_delta = max(max_instr_delta, abs(instr_ratio - 1.0))
+    return {
+        "surface": label,
+        "n": str(len(traces)),
+        "ipc_speedup_vs_prefetcher_off": f"{geomean(ipc_speedups):.6f}",
+        "instruction_count_ratio_vs_prefetcher_off": f"{geomean(instr_ratios):.9f}",
+        "cycle_count_ratio_vs_prefetcher_off": f"{geomean(cycle_ratios):.6f}",
+        "max_instruction_ratio_delta": f"{max_instr_delta:.9f}",
+    }
+
+
 def metric_table(
     train_v12: Path,
     train_v13: Path,
@@ -104,10 +144,10 @@ def metric_table(
 ) -> list[dict[str, str]]:
     rows = []
     specs = [
-        ("train-window", "MoP-V1.2", train_v12, "MoP-V1.2"),
-        ("train-window", "MoP-V1.3", train_v13, "MoP-V1.3"),
-        ("heldout", "MoP-V1.2", heldout_v12, "MoP-V1.2"),
-        ("heldout", "MoP-V1.3", heldout_v13, "MoP-V1.3"),
+        ("training validation", "Manual router", train_v12, "MoP-V1.2"),
+        ("training validation", "OpenEvolve router", train_v13, "MoP-V1.3"),
+        ("heldout", "Manual router", heldout_v12, "MoP-V1.2"),
+        ("heldout", "OpenEvolve router", heldout_v13, "MoP-V1.3"),
     ]
     for split, label, path, router in specs:
         metrics = summarize_router(path, router)
@@ -115,28 +155,30 @@ def metric_table(
             "split": split,
             "method": label,
             "n": str(int(metrics["n"])),
-            "gm_vs_pair_best": f"{metrics['gm_vs_pair_best']:.6f}",
-            "gm_vs_nopref": f"{metrics['gm_vs_nopref']:.6f}",
-            "gm_vs_weaker": f"{metrics['gm_vs_weaker']:.6f}",
-            "beats_weaker": f"{int(metrics['beats_weaker'])}/{int(metrics['n'])}",
-            "catastrophic": f"{int(metrics['catastrophic'])}/{int(metrics['n'])}",
-            "closer_to_better": f"{int(metrics['closer_to_better'])}/{int(metrics['n'])}",
-            "both_routees_gt_1": f"{int(metrics['both_routees_gt_1'])}/{int(metrics['n'])}",
+            "speedup_vs_prefetcher_off": f"{metrics['gm_vs_nopref']:.6f}",
+            "oracle_best_prefetcher_cap": f"{metrics['pair_best_vs_nopref']:.6f}",
+            "ratio_to_oracle_best": f"{metrics['gm_vs_pair_best']:.6f}",
+            "ratio_to_worse_prefetcher": f"{metrics['gm_vs_weaker']:.6f}",
+            "beats_worse_prefetcher": f"{int(metrics['beats_weaker'])}/{int(metrics['n'])}",
+            "below_0.95x_oracle_best": f"{int(metrics['catastrophic'])}/{int(metrics['n'])}",
+            "closer_to_oracle_best": f"{int(metrics['closer_to_better'])}/{int(metrics['n'])}",
+            "both_prefetchers_beat_disabled": f"{int(metrics['both_routees_gt_1'])}/{int(metrics['n'])}",
         })
-    for split, path in [("train-window", train_v13), ("heldout", heldout_v13)]:
+    for split, path in [("training validation", train_v13), ("heldout", heldout_v13)]:
         for experiment in ["MLOP", "SPP+PPF"]:
             metrics = summarize_single(path, experiment)
             rows.append({
                 "split": split,
                 "method": experiment,
                 "n": str(int(metrics["n"])),
-                "gm_vs_pair_best": "",
-                "gm_vs_nopref": f"{metrics['gm_vs_nopref']:.6f}",
-                "gm_vs_weaker": "",
-                "beats_weaker": "",
-                "catastrophic": "",
-                "closer_to_better": "",
-                "both_routees_gt_1": "",
+                "speedup_vs_prefetcher_off": f"{metrics['gm_vs_nopref']:.6f}",
+                "oracle_best_prefetcher_cap": "",
+                "ratio_to_oracle_best": "",
+                "ratio_to_worse_prefetcher": "",
+                "beats_worse_prefetcher": "",
+                "below_0.95x_oracle_best": "",
+                "closer_to_oracle_best": "",
+                "both_prefetchers_beat_disabled": "",
             })
     return rows
 
@@ -146,13 +188,32 @@ def write_markdown_table(rows: list[dict[str, str]], path: Path) -> None:
         "split",
         "method",
         "n",
-        "gm_vs_pair_best",
-        "gm_vs_nopref",
-        "gm_vs_weaker",
-        "beats_weaker",
-        "catastrophic",
-        "closer_to_better",
-        "both_routees_gt_1",
+        "speedup_vs_prefetcher_off",
+        "oracle_best_prefetcher_cap",
+        "ratio_to_oracle_best",
+        "ratio_to_worse_prefetcher",
+        "beats_worse_prefetcher",
+        "below_0.95x_oracle_best",
+        "closer_to_oracle_best",
+        "both_prefetchers_beat_disabled",
+    ]
+    lines = [
+        "| " + " | ".join(cols) + " |",
+        "| " + " | ".join("---" for _ in cols) + " |",
+    ]
+    for row in rows:
+        lines.append("| " + " | ".join(row[col] for col in cols) + " |")
+    path.write_text("\n".join(lines) + "\n")
+
+
+def write_instruction_check_table(rows: list[dict[str, str]], path: Path) -> None:
+    cols = [
+        "surface",
+        "n",
+        "ipc_speedup_vs_prefetcher_off",
+        "instruction_count_ratio_vs_prefetcher_off",
+        "cycle_count_ratio_vs_prefetcher_off",
+        "max_instruction_ratio_delta",
     ]
     lines = [
         "| " + " | ".join(cols) + " |",
@@ -177,6 +238,17 @@ def best_checkpoint_info(run_dir: Path) -> dict:
     assert checkpoints, f"No checkpoints in {run_dir}"
     infos = [json.loads(path.read_text()) for path in checkpoints]
     return max(infos, key=lambda info: float(info["metrics"]["combined_score"]))
+
+
+def checkpoint_candidates(run_dir: Path) -> list[dict]:
+    candidates: dict[str, dict] = {}
+    for path in run_dir.glob("checkpoints/checkpoint_*/programs/*.json"):
+        info = json.loads(path.read_text())
+        metrics = info.get("metrics", {})
+        if metrics.get("stage_passed") != 1.0 or float(metrics.get("n_traces", 0.0)) != 3.0:
+            continue
+        candidates[info["id"]] = info
+    return sorted(candidates.values(), key=lambda info: (int(info["iteration_found"]), info["id"]))
 
 
 def ledger_record_for_hash(ledger_path: Path, code_hash: str, stage: str) -> dict | None:
@@ -214,19 +286,26 @@ def scale_model_rows(ledger_path: Path, scale_runs: list[tuple[str, Path]]) -> l
         code_hash = stage1_record.get("code_hash", "") if stage1_record else ""
         confirmed = ledger_record_for_hash(ledger_path, code_hash, "stage2") if code_hash else None
         confirmed_metrics = confirmed["metrics"] if confirmed else None
+        screen_nopref = float(metrics["gm_vs_nopref"])
+        screen_pair_best_ratio = float(metrics["gm_vs_pair_best"])
+        confirmed_nopref = float(confirmed_metrics["gm_vs_nopref"]) if confirmed_metrics else None
+        confirmed_pair_best_ratio = float(confirmed_metrics["gm_vs_pair_best"]) if confirmed_metrics else None
         rows.append({
             "model": model,
             "iterations_seen": str(int(latest["current_iteration"])),
             "best_screen_iter": str(int(best["iteration"])),
-            "screen_gm_vs_pair_best": f"{float(metrics['gm_vs_pair_best']):.6f}",
-            "screen_gm_vs_nopref": f"{float(metrics['gm_vs_nopref']):.6f}",
-            "screen_combined": f"{float(metrics['combined_score']):.6f}",
-            "confirmed_10_trace_pair_best": (
-                f"{float(confirmed_metrics['gm_vs_pair_best']):.6f}" if confirmed_metrics else ""
+            "quick_eval_speedup_vs_prefetcher_off": f"{screen_nopref:.6f}",
+            "quick_eval_oracle_cap": f"{screen_nopref / screen_pair_best_ratio:.6f}",
+            "quick_eval_ratio_to_oracle_best": f"{screen_pair_best_ratio:.6f}",
+            "quick_eval_weighted_score": f"{float(metrics['combined_score']):.6f}",
+            "wider_eval_speedup_vs_prefetcher_off": f"{confirmed_nopref:.6f}" if confirmed_nopref else "",
+            "wider_eval_oracle_cap": (
+                f"{confirmed_nopref / confirmed_pair_best_ratio:.6f}"
+                if confirmed_nopref and confirmed_pair_best_ratio
+                else ""
             ),
-            "confirmed_10_trace_combined": (
-                f"{float(confirmed_metrics['combined_score']):.6f}" if confirmed_metrics else ""
-            ),
+            "wider_eval_ratio_to_oracle_best": f"{confirmed_pair_best_ratio:.6f}" if confirmed_pair_best_ratio else "",
+            "wider_eval_weighted_score": f"{float(confirmed_metrics['combined_score']):.6f}" if confirmed_metrics else "",
             "result_dir": f"results/stage2_openevolve/stage1/{code_hash}" if code_hash else "",
         })
     return rows
@@ -237,11 +316,14 @@ def write_scale_model_table(rows: list[dict[str, str]], path: Path) -> None:
         "model",
         "iterations_seen",
         "best_screen_iter",
-        "screen_gm_vs_pair_best",
-        "screen_gm_vs_nopref",
-        "screen_combined",
-        "confirmed_10_trace_pair_best",
-        "confirmed_10_trace_combined",
+        "quick_eval_speedup_vs_prefetcher_off",
+        "quick_eval_oracle_cap",
+        "quick_eval_ratio_to_oracle_best",
+        "quick_eval_weighted_score",
+        "wider_eval_speedup_vs_prefetcher_off",
+        "wider_eval_oracle_cap",
+        "wider_eval_ratio_to_oracle_best",
+        "wider_eval_weighted_score",
         "result_dir",
     ]
     lines = [
@@ -269,50 +351,59 @@ def setup_plot() -> None:
 
 def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
     setup_plot()
-    router_rows = [r for r in rows if r["method"].startswith("MoP")]
-    splits = ["train-window", "heldout"]
-    methods = ["MoP-V1.2", "MoP-V1.3"]
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4.4), sharey=False)
-    metrics = [
-        ("gm_vs_pair_best", "Geomean vs pair-best single"),
-        ("gm_vs_nopref", "Geomean vs no-prefetch"),
-    ]
+    router_rows = [r for r in rows if r["method"] in {"Manual router", "OpenEvolve router"}]
+    splits = ["training validation", "heldout"]
+    methods = ["Manual router", "OpenEvolve router"]
+    fig, ax = plt.subplots(figsize=(10, 4.8))
     width = 0.34
-    for ax, (metric, title) in zip(axes, metrics, strict=True):
-        for i, split in enumerate(splits):
-            for j, method in enumerate(methods):
-                row = next(r for r in router_rows if r["split"] == split and r["method"] == method)
-                value = float(row[metric])
-                x = i + (j - 0.5) * width
-                ax.bar(
-                    x,
-                    value,
-                    width=width,
-                    color=METHOD_COLOR[method],
-                    alpha=0.65 if method == "MoP-V1.2" else 1.0,
-                    edgecolor=COLORS["black"],
-                    linewidth=0.8,
-                    label=method if i == 0 else None,
-                )
-                ax.text(x, value + 0.006, f"{value:.3f}", ha="center", va="bottom", fontsize=8)
-        ax.axhline(1.0, color=COLORS["black"], linestyle=":", linewidth=1.0)
-        ax.set_xticks(range(len(splits)))
-        ax.set_xticklabels(["train\nwindow", "heldout"])
-        ax.set_title(title)
-        ax.grid(True, axis="y", linestyle=":")
-    axes[0].set_ylim(0.93, 1.02)
-    axes[1].set_ylim(0.96, 1.10)
-    axes[0].legend(frameon=False, loc="lower right")
-    fig.suptitle("OpenEvolve closes the train gap, heldout only clears no-prefetch")
+    cap_label_done = False
+    for i, split in enumerate(splits):
+        split_rows = [r for r in router_rows if r["split"] == split]
+        cap = float(split_rows[0]["oracle_best_prefetcher_cap"])
+        ax.scatter(
+            [i],
+            [cap],
+            marker="_",
+            s=900,
+            color=COLORS["black"],
+            linewidth=2.2,
+            label="oracle best cap" if not cap_label_done else None,
+            zorder=4,
+        )
+        ax.text(i, cap + 0.006, f"cap {cap:.3f}", ha="center", va="bottom", fontsize=8)
+        cap_label_done = True
+        for j, method in enumerate(methods):
+            row = next(r for r in split_rows if r["method"] == method)
+            value = float(row["speedup_vs_prefetcher_off"])
+            x = i + (j - 0.5) * width
+            ax.bar(
+                x,
+                value,
+                width=width,
+                color=METHOD_COLOR[method],
+                alpha=0.65 if method == "Manual router" else 1.0,
+                edgecolor=COLORS["black"],
+                linewidth=0.8,
+                label=method if i == 0 else None,
+            )
+            ax.text(x, value + 0.006, f"{value:.3f}", ha="center", va="bottom", fontsize=8)
+    ax.axhline(1.0, color=COLORS["black"], linestyle=":", linewidth=1.0, label="prefetcher off")
+    ax.set_xticks(range(len(splits)))
+    ax.set_xticklabels(["13-trace\ntraining validation", "7-trace\nheldout"])
+    ax.set_ylabel("Geomean IPC speedup vs disabled prefetching")
+    ax.set_title("Router performance uses disabled prefetching as 1x")
+    ax.set_ylim(0.96, 1.12)
+    ax.grid(True, axis="y", linestyle=":")
+    ax.legend(frameon=False, loc="upper right", ncols=2)
     fig.text(
         0.02,
         0.01,
-        "Pair-best is the primary bar; no-prefetch is secondary. The same two routers are compared on train-window and heldout runs.",
+        "Black caps show max(MLOP, SPP+PPF) per trace before geomean. Bars show the manual router and the OpenEvolve-selected router on the same baseline.",
         ha="left",
         va="bottom",
         fontsize=8,
     )
-    fig.tight_layout(rect=(0, 0.06, 1, 0.94))
+    fig.tight_layout(rect=(0, 0.06, 1, 1))
     fig.savefig(out_path, dpi=180)
     plt.close(fig)
 
@@ -337,7 +428,7 @@ def plot_heldout_trace_profile(heldout_v13: Path, out_path: Path) -> None:
             color=METHOD_COLOR[method],
             edgecolor=COLORS["black"],
             linewidth=0.5,
-            label=method,
+            label="OpenEvolve router" if method == "MoP-V1.3" else method,
         )
     pair = [
         max(
@@ -346,7 +437,7 @@ def plot_heldout_trace_profile(heldout_v13: Path, out_path: Path) -> None:
         )
         for t in ordered
     ]
-    ax.scatter(pair, y, marker="|", s=260, color=COLORS["black"], linewidth=2.0, label="pair-best")
+    ax.scatter(pair, y, marker="|", s=260, color=COLORS["black"], linewidth=2.0, label="oracle best cap")
     for yi, t in enumerate(ordered):
         values = [
             float(traces[t]["MLOP"]["speedup_vs_baseline"]),
@@ -357,14 +448,14 @@ def plot_heldout_trace_profile(heldout_v13: Path, out_path: Path) -> None:
     ax.axvline(1.0, color=COLORS["black"], linestyle=":", linewidth=1.0)
     ax.set_yticks(y)
     ax.set_yticklabels([t.replace(".length_250M", "")[:46] for t in ordered])
-    ax.set_xlabel("IPC speedup vs no-prefetch")
+    ax.set_xlabel("IPC speedup vs disabled prefetching")
     ax.set_title("Heldout trace profile: expert complementarity and router placement")
     ax.grid(True, axis="x", linestyle=":")
     ax.legend(frameon=False, ncols=4, loc="lower right")
     fig.text(
         0.02,
         0.01,
-        "Each row shows both routee experts, the post-OpenEvolve router, and the per-trace pair-best single. The grey span shows the local spread among the three measured methods.",
+        "Each row shows both constituent prefetchers, the OpenEvolve-selected router, and the per-trace oracle best cap. The grey span shows the local spread among the measured methods.",
         ha="left",
         va="bottom",
         fontsize=8,
@@ -429,7 +520,7 @@ def plot_model_comparison(ledger_path: Path, out_path: Path) -> None:
     axes[1].set_xticklabels(labels)
     axes[1].set_ylabel("Candidate count")
     axes[1].set_title("Model quality was mostly about valid candidates")
-    axes[1].legend(frameon=False)
+    axes[1].legend(frameon=False, loc="lower right")
     for ax in axes:
         ax.grid(True, axis="y", linestyle=":")
     fig.tight_layout()
@@ -440,55 +531,105 @@ def plot_model_comparison(ledger_path: Path, out_path: Path) -> None:
 def plot_scale_model_comparison(
     rows: list[dict[str, str]],
     out_path: Path,
-    active_screen_pair_best: float,
-    active_confirm_pair_best: float,
+    scale_runs: list[tuple[str, Path]],
+    active_screen_nopref: float,
+    active_screen_cap: float,
+    active_confirm_nopref: float,
+    active_confirm_cap: float,
 ) -> None:
     setup_plot()
+    _ = rows
+    model_colors = {
+        "GPT-5 mini": COLORS["blue"],
+        "GPT-5.4": COLORS["orange"],
+        "Sonnet 4.6": COLORS["purple"],
+    }
+    fig, axes = plt.subplots(
+        1,
+        2,
+        figsize=(12.5, 5.1),
+        width_ratios=[3.2, 1.0],
+        sharey=True,
+    )
+    ax = axes[0]
+    for label, run_dir in scale_runs:
+        candidates = checkpoint_candidates(run_dir)
+        xs = [int(candidate["iteration_found"]) for candidate in candidates]
+        ys = [float(candidate["metrics"]["gm_vs_nopref"]) for candidate in candidates]
+        ax.scatter(
+            xs,
+            ys,
+            s=24,
+            color=model_colors[label],
+            alpha=0.22,
+            edgecolor="none",
+            label=f"{label} candidates",
+        )
+        best_points: list[tuple[int, float]] = []
+        best_score = -float("inf")
+        best_speedup = float("nan")
+        for candidate in candidates:
+            score = float(candidate["metrics"]["combined_score"])
+            if score >= best_score:
+                best_score = score
+                best_speedup = float(candidate["metrics"]["gm_vs_nopref"])
+            best_points.append((int(candidate["iteration_found"]), best_speedup))
+        if best_points:
+            ax.step(
+                [point[0] for point in best_points],
+                [point[1] for point in best_points],
+                where="post",
+                color=model_colors[label],
+                linewidth=2.2,
+                label=f"{label} best-so-far",
+            )
+    ax.axhline(1.0, color=COLORS["black"], linestyle=":", linewidth=1.0, label="prefetcher off")
+    ax.axhline(active_screen_cap, color=COLORS["black"], linewidth=1.5, label="3-trace oracle cap")
+    ax.axhline(active_screen_nopref, color=COLORS["pink"], linewidth=1.8, label="selected policy quick eval")
+    ax.set_xlabel("OpenEvolve iteration")
+    ax.set_ylabel("3-trace geomean IPC speedup vs disabled prefetching")
+    ax.set_title("OpenEvolve search trajectory by model")
+    ax.set_ylim(1.00, 1.112)
+    ax.grid(True, axis="y", linestyle=":")
     labels = [row["model"] for row in rows]
-    screen = [float(row["screen_gm_vs_pair_best"]) for row in rows]
-    confirmed = [
-        float(row["confirmed_10_trace_pair_best"]) if row["confirmed_10_trace_pair_best"] else float("nan")
+    quick = [float(row["quick_eval_speedup_vs_prefetcher_off"]) for row in rows]
+    wider = [
+        float(row["wider_eval_speedup_vs_prefetcher_off"]) if row["wider_eval_speedup_vs_prefetcher_off"] else float("nan")
         for row in rows
     ]
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.2))
     x = list(range(len(labels)))
-    axes[0].bar(x, screen, color=COLORS["blue"], edgecolor=COLORS["black"], linewidth=0.8)
-    axes[0].axhline(active_screen_pair_best, color=COLORS["black"], linestyle=":", linewidth=1.1, label="active seed screen")
-    axes[0].set_title("Scaled search improved the cheap screen")
-    axes[0].set_ylabel("3-trace geomean vs pair-best")
-    axes[0].set_ylim(0.932, 0.942)
-    axes[0].legend(frameon=False)
-    for xi, value in zip(x, screen, strict=True):
-        axes[0].text(xi, value + 0.0003, f"{value:.3f}", ha="center", va="bottom", fontsize=8)
-    for xi, value in zip(x, confirmed, strict=True):
-        axes[1].bar(
-            xi,
-            0 if math.isnan(value) else value,
-            color=COLORS["purple"],
-            edgecolor=COLORS["black"],
-            linewidth=0.8,
-            alpha=0.25 if math.isnan(value) else 0.9,
-        )
-        if not math.isnan(value):
-            axes[1].text(xi, value + 0.0004, f"{value:.3f}", ha="center", va="bottom", fontsize=8)
-    axes[1].axhline(active_confirm_pair_best, color=COLORS["pink"], linewidth=1.6, label="active seed 10-trace")
-    axes[1].set_title("Wider confirmation kept the frozen seed")
-    axes[1].set_ylabel("10-trace geomean vs pair-best")
-    axes[1].set_ylim(0.976, 0.982)
-    axes[1].legend(frameon=False)
-    for ax in axes:
-        ax.set_xticks(x)
-        ax.set_xticklabels(labels)
-        ax.grid(True, axis="y", linestyle=":")
+    axes[1].scatter(x, quick, marker="o", s=54, color=[model_colors[label] for label in labels], label="3-trace quick eval")
+    for xi, value, label in zip(x, wider, labels, strict=True):
+        if math.isnan(value):
+            axes[1].scatter(xi, 1.001, marker="x", s=60, color=model_colors[label], linewidth=2.0)
+            axes[1].text(xi, 1.006, "quick\nonly", ha="center", va="bottom", fontsize=8)
+        else:
+            axes[1].scatter(xi, value, marker="^", s=64, color=model_colors[label])
+    axes[1].axhline(1.0, color=COLORS["black"], linestyle=":", linewidth=1.0)
+    axes[1].axhline(active_confirm_cap, color=COLORS["black"], linewidth=1.5)
+    axes[1].axhline(active_confirm_nopref, color=COLORS["pink"], linewidth=1.8)
+    axes[1].set_xticks(x)
+    axes[1].set_xticklabels(["GPT-5\nmini", "GPT-5.4", "Sonnet\n4.6"])
+    axes[1].set_title("Wider validation")
+    axes[1].grid(True, axis="y", linestyle=":")
+    handles, legend_labels = ax.get_legend_handles_labels()
+    fig.legend(
+        handles,
+        legend_labels,
+        frameon=False,
+        ncols=4,
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.065),
+    )
     fig.text(
         0.02,
         0.01,
-        "Only the strongest scaled-search hit was promoted to 10-trace confirmation. Blank confirmation bars mean the screen result trailed the promoted hit.",
+        f"Faint points are valid generated candidates. Lines track best-so-far by weighted score. Triangles show 10-trace validation. The selected policy reached {active_confirm_nopref:.3f}x vs disabled prefetching.",
         ha="left",
         va="bottom",
         fontsize=8,
     )
-    fig.tight_layout(rect=(0, 0.06, 1, 1))
+    fig.tight_layout(rect=(0, 0.16, 1, 1))
     fig.savefig(out_path, dpi=180)
     plt.close(fig)
 
@@ -512,6 +653,11 @@ def main() -> int:
     args.tables_dir.mkdir(parents=True, exist_ok=True)
     rows = metric_table(args.train_v12, args.train_v13, args.heldout_v12, args.heldout_v13)
     write_markdown_table(rows, args.tables_dir / "stage2_final_metrics.md")
+    instruction_rows = [
+        summarize_instruction_check(args.train_v13, "MoP-V1.3", "13-trace training validation"),
+        summarize_instruction_check(args.heldout_v13, "MoP-V1.3", "7-trace heldout"),
+    ]
+    write_instruction_check_table(instruction_rows, args.tables_dir / "stage2_instruction_cycle_check.md")
     scale_rows = scale_model_rows(
         args.candidate_ledger,
         [
@@ -526,11 +672,22 @@ def main() -> int:
     plot_model_comparison(args.model_ledger, args.figures_dir / "stage2_model_comparison.png")
     active_screen = required_ledger_record_for_hash(args.candidate_ledger, "a52ed8a4151ad6cc", "stage1")
     active_confirm = required_ledger_record_for_hash(args.candidate_ledger, "a52ed8a4151ad6cc", "stage2")
+    active_screen_nopref = float(active_screen["metrics"]["gm_vs_nopref"])
+    active_screen_cap = active_screen_nopref / float(active_screen["metrics"]["gm_vs_pair_best"])
+    active_confirm_nopref = float(active_confirm["metrics"]["gm_vs_nopref"])
+    active_confirm_cap = active_confirm_nopref / float(active_confirm["metrics"]["gm_vs_pair_best"])
     plot_scale_model_comparison(
         scale_rows,
         args.figures_dir / "stage2_scale_model_comparison.png",
-        float(active_screen["metrics"]["gm_vs_pair_best"]),
-        float(active_confirm["metrics"]["gm_vs_pair_best"]),
+        [
+            ("GPT-5 mini", args.scale_gpt5mini),
+            ("GPT-5.4", args.scale_gpt54),
+            ("Sonnet 4.6", args.scale_sonnet46),
+        ],
+        active_screen_nopref,
+        active_screen_cap,
+        active_confirm_nopref,
+        active_confirm_cap,
     )
     return 0
 
