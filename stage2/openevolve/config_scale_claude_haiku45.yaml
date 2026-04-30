@@ -1,0 +1,67 @@
+max_iterations: 1
+checkpoint_interval: 5
+log_level: "INFO"
+random_seed: 47
+diff_based_evolution: false
+max_code_length: 12000
+
+llm:
+  models:
+    - name: "claude-haiku-4-5-20251001-v1:0"
+      weight: 1.0
+  evaluator_models:
+    - name: "claude-haiku-4-5-20251001-v1:0"
+      weight: 1.0
+  api_base: "https://ai-gateway.andrew.cmu.edu"
+  api_key: ${CMU_AI_GATEWAY_API_KEY}
+  max_tokens: 2048
+  timeout: 180
+  retries: 1
+
+prompt:
+  system_message: |
+    Optimize candidate_policy() only.
+
+    Return a literal candidate_policy() function that returns one dictionary.
+    Allowed keys only: router, mop_total_budget, mop_one_shot_epochs,
+    mop_accuracy_floor, mop_guarded_min_budget_share, mop_sticky_margin_pct,
+    mop_score_weights.
+    Do not add imports, helper functions, variables outside the return value,
+    loops, conditionals, file access, comments outside the evolve block, or any
+    code outside candidate_policy().
+
+    The active seed is:
+    router MoP-V1.3, total budget 9216, one-shot epochs 1, accuracy floor 30,
+    guarded minimum share 10, sticky margin 3, score weights [1.0, 0.55, 1.0].
+
+    Search for a distinct but plausible policy:
+    - MoP-V1.3 is preferred; MoP-V1.2 is allowed only as a strong control.
+    - total budget can vary from 6144 to 12288.
+    - sticky margin can vary from 0 to 12.
+    - score weights can vary smoothly; keep each weight between 0.2 and 2.0.
+    - one-shot epochs should almost always stay 1.
+    - accuracy floor and guarded share can move only modestly.
+
+    Reward hierarchy: first close the gap to pair-best single; second beat
+    no-prefetch; third beat the weaker expert and avoid catastrophic traces.
+    Prefer a valid simple numeric policy over a clever invalid program.
+  include_artifacts: false
+  num_top_programs: 3
+  num_diverse_programs: 2
+
+database:
+  population_size: 24
+  archive_size: 12
+  num_islands: 2
+  elite_selection_ratio: 0.25
+  exploitation_ratio: 0.65
+  feature_dimensions:
+    - "complexity"
+    - "diversity"
+  feature_bins: 8
+
+evaluator:
+  timeout: 1200
+  cascade_evaluation: false
+  parallel_evaluations: 1
+  max_retries: 0
