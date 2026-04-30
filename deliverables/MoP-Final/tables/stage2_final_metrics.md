@@ -1,5 +1,5 @@
-| split | method | n | speedup_vs_prefetcher_off | speedup_95ci | best_expert_speedup | best_expert_95ci | percent_of_best_expert | percent_of_best_expert_95ci | beats_worse_prefetcher | below_95pct_of_best_expert | closer_to_best_expert | both_prefetchers_beat_disabled |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Split | Method | n | Speedup vs disabled | Speedup 95% CI | Best expert speedup | Best expert 95% CI | Percent of best expert | Percent of best 95% CI | Beats worse expert | Below 95% of best expert | Closer to best expert | Both prefetchers beat disabled |
+| --- | --- | ---: | ---: | --- | ---: | --- | ---: | --- | --- | --- | --- | --- |
 | training-split validation | MoP-V1 manual router | 13 | 1.048 | [0.986, 1.124] | 1.086 | [1.031, 1.158] | 96.5% | [92.6%, 99.8%] | 9/13 | 3/13 | 9/13 | 8/13 |
 | training-split validation | MoP-V2 OpenEvolve router | 13 | 1.066 | [1.017, 1.135] | 1.085 | [1.031, 1.156] | 98.3% | [94.7%, 101.3%] | 11/13 | 2/13 | 10/13 | 7/13 |
 | heldout | MoP-V1 manual router | 7 | 0.998 | [0.964, 1.043] | 1.023 | [0.964, 1.091] | 97.6% | [92.0%, 100.9%] | 6/7 | 1/7 | 6/7 | 2/7 |
