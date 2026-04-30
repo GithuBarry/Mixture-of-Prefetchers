@@ -11,11 +11,11 @@ The selected setup is:
 
 - cache level: L2C
 - expert pair: `MLOP + SPP+PPF`
-- selected router: `MoP-V1.3`
+- selected router: `MoP-V2`
 - performance baseline: disabled prefetching at `1.0x`
-- oracle cap: per-trace `max(MLOP, SPP+PPF)`
+- max-prefetcher cap: per-trace `max(MLOP, SPP+PPF)`
 
-The official split has 24 traces: 17 training traces and 7 heldout traces. OpenEvolve search used training traces, while the heldout traces were evaluated after policy selection. The selected router reaches `1.066243x` IPC speedup over disabled prefetching on 13 training-validation traces and `1.003270x` on 7 heldout traces.
+The official split has 24 traces: 17 training traces and 7 heldout traces. OpenEvolve search used training traces, while the heldout traces were evaluated after policy selection. The selected router reaches `1.066x` IPC speedup over disabled prefetching on 13 training-split validation traces and `1.003x` on 7 heldout traces.
 
 Use `report/writing_logistics.md` for the mapping between public report names and raw artifact names such as `stage1`, `stage2`, `stage3`, `gm_vs_nopref`, and `gm_vs_pair_best`.
 
@@ -78,13 +78,13 @@ The official suite is:
 - `24` traces total in `configs/trace_suites.json`
 - `17` train traces and `7` held-out traces
 
-The currently materialized Stage 1 evidence is:
+The currently materialized baseline-search evidence is:
 
 - `17` train-side traces
 - `7` held-out traces
 - `230` completed runs in `data/processed/runs.csv`
 
-So the finished Stage 1 snapshot now spans the full 24-trace suite: the
+So the finished baseline-search snapshot now spans the full 24-trace suite: the
 training side was covered by the official `search_mode` subset plus a matching
 follow-on batch for the remaining training traces, and the held-out side was run
 once as the final readout.
@@ -326,37 +326,37 @@ The committed evidence now includes:
 
 Taken together, those two training-side batches cover the full 17-trace training split.
 
-The main Stage 1 conclusion is simple: some coordinators beat no-prefetch, but
-no tested coordinator beats the pair-best single expert in geomean on either
-split.
+The main baseline-search conclusion is simple: some coordinators beat disabled
+prefetching, and the max-prefetcher cap remains higher in geomean on both
+splits.
 
 That result is easiest to read through two comparisons.
 
-### Against no-prefetch
+### Against disabled prefetching
 
 - On the 17-trace training side:
-  - `AthenaMAB = 1.0095x`
-  - `WinnerTakeAll = 1.0037x`
-  - `FixedSplit = 1.0017x`
-  - `MoPLite = 0.9986x`
+  - `AthenaMAB = 1.010x`
+  - `WinnerTakeAll = 1.004x`
+  - `FixedSplit = 1.002x`
+  - `MoPLite = 0.999x`
 - On the 7-trace held-out split:
-  - `AthenaMAB = 1.0378x`
-  - `OneShotFit = 1.0032x`
-  - `WinnerTakeAll = 0.9997x`
-  - `MoPLite = 0.9974x`
+  - `AthenaMAB = 1.038x`
+  - `OneShotFit = 1.003x`
+  - `WinnerTakeAll = 1.000x`
+  - `MoPLite = 0.997x`
 
 ### Against the best of the coordinated pair (`Pythia`, `SPP+PPF`)
 
 - On the 17-trace training side:
-  - `AthenaMAB = 0.9619x`
-  - `WinnerTakeAll = 0.9564x`
-  - `FixedSplit = 0.9545x`
-  - `MoPLite = 0.9515x`
+  - `AthenaMAB = 96.2% of max`
+  - `WinnerTakeAll = 95.6% of max`
+  - `FixedSplit = 95.4% of max`
+  - `MoPLite = 95.2% of max`
 - On the held-out split:
-  - `AthenaMAB = 0.9560x`
-  - `OneShotFit = 0.9242x`
-  - `WinnerTakeAll = 0.9209x`
-  - `MoPLite = 0.9188x`
+  - `AthenaMAB = 95.6% of max`
+  - `OneShotFit = 92.4% of max`
+  - `WinnerTakeAll = 92.1% of max`
+  - `MoPLite = 91.9% of max`
 
 The epoch traces still answer one useful review question directly: **yes, the
 controller really does use the "both experts off" action, and the current
@@ -367,23 +367,22 @@ weakness is not only choosing the wrong expert**.
   `MoPLite` often includes the offline-better expert for the epoch even when it
   still loses overall. For example, on `459.GemsFDTD` and `437.leslie3d` the
   chosen action includes the offline-better expert in every epoch of that
-  diagnostic, yet `MoPLite` is not the best overall coordinator in the merged
-  Stage 1 result.
+  diagnostic, yet `MoPLite` trails the strongest overall coordinator in the
+  merged baseline-search result.
 
-Even under a stricter fair-routing criterion, the current router does not beat a
-blind fixed expert. On the 8 traces where both `Pythia` and `SPP+PPF` are
-individually above no-prefetch and one clearly wins, `MoPLite` reaches only
-`1.008597x` vs no-prefetch, while always choosing `Pythia` reaches `1.224603x`
-and always choosing `SPP+PPF` reaches `1.172079x`. That is an important result:
-the problem is not just picking the wrong expert on obviously complementary
-traces. The current action policy still leaves too much value on the table.
+Even under a stricter fair-routing criterion, the current router trails a blind
+fixed expert. On the 8 traces where both `Pythia` and `SPP+PPF` are
+individually above disabled prefetching and one clearly wins, `MoPLite` reaches
+`1.009x` vs disabled prefetching, while always choosing `Pythia` reaches `1.225x`
+and always choosing `SPP+PPF` reaches `1.172x`. That is an important result:
+the current action policy still leaves too much value on the table even on
+obviously complementary traces.
 
-So the current local result is not "the router made two experts stronger." The
-current local result is closer to this:
+The current local result is:
 
 - the pipeline works end to end
 - the router logic is implemented and observable
-- some coordinators achieve small `1+x` gains over no-prefetch
+- some coordinators achieve small `1+x` gains over disabled prefetching
 - the current `Pythia + SPP+PPF` coordination rules still lose in geomean to the
   better single expert from that pair on both the full training side and the
   held-out evidence
@@ -395,20 +394,19 @@ The report figures now separate those questions cleanly:
 
 - `ipc_speedup_summary.png` is only about beating prefetch-off
 - `single_expert_profiles.png` is about whether the experts genuinely differ
-- `win_loss_mop_vs_best_single.png` is about per-trace losses to the pair-best single
+- `win_loss_mop_vs_best_single.png` is about per-trace distance to the max-prefetcher cap
 - `router_compare_criterion.png` is about what the routers actually predicted and whether those actions included the better expert
 
-That does **not** invalidate the method. It does mean the current tracked result
-is a negative performance result against the pair-best single baseline, not a
-success claim.
+That keeps the performance claim modest and leaves OpenEvolve tuning as the
+next mechanism to test.
 
 ## What Is Still Open
 
-The current repo now has a complete Stage 1 baseline, but several scientific
+The current repo now has a complete baseline snapshot, and several scientific
 questions remain open:
 
-- whether Stage 2 tuning over the frozen control surface can turn the current
-  negative-vs-best-single result into a positive held-out result
+- whether OpenEvolve tuning over the frozen control surface can improve heldout
+  behavior
 - whether a different expert pair is more complementary than `Pythia + SPP+PPF`
 - whether the current floor and score weights are too aggressive
 - whether the coordinator traffic proxy should be replaced by a simulator-side
@@ -430,9 +428,9 @@ questions remain open:
 
 ## Bottom Line
 
-The repository already has a reproducible Stage 1 baseline: a two-expert L2
+The repository already has a reproducible baseline snapshot: a two-expert L2
 router, per-epoch telemetry, a fixed split, append-only manifests, a processed
 dataset, and regenerated report artifacts. The committed evidence shows that the
-current rules can deliver small wins over no-prefetch, but no tested
-coordinator beats the strongest single expert from the committed pair in
-geomean on either the full training side or the held-out split.
+current rules can deliver small wins over disabled prefetching while trailing
+the max-prefetcher cap in geomean on both the full training side and the
+held-out split.

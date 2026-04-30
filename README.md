@@ -1,6 +1,6 @@
 # Mixture-of-Prefetchers
 
-This repository builds a small router on top of the Athena simulator to coordinate two L2-cache prefetchers. The current finished story uses `MLOP + SPP+PPF` at L2C and an OpenEvolve-selected router called `MoP-V1.3`.
+This repository builds a small router on top of the Athena simulator to coordinate two L2-cache prefetchers. The current finished story uses `MLOP + SPP+PPF` at L2C and an OpenEvolve-selected router called `MoP-V2`.
 
 Start with the final report:
 
@@ -10,21 +10,21 @@ Start with the final report:
 
 ## Current Result
 
-All headline performance is IPC speedup relative to disabled prefetching. The oracle best prefetcher is shown separately as a cap, computed as `max(MLOP, SPP+PPF)` on each trace.
+All headline performance is IPC speedup relative to disabled prefetching. The max-prefetcher cap is shown separately and computed as `max(MLOP, SPP+PPF)` on each trace.
 
-| Surface | Selected router | Speedup vs disabled prefetching | Oracle best cap |
+| Surface | Selected router | Speedup vs disabled prefetching | Max-prefetcher cap |
 | --- | --- | ---: | ---: |
-| 13-trace training validation | `MoP-V1.3` | `1.066243x` | `1.084810x` |
-| 7-trace heldout | `MoP-V1.3` | `1.003270x` | `1.024333x` |
+| 13-trace training-split validation | `MoP-V2` | `1.066x` | `1.085x` |
+| 7-trace heldout | `MoP-V2` | `1.003x` | `1.024x` |
 
-The manual reference router is `MoP-V1.2`. It reaches `1.047685x` on the same 13-trace training-validation surface and `0.998069x` on heldout.
+The manual reference router is `MoP-V1`. It reaches `1.048x` on the same 13-trace training-split validation surface and `0.998x` on heldout.
 
 ## What We Added To Athena
 
 Athena provides the simulator, cache hierarchy, prefetchers, and baseline machinery. This repo adds:
 
 - an epoch-based L2C router for two constituent prefetchers
-- MoP router variants `MoP-V1.1`, `MoP-V1.2`, and `MoP-V1.3`
+- MoP router variants `MoP-V1` and `MoP-V2`
 - per-expert issued/useful counters and budget controls
 - fixed train and heldout split handling
 - an OpenEvolve policy-search sandbox
@@ -37,11 +37,11 @@ The official split has 24 traces:
 - 17 training traces
 - 7 heldout traces
 
-OpenEvolve search used training traces. The quick evaluator used 3 training traces, wider validation used 10 training traces, and final training validation used the 13 training traces available in this checkout. Heldout evaluation used the 7 frozen heldout traces after policy selection.
+OpenEvolve search used training traces. The quick evaluator used 3 training traces, wider validation used 10 training traces, and final training-split validation used the 13 locally available training traces with complete artifacts in this checkout. The four other training traces in the official split are `facesim`, `ligra_BFS`, `ligra_Triangle`, and `secret_compute_int_243`. Heldout evaluation used the 7 frozen heldout traces after policy selection.
 
 Simulation windows:
 
-- quick and training-validation runs: `500K` warmup, `1M` simulation
+- quick and training-split validation runs: `500K` warmup, `1M` simulation
 - heldout runs: `5M` warmup, `10M` simulation
 - router epoch length: `500K` retired instructions
 
@@ -49,35 +49,22 @@ Simulation windows:
 
 | Name | Meaning |
 | --- | --- |
-| `MoP-V1.1` | guarded router with budget-share protection |
-| `MoP-V1.2` | one-epoch probe, then higher-scoring expert selection |
-| `MoP-V1.3` | `MoP-V1.2` plus a sticky margin for close expert scores |
+| `MoP-V1` | one-epoch probe, then higher-scoring expert selection |
+| `MoP-V2` | OpenEvolve-tuned `MoP-V1` with an evolved budget, score weights, and close-score tie margin |
 
-The selected `MoP-V1.3` policy is:
-
-```python
-{
-    "router": "MoP-V1.3",
-    "mop_total_budget": 9216,
-    "mop_one_shot_epochs": 1,
-    "mop_accuracy_floor": 30,
-    "mop_guarded_min_budget_share": 10,
-    "mop_sticky_margin_pct": 3,
-    "mop_score_weights": [1.0, 0.55, 1.0],
-}
-```
+The selected `MoP-V2` policy uses a `9216` per-epoch prefetch budget, about `18.4` prefetches per 1K retired instructions over a `500K`-instruction epoch. It also uses one initial dual-expert probe epoch, an accuracy floor of `30`, a `3%` close-score tie margin, and score weights `[1.0, 0.55, 1.0]` for accuracy, coverage, and traffic terms.
 
 ## OpenEvolve Runs
 
-The candidate ledger contains 290 rows:
+The candidate ledger contains 374 rows:
 
-- 225 valid scored rows
-- 65 fail-closed rows
+- 306 valid scored rows
+- 68 fail-closed rows
 
 The larger model sweeps requested:
 
 - GPT-5 mini: 80 iterations
-- GPT-5.4: 30 iterations
+- GPT-5.4: 80 iterations
 - Sonnet 4.6: 30 iterations
 
 The repo records iterations, candidates, simulator outcomes, and generated artifacts. Gateway dollar billing should be read from the CMU AI Gateway dashboard.

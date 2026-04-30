@@ -1,9 +1,9 @@
 # Router / coordinator ablation
 
-Geometric mean of IPC speedup vs no-prefetch and vs the pair-best single expert, by split side.
+Geometric mean of IPC speedup vs disabled prefetching and percent of max, by split side.
 Reported only for (experiment, split) cells that contain runs.
 
-| Coordinator | Split | Runs | Geomean vs no-pref | Geomean vs pair-best single | Min vs pair-best | Max vs pair-best |
+| Coordinator | Split | Runs | Geomean vs disabled prefetching | Percent of max | Min percent of max | Max percent of max |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
 | AthenaMAB | heldout | 7 | 1.0378 | 0.9560 | 0.8746 | 1.0007 |
 | AthenaMAB | train | 17 | 1.0095 | 0.9619 | 0.6548 | 1.0997 |

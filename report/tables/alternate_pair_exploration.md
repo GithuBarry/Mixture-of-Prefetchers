@@ -1,10 +1,12 @@
-# Alternate-pair exploratory baselines (held-out)
+# Legacy Supplemental: Alternate-Pair Exploratory Baselines
 
 These runs are **supplemental** and do not replace the committed mainline pair
 (`Pythia + SPP+PPF`). They ask whether changing the expert pair alone is enough
 to make `MoPLite` competitive.
 
-| Pair | Coordinator | Geomean vs no-prefetch | Geomean vs pair-best single |
+The current OpenEvolve report uses `MLOP + SPP+PPF` as the selected expert pair.
+
+| Pair | Coordinator | Geomean vs disabled prefetching | Percent of max |
 | --- | --- | ---: | ---: |
 | `Pythia + SPP+PPF` | MoPLite | 0.997413 | 0.918839 |
 | `Pythia + SPP+PPF` | AthenaMAB | 1.037783 | 0.956029 |
@@ -18,7 +20,7 @@ to make `MoPLite` competitive.
 Main takeaway:
 
 - pair choice matters materially
-- `MLOP + SMS` gives the best `MoPLite` result vs its pair-best single expert
-- `MLOP + Pythia` gives the best `MoPLite` result vs no-prefetch
-- but **no tested alternate pair** makes `MoPLite` beat its own pair-best single
-  expert on held-out traces
+- `MLOP + SMS` gives the best `MoPLite` result as percent of max
+- `MLOP + Pythia` gives the best `MoPLite` result vs disabled prefetching
+- the tested alternate pairs keep `MoPLite` below their max-prefetcher cap on
+  heldout traces

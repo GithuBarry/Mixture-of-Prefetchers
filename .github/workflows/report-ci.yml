@@ -1,0 +1,25 @@
+name: Report CI
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  public-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile Python helpers
+        run: |
+          python -m py_compile \
+            scripts/check_public_artifacts.py \
+            scripts/make_stage2_final_assets.py \
+            scripts/rebuild_mop_summary_from_metrics.py
+
+      - name: Check public report hygiene
+        run: python scripts/check_public_artifacts.py

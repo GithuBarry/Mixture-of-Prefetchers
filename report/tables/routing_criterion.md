@@ -1,13 +1,16 @@
-# Fair routing criterion: `Pythia + SPP+PPF`
+# Legacy Supplemental: Fair Routing Criterion for `Pythia + SPP+PPF`
+
+This table is older baseline-search context. The current OpenEvolve report uses
+`MLOP + SPP+PPF` as the selected expert pair.
 
 Criterion:
 
-- both `Pythia` and `SPP+PPF` are individually above no-prefetch on the trace
+- both `Pythia` and `SPP+PPF` are individually above disabled prefetching on the trace
 - one of them is clearly better
 
 This table reports both favorable and unfavorable criterion-matching cases.
 
-| Trace | Better expert | Epochs | Oracle expert included | Oracle included on nonzero-useful epochs | Exact oracle action | `both off` rate |
+| Trace | Better expert | Epochs | Better expert included | Better expert included on nonzero-useful epochs | Exact best action | `both off` rate |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
 | `602.gcc_s-734B` | Pythia | 30 | 1.000 | 1.000 | 0.000 | 0.000 |
 | `619.lbm_s-2676B` | SPP+PPF | 30 | 1.000 | 1.000 | 0.000 | 0.000 |
@@ -19,10 +22,10 @@ This table reports both favorable and unfavorable criterion-matching cases.
 
 Reading guide:
 
-- **Oracle expert included** asks whether the chosen action at least contains the
+- **Better expert included** asks whether the chosen action at least contains the
   offline-better expert for that epoch.
-- **Exact oracle action** is stricter and requires the chosen action to match the
-  offline oracle exactly.
+- **Exact best action** is stricter and requires the chosen action to match the
+  offline best action exactly.
 - The mixed results show that the current rule has real ranking skill on some
   complementary traces, but its action policy still overuses `both off` or fails
   to isolate the better expert on others.
