@@ -13,7 +13,7 @@ The selected setup is:
 - expert pair: `MLOP + SPP+PPF`
 - selected router: `MoP-V2`
 - performance baseline: disabled prefetching at `1.0x`
-- max-prefetcher cap: per-trace `max(MLOP, SPP+PPF)`
+- best expert: per-trace `max(MLOP, SPP+PPF)`
 
 The official split has 24 traces: 17 training traces and 7 heldout traces. OpenEvolve search used training traces, while the heldout traces were evaluated after policy selection. The selected router reaches `1.066x` IPC speedup over disabled prefetching on 13 training-split validation traces and `1.003x` on 7 heldout traces.
 
@@ -327,7 +327,7 @@ The committed evidence now includes:
 Taken together, those two training-side batches cover the full 17-trace training split.
 
 The main baseline-search conclusion is simple: some coordinators beat disabled
-prefetching, and the max-prefetcher cap remains higher in geomean on both
+prefetching, and the best expert remains higher in geomean on both
 splits.
 
 That result is easiest to read through two comparisons.
@@ -348,15 +348,15 @@ That result is easiest to read through two comparisons.
 ### Against the best of the coordinated pair (`Pythia`, `SPP+PPF`)
 
 - On the 17-trace training side:
-  - `AthenaMAB = 96.2% of max`
-  - `WinnerTakeAll = 95.6% of max`
-  - `FixedSplit = 95.4% of max`
-  - `MoPLite = 95.2% of max`
+  - `AthenaMAB = 96.2% of best expert`
+  - `WinnerTakeAll = 95.6% of best expert`
+  - `FixedSplit = 95.4% of best expert`
+  - `MoPLite = 95.2% of best expert`
 - On the held-out split:
-  - `AthenaMAB = 95.6% of max`
-  - `OneShotFit = 92.4% of max`
-  - `WinnerTakeAll = 92.1% of max`
-  - `MoPLite = 91.9% of max`
+  - `AthenaMAB = 95.6% of best expert`
+  - `OneShotFit = 92.4% of best expert`
+  - `WinnerTakeAll = 92.1% of best expert`
+  - `MoPLite = 91.9% of best expert`
 
 The epoch traces still answer one useful review question directly: **yes, the
 controller really does use the "both experts off" action, and the current
@@ -394,7 +394,7 @@ The report figures now separate those questions cleanly:
 
 - `ipc_speedup_summary.png` is only about beating prefetch-off
 - `single_expert_profiles.png` is about whether the experts genuinely differ
-- `win_loss_mop_vs_best_single.png` is about per-trace distance to the max-prefetcher cap
+- `win_loss_mop_vs_best_single.png` is about per-trace distance to the best expert
 - `router_compare_criterion.png` is about what the routers actually predicted and whether those actions included the better expert
 
 That keeps the performance claim modest and leaves OpenEvolve tuning as the
@@ -432,5 +432,5 @@ The repository already has a reproducible baseline snapshot: a two-expert L2
 router, per-epoch telemetry, a fixed split, append-only manifests, a processed
 dataset, and regenerated report artifacts. The committed evidence shows that the
 current rules can deliver small wins over disabled prefetching while trailing
-the max-prefetcher cap in geomean on both the full training side and the
+the best expert in geomean on both the full training side and the
 held-out split.

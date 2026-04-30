@@ -6,7 +6,7 @@ to make `MoPLite` competitive.
 
 The current OpenEvolve report uses `MLOP + SPP+PPF` as the selected expert pair.
 
-| Pair | Coordinator | Geomean vs disabled prefetching | Percent of max |
+| Pair | Coordinator | Geomean vs disabled prefetching | Percent of best expert |
 | --- | --- | ---: | ---: |
 | `Pythia + SPP+PPF` | MoPLite | 0.997413 | 0.918839 |
 | `Pythia + SPP+PPF` | AthenaMAB | 1.037783 | 0.956029 |
@@ -20,7 +20,7 @@ The current OpenEvolve report uses `MLOP + SPP+PPF` as the selected expert pair.
 Main takeaway:
 
 - pair choice matters materially
-- `MLOP + SMS` gives the best `MoPLite` result as percent of max
+- `MLOP + SMS` gives the best `MoPLite` result as percent of best expert
 - `MLOP + Pythia` gives the best `MoPLite` result vs disabled prefetching
-- the tested alternate pairs keep `MoPLite` below their max-prefetcher cap on
+- the tested alternate pairs keep `MoPLite` below their best expert on
   heldout traces

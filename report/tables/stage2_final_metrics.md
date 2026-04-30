@@ -1,4 +1,4 @@
-| split | method | n | speedup_vs_prefetcher_off | max_prefetcher_cap | percent_of_max | beats_worse_prefetcher | below_95pct_of_max | closer_to_max_prefetcher | both_prefetchers_beat_disabled |
+| split | method | n | speedup_vs_prefetcher_off | best_expert_speedup | percent_of_best_expert | beats_worse_prefetcher | below_95pct_of_best_expert | closer_to_best_expert | both_prefetchers_beat_disabled |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | training-split validation | Manual router | 13 | 1.048 | 1.086 | 96.5% | 9/13 | 3/13 | 9/13 | 8/13 |
 | training-split validation | OpenEvolve router | 13 | 1.066 | 1.085 | 98.3% | 11/13 | 2/13 | 10/13 | 7/13 |

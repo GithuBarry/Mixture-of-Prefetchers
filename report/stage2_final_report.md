@@ -4,17 +4,17 @@
 
 We used OpenEvolve, a large-language-model program search framework, to tune a compact router that chooses between two Athena L2-cache prefetchers. The expert pair is `MLOP + SPP+PPF` at L2C. The final router is `MoP-V2`, an OpenEvolve-tuned version of the `MoP-V1` one-epoch probe router.
 
-All performance numbers in this report use disabled prefetching as `1.0x`. The per-trace max-prefetcher cap is computed as `max(MLOP, SPP+PPF)` for each trace, then geomeaned across the trace set. The router is judged by how close it gets to that cap while staying above disabled prefetching.
+All performance numbers in this report use disabled prefetching as `1.0x`. The per-trace best expert is computed as `max(MLOP, SPP+PPF)` for each trace, then geomeaned across the trace set. The router is judged by how close it gets to that best-expert reference while staying above disabled prefetching.
 
-The main result is a stronger 13-trace training-split validation router. The manual `MoP-V1` router reaches `1.048x` IPC speedup over disabled prefetching. The OpenEvolve-selected `MoP-V2` router reaches `1.066x`. The max-prefetcher cap on the same traces is `1.085x`, so `MoP-V2` reaches `98.3% of max`. It also beats the worse constituent prefetcher on `11/13` traces and has `2/13` traces below `95.0% of max`.
+The main result is a stronger 13-trace training-split validation router. The manual `MoP-V1` router reaches `1.048x` IPC speedup over disabled prefetching. The OpenEvolve-selected `MoP-V2` router reaches `1.066x`. The best expert on the same traces is `1.085x`, so `MoP-V2` reaches `98.3% of best expert`. It also beats the worse constituent prefetcher on `11/13` traces and has `2/13` traces below `95.0% of best expert`.
 
-The heldout result is smaller and still positive by the disabled-prefetching baseline. On seven heldout traces, `MoP-V2` reaches `1.003x` over disabled prefetching. The max-prefetcher cap is `1.024x`, and `MoP-V2` reaches `97.9% of max`. This is a modest generalization result, and it is the right claim size for the data.
+The heldout result is smaller and still positive by the disabled-prefetching baseline. On seven heldout traces, `MoP-V2` reaches `1.003x` over disabled prefetching. The best expert is `1.024x`, and `MoP-V2` reaches `97.9% of best expert`. This is a modest generalization result, and it is the right claim size for the data.
 
-The IPC result comes from cycle reduction under a fixed instruction window. On the 13-trace training-split validation run, `MoP-V2` has instruction-count ratio `1.000x` and cycle-count ratio `0.938x` relative to disabled prefetching. On heldout, the instruction-count ratio is `1.000x` and the cycle-count ratio is `0.997x`. The advisor-facing answer is: the simulator holds the retired-instruction window fixed, so IPC movement is effectively cycle movement.
+The IPC result comes from cycle reduction under a fixed instruction window. On the 13-trace training-split validation run, `MoP-V2` has instruction-count ratio `1.000x` and cycle-count ratio `0.938x` relative to disabled prefetching. On heldout, the instruction-count ratio is `1.000x` and the cycle-count ratio is `0.997x`. Interpretation: the simulator holds the retired-instruction window fixed, so IPC movement is effectively cycle movement.
 
 ![Router geomean with disabled prefetching as 1x](figures/stage2_pre_post_geomean.png)
 
-*Caption: disabled prefetching is the black `1.000x` baseline, yellow marks the per-trace max prefetcher cap, orange is the manual `MoP-V1` router, and pink is the OpenEvolve-tuned `MoP-V2` router.*
+*Caption: disabled prefetching is the black `1.000x` baseline, yellow marks the per-trace best expert, orange is the manual `MoP-V1` router, and pink is the OpenEvolve-tuned `MoP-V2` router.*
 
 ## What We Built On Athena
 
@@ -59,43 +59,43 @@ The comparator hierarchy is:
 | Comparator | Purpose |
 | --- | --- |
 | Disabled prefetching | universal `1.0x` baseline for performance |
-| Per-trace max-prefetcher cap | cap from `max(MLOP, SPP+PPF)` on each trace |
+| Per-trace best expert | reference from `max(MLOP, SPP+PPF)` on each trace |
 | Worse constituent prefetcher | minimum practical routing check |
 | Simple router baselines | `WinnerTakeAll`, `OneShotFit`, and Athena MAB |
 
-The expert pair supports the routing story because the two prefetchers have different strengths. On heldout, `SPP+PPF` is stronger overall at `1.024x` over disabled prefetching, while `MLOP` reaches `0.974x`. The router lands between disabled prefetching and the max-prefetcher cap in geomean.
+The expert pair supports the routing story because the two prefetchers have different strengths. On heldout, `SPP+PPF` is stronger overall at `1.024x` over disabled prefetching, while `MLOP` reaches `0.974x`. The router lands between disabled prefetching and the best expert in geomean.
 
 ## Before And After OpenEvolve
 
 ![Heldout trace profile](figures/stage2_heldout_trace_profile.png)
 
-*Caption: each heldout trace shows `MLOP`, `SPP+PPF`, and `MoP-V2` as horizontal bars. Disabled prefetching is the black `1.000x` reference line, and the legend is outside the plot area so all bars stay readable.*
+*Caption: each heldout trace shows `MLOP`, `SPP+PPF`, `MoP-V1`, and `MoP-V2` as horizontal bars. Disabled prefetching is the black `1.000x` reference line, and the legend is outside the plot area so all bars stay readable.*
 
-| Surface | Manual `MoP-V1` | OpenEvolve `MoP-V2` | Max-prefetcher cap |
+| Surface | Manual `MoP-V1` | OpenEvolve `MoP-V2` | Best expert |
 | --- | ---: | ---: | ---: |
 | 13-trace training-split validation, speedup vs disabled prefetching | `1.048` | `1.066` | `1.085` |
-| 13-trace training-split validation, percent of max | `96.5%` | `98.3%` | `100.0%` |
+| 13-trace training-split validation, percent of best expert | `96.5%` | `98.3%` | `100.0%` |
 | 13-trace training-split validation, beats worse prefetcher | `9/13` | `11/13` |  |
-| 13-trace training-split validation, below `95.0% of max` | `3/13` | `2/13` |  |
+| 13-trace training-split validation, below `95.0% of best expert` | `3/13` | `2/13` |  |
 | 7-trace heldout, speedup vs disabled prefetching | `0.998` | `1.003` | `1.024` |
-| 7-trace heldout, percent of max | `97.6%` | `97.9%` | `100.0%` |
+| 7-trace heldout, percent of best expert | `97.6%` | `97.9%` | `100.0%` |
 
 The 13-trace training-split validation result also beats the simple router baselines on the same surface:
 
-| Method | Speedup vs disabled prefetching | Percent of max | Beats worse prefetcher | Below `95.0% of max` |
+| Method | Speedup vs disabled prefetching | Percent of best expert | Beats worse prefetcher | Below `95.0% of best expert` |
 | --- | ---: | ---: | ---: | ---: |
 | OpenEvolve `MoP-V2` | `1.066` | `98.3%` | `11/13` | `2/13` |
 | winner-take-all router | `1.025` | `94.3%` | `7/13` | `5/13` |
 | one-shot fit router | `1.027` | `94.3%` | `6/13` | `5/13` |
 | Athena MAB router baseline | `1.021` | `94.2%` | `6/13` | `5/13` |
 
-The heldout trace profile shows the remaining risk. On `secret_compute_fp_105`, `MoP-V2` improves the tail loss from the manual router, yet it remains the largest heldout loss relative to the max-prefetcher cap.
+The heldout trace profile shows the remaining risk. On `secret_compute_fp_105`, `MoP-V2` improves the tail loss from the manual router, yet it remains the largest heldout loss relative to the best expert.
 
 ## OpenEvolve Search
 
 ![OpenEvolve model search trajectory](figures/stage2_scale_model_comparison.png)
 
-*Caption: all points are OpenEvolve-generated candidates, colored by evolver model. The left panel is the 3-trace quick evaluation surface, and the right panel shows quick-evaluation circles plus 10-trace wider-validation triangles. The y-axis is speedup over disabled prefetching, while max-prefetcher caps are labeled separately as reference values.*
+*Caption: all points are OpenEvolve-generated candidates, colored by evolver model. The left panel is the 3-trace quick evaluation surface, and the right panel shows quick-evaluation circles plus 10-trace wider-validation triangles. The y-axis is speedup over disabled prefetching, while best experts are labeled separately as reference values.*
 
 OpenEvolve searched a tiny policy surface. The first small model-comparison pass requested 6 iterations per model. The larger sweeps requested 80 GPT-5 mini iterations, 80 GPT-5.4 iterations, and 30 Sonnet 4.6 iterations. The captured logs show approximate wall-clock times of `97.3` minutes for GPT-5 mini, `47.8` minutes for GPT-5.4, and `43.9` minutes for Sonnet 4.6 on the local setup used here.
 
@@ -115,13 +115,13 @@ The repository artifacts record iteration and candidate counts. A CMU AI Gateway
 
 ## Result Scope
 
-The result is a small OpenEvolve-searched router on top of Athena L2C. For `MLOP + SPP+PPF`, `MoP-V2` improves over the manual `MoP-V1` router, reaches `1.066x` IPC speedup over disabled prefetching on 13 training-split validation traces, and reaches `1.003x` on 7 heldout traces while staying below the per-trace max-prefetcher cap.
+The result is a small OpenEvolve-searched router on top of Athena L2C. For `MLOP + SPP+PPF`, `MoP-V2` improves over the manual `MoP-V1` router, reaches `1.066x` IPC speedup over disabled prefetching on 13 training-split validation traces, and reaches `1.003x` on 7 heldout traces while staying below the per-trace best expert.
 
 The evaluation boundaries are clean:
 
 - heldout traces are used after policy selection
 - performance plots use disabled prefetching as the `1.0x` baseline
-- the max-prefetcher result is a separate cap
+- the best expert result is a separate reference
 - instruction count stays fixed within tiny simulator-rounding error
 - the final method stays inside a compact router policy surface
 - malformed or out-of-contract OpenEvolve candidates receive failure scores and stay in the ledger

@@ -10,9 +10,9 @@ Start with the final report:
 
 ## Current Result
 
-All headline performance is IPC speedup relative to disabled prefetching. The max-prefetcher cap is shown separately and computed as `max(MLOP, SPP+PPF)` on each trace.
+All headline performance is IPC speedup relative to disabled prefetching. The best expert is shown separately and computed as `max(MLOP, SPP+PPF)` on each trace.
 
-| Surface | Selected router | Speedup vs disabled prefetching | Max-prefetcher cap |
+| Surface | Selected router | Speedup vs disabled prefetching | Best expert |
 | --- | --- | ---: | ---: |
 | 13-trace training-split validation | `MoP-V2` | `1.066x` | `1.085x` |
 | 7-trace heldout | `MoP-V2` | `1.003x` | `1.024x` |

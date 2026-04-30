@@ -111,7 +111,7 @@ addSlide(
             style: { fontSize: 76, bold: true, color: COLORS.black },
           }),
           rule({ name: "cover-rule", width: fixed(360), stroke: COLORS.pink, weight: 8 }),
-          text("A small L2-cache router that improves IPC over disabled prefetching and tracks a max-prefetcher cap", {
+          text("A small L2-cache router that improves IPC over disabled prefetching and tracks a best expert", {
             name: "cover-thesis",
             width: fill,
             height: hug,
@@ -185,7 +185,7 @@ addSlide(
         { name: "protocol-grid", width: fill, height: fill, columns: [fr(0.9), fr(1.1)], columnGap: 56 },
         [
           bulletList(["Expert pair: MLOP + SPP+PPF", "Cache level: L2C", "Search: 10 training traces", "Training-split validation: 13 local traces", "Heldout: 7 traces after policy selection"], 29),
-          bulletList(["Performance baseline: disabled prefetching", "Max-prefetcher cap: max(MLOP, SPP+PPF) per trace", "Minimum check: beat the worse prefetcher", "Simple routers: WinnerTakeAll, OneShotFit, AthenaMAB"], 29),
+          bulletList(["Performance baseline: disabled prefetching", "Best expert: max(MLOP, SPP+PPF) per trace", "Minimum check: beat the worse prefetcher", "Simple routers: WinnerTakeAll, OneShotFit, AthenaMAB"], 29),
         ],
       ),
       text("The 13-trace training-split surface has complete local artifacts. The four other train traces are facesim, ligra_BFS, ligra_Triangle, and secret_compute_int_243.", {
@@ -202,7 +202,7 @@ addSlide(
   column(
     { name: "root", width: fill, height: fill, padding: { x: 70, y: 56 }, gap: 18 },
     [
-      title("OpenEvolve improved the router", "Bars use disabled prefetching as 1x. Yellow caps show the per-trace max prefetcher."),
+      title("OpenEvolve improved the router", "Bars use disabled prefetching as 1x. Yellow marks show the per-trace best expert."),
       image({
         name: "pre-post-figure",
         dataUrl: pngDataUrl("stage2_pre_post_geomean.png"),
@@ -220,7 +220,7 @@ addSlide(
   column(
     { name: "root", width: fill, height: fill, padding: { x: 70, y: 56 }, gap: 18 },
     [
-      title("Heldout shows a modest geomean lift", "Horizontal bars compare MLOP, SPP+PPF, and MoP-V2 on each heldout trace."),
+      title("Heldout shows a modest geomean lift", "Horizontal bars compare MLOP, SPP+PPF, MoP-V1, and MoP-V2 on each heldout trace."),
       image({
         name: "heldout-profile",
         dataUrl: pngDataUrl("stage2_heldout_trace_profile.png"),
@@ -284,7 +284,7 @@ addSlide(
           "Primary claim: OpenEvolve improves IPC speedup over disabled prefetching on 13 training-split validation traces.",
           "Heldout claim: the selected router reaches 1.003x over disabled prefetching on seven heldout traces.",
           "Instruction-count ratios round to 1.000x on training-split validation and heldout.",
-          "The max-prefetcher result remains a cap, which keeps the claim sized correctly.",
+          "The best expert result stays as a separate reference, which keeps the claim sized correctly.",
           "Reproduction paths and naming details live in report/writing_logistics.md.",
         ],
         31,

@@ -32,8 +32,9 @@ METHOD_COLOR = {
     "SPP+PPF": COLORS["purple"],
     "Manual router": COLORS["orange"],
     "OpenEvolve router": COLORS["pink"],
+    "MoP-V1.2": COLORS["orange"],
     "MoP-V1.3": COLORS["pink"],
-    "max_cap": COLORS["yellow"],
+    "best_expert": COLORS["yellow"],
 }
 
 EVOLVE_MODEL_COLOR = {
@@ -169,11 +170,11 @@ def metric_table(
             "method": label,
             "n": str(int(metrics["n"])),
             "speedup_vs_prefetcher_off": f"{metrics['gm_vs_nopref']:.3f}",
-            "max_prefetcher_cap": f"{metrics['pair_best_vs_nopref']:.3f}",
-            "percent_of_max": f"{100.0 * metrics['gm_vs_pair_best']:.1f}%",
+            "best_expert_speedup": f"{metrics['pair_best_vs_nopref']:.3f}",
+            "percent_of_best_expert": f"{100.0 * metrics['gm_vs_pair_best']:.1f}%",
             "beats_worse_prefetcher": f"{int(metrics['beats_weaker'])}/{int(metrics['n'])}",
-            "below_95pct_of_max": f"{int(metrics['catastrophic'])}/{int(metrics['n'])}",
-            "closer_to_max_prefetcher": f"{int(metrics['closer_to_better'])}/{int(metrics['n'])}",
+            "below_95pct_of_best_expert": f"{int(metrics['catastrophic'])}/{int(metrics['n'])}",
+            "closer_to_best_expert": f"{int(metrics['closer_to_better'])}/{int(metrics['n'])}",
             "both_prefetchers_beat_disabled": f"{int(metrics['both_routees_gt_1'])}/{int(metrics['n'])}",
         })
     for split, path in [("training-split validation", train_v13), ("heldout", heldout_v13)]:
@@ -184,11 +185,11 @@ def metric_table(
                 "method": experiment,
                 "n": str(int(metrics["n"])),
                 "speedup_vs_prefetcher_off": f"{metrics['gm_vs_nopref']:.3f}",
-                "max_prefetcher_cap": "",
-                "percent_of_max": "",
+                "best_expert_speedup": "",
+                "percent_of_best_expert": "",
                 "beats_worse_prefetcher": "",
-                "below_95pct_of_max": "",
-                "closer_to_max_prefetcher": "",
+                "below_95pct_of_best_expert": "",
+                "closer_to_best_expert": "",
                 "both_prefetchers_beat_disabled": "",
             })
     return rows
@@ -200,11 +201,11 @@ def write_markdown_table(rows: list[dict[str, str]], path: Path) -> None:
         "method",
         "n",
         "speedup_vs_prefetcher_off",
-        "max_prefetcher_cap",
-        "percent_of_max",
+        "best_expert_speedup",
+        "percent_of_best_expert",
         "beats_worse_prefetcher",
-        "below_95pct_of_max",
-        "closer_to_max_prefetcher",
+        "below_95pct_of_best_expert",
+        "closer_to_best_expert",
         "both_prefetchers_beat_disabled",
     ]
     lines = [
@@ -305,16 +306,16 @@ def scale_model_rows(ledger_path: Path, scale_runs: list[tuple[str, Path]]) -> l
             "iterations_seen": str(int(latest["current_iteration"])),
             "best_screen_iter": str(int(best["iteration"])),
             "quick_eval_speedup_vs_prefetcher_off": f"{screen_nopref:.3f}",
-            "quick_eval_max_prefetcher_cap": f"{screen_nopref / screen_pair_best_ratio:.3f}",
-            "quick_eval_percent_of_max": f"{100.0 * screen_pair_best_ratio:.1f}%",
+            "quick_eval_best_expert_speedup": f"{screen_nopref / screen_pair_best_ratio:.3f}",
+            "quick_eval_percent_of_best_expert": f"{100.0 * screen_pair_best_ratio:.1f}%",
             "quick_eval_weighted_score": f"{float(metrics['combined_score']):.3f}",
             "wider_eval_speedup_vs_prefetcher_off": f"{confirmed_nopref:.3f}" if confirmed_nopref else "",
-            "wider_eval_max_prefetcher_cap": (
+            "wider_eval_best_expert_speedup": (
                 f"{confirmed_nopref / confirmed_pair_best_ratio:.3f}"
                 if confirmed_nopref and confirmed_pair_best_ratio
                 else ""
             ),
-            "wider_eval_percent_of_max": f"{100.0 * confirmed_pair_best_ratio:.1f}%" if confirmed_pair_best_ratio else "",
+            "wider_eval_percent_of_best_expert": f"{100.0 * confirmed_pair_best_ratio:.1f}%" if confirmed_pair_best_ratio else "",
             "wider_eval_weighted_score": f"{float(confirmed_metrics['combined_score']):.3f}" if confirmed_metrics else "",
             "openevolve_output_dir": str(path),
             "evaluator_result_dir": f"results/stage2_openevolve/stage1/{code_hash}" if code_hash else "",
@@ -328,12 +329,12 @@ def write_scale_model_table(rows: list[dict[str, str]], path: Path) -> None:
         "iterations_seen",
         "best_screen_iter",
         "quick_eval_speedup_vs_prefetcher_off",
-        "quick_eval_max_prefetcher_cap",
-        "quick_eval_percent_of_max",
+        "quick_eval_best_expert_speedup",
+        "quick_eval_percent_of_best_expert",
         "quick_eval_weighted_score",
         "wider_eval_speedup_vs_prefetcher_off",
-        "wider_eval_max_prefetcher_cap",
-        "wider_eval_percent_of_max",
+        "wider_eval_best_expert_speedup",
+        "wider_eval_percent_of_best_expert",
         "wider_eval_weighted_score",
         "openevolve_output_dir",
         "evaluator_result_dir",
@@ -391,18 +392,18 @@ def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
     for i, split in enumerate(splits):
         split_rows = [r for r in router_rows if r["split"] == split]
         cap_row = next(r for r in split_rows if r["method"] == "OpenEvolve router")
-        cap = float(cap_row["max_prefetcher_cap"])
+        cap = float(cap_row["best_expert_speedup"])
         ax.scatter(
             [i],
             [cap],
             marker="_",
             s=900,
-            color=METHOD_COLOR["max_cap"],
+            color=METHOD_COLOR["best_expert"],
             linewidth=2.2,
-            label="max-prefetcher cap" if not cap_label_done else None,
+            label="best expert" if not cap_label_done else None,
             zorder=4,
         )
-        ax.text(i, cap + 0.006, f"cap {cap:.3f}", ha="center", va="bottom", fontsize=8)
+        ax.text(i, cap + 0.006, f"best {cap:.3f}", ha="center", va="bottom", fontsize=8)
         cap_label_done = True
         for j, method in enumerate(methods):
             row = next(r for r in split_rows if r["method"] == method)
@@ -430,7 +431,7 @@ def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
     fig.text(
         0.02,
         0.01,
-        "Baseline: disabled prefetching at 1.000x. Yellow cap: max(MLOP, SPP+PPF) per trace before geomean.",
+        "Baseline: disabled prefetching at 1.000x. Yellow mark: per-trace best expert before geomean.",
         ha="left",
         va="bottom",
         fontsize=8,
@@ -440,21 +441,36 @@ def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
     plt.close(fig)
 
 
-def plot_heldout_trace_profile(heldout_v13: Path, out_path: Path) -> None:
+def plot_heldout_trace_profile(heldout_v12: Path, heldout_v13: Path, out_path: Path) -> None:
     setup_plot()
+    manual_traces = by_trace(load_summary(heldout_v12))
     traces = by_trace(load_summary(heldout_v13))
     ordered = sorted(traces)
     base_y = list(range(len(ordered)))
     lane_offsets = {
-        "MLOP": -0.22,
-        "SPP+PPF": 0.0,
-        "MoP-V1.3": 0.22,
+        "MLOP": -0.27,
+        "SPP+PPF": -0.09,
+        "MoP-V1.2": 0.09,
+        "MoP-V1.3": 0.27,
     }
-    fig, ax = plt.subplots(figsize=(12.6, 6.4))
+    fig, ax = plt.subplots(figsize=(12.8, 6.8))
     xmin = 0.68
-    bar_height = 0.18
-    for method in ["MLOP", "SPP+PPF", "MoP-V1.3"]:
-        xs = [float(traces[t][method]["speedup_vs_baseline"]) for t in ordered]
+    bar_height = 0.14
+    method_rows = {
+        "MLOP": traces,
+        "SPP+PPF": traces,
+        "MoP-V1.2": manual_traces,
+        "MoP-V1.3": traces,
+    }
+    method_labels = {
+        "MLOP": "MLOP",
+        "SPP+PPF": "SPP+PPF",
+        "MoP-V1.2": "MoP-V1 manual router",
+        "MoP-V1.3": "MoP-V2 OpenEvolve router",
+    }
+    for method in ["MLOP", "SPP+PPF", "MoP-V1.2", "MoP-V1.3"]:
+        rows_by_trace = method_rows[method]
+        xs = [float(rows_by_trace[t][method]["speedup_vs_baseline"]) for t in ordered]
         ys = [yi + lane_offsets[method] for yi in base_y]
         ax.barh(
             ys,
@@ -465,7 +481,7 @@ def plot_heldout_trace_profile(heldout_v13: Path, out_path: Path) -> None:
             edgecolor=COLORS["black"],
             linewidth=0.45,
             alpha=0.90,
-            label="MoP-V2 OpenEvolve router" if method == "MoP-V1.3" else method,
+            label=method_labels[method],
         )
         for x_value, y_value in zip(xs, ys, strict=True):
             ax.text(x_value + 0.004, y_value, f"{x_value:.3f}", va="center", ha="left", fontsize=7)
@@ -473,6 +489,7 @@ def plot_heldout_trace_profile(heldout_v13: Path, out_path: Path) -> None:
         values = [
             float(traces[t]["MLOP"]["speedup_vs_baseline"]),
             float(traces[t]["SPP+PPF"]["speedup_vs_baseline"]),
+            float(manual_traces[t]["MoP-V1.2"]["speedup_vs_baseline"]),
             float(traces[t]["MoP-V1.3"]["speedup_vs_baseline"]),
         ]
         ax.hlines(yi, xmin, max(values), color=COLORS["lightgrey"], linewidth=0.8, zorder=0)
@@ -487,7 +504,7 @@ def plot_heldout_trace_profile(heldout_v13: Path, out_path: Path) -> None:
     fig.text(
         0.02,
         0.01,
-        "Each row uses three horizontal bars: MLOP in blue, SPP+PPF in purple, and MoP-V2 in pink. Black dotted line is disabled prefetching at 1.000x.",
+        "Each row uses four horizontal bars: MLOP, SPP+PPF, MoP-V1, and MoP-V2. Black dotted line is disabled prefetching at 1.000x.",
         ha="left",
         va="bottom",
         fontsize=8,
@@ -574,15 +591,16 @@ def plot_scale_model_comparison(
     model_colors = EVOLVE_MODEL_COLOR
     fig = plt.figure(figsize=(12.8, 6.4))
     grid = fig.add_gridspec(
+        3,
         2,
-        2,
-        height_ratios=[1.0, 4.0],
+        height_ratios=[1.0, 4.0, 0.85],
         width_ratios=[3.2, 1.0],
-        hspace=0.06,
+        hspace=0.08,
         wspace=0.24,
     )
     ax_top = fig.add_subplot(grid[0, 0])
     ax = fig.add_subplot(grid[1, 0], sharex=ax_top)
+    ax_low = fig.add_subplot(grid[2, 0], sharex=ax_top)
     ax_right = fig.add_subplot(grid[:, 1])
     all_screen_y: list[float] = []
     for label, run_dir in scale_runs:
@@ -591,6 +609,16 @@ def plot_scale_model_comparison(
         ys = [float(candidate["metrics"]["gm_vs_nopref"]) for candidate in candidates]
         all_screen_y.extend(ys)
         ax.scatter(
+            xs,
+            ys,
+            marker=EVOLVE_MODEL_MARKER[label],
+            s=24,
+            color=model_colors[label],
+            alpha=0.22,
+            edgecolor="none",
+            label="_nolegend_",
+        )
+        ax_low.scatter(
             xs,
             ys,
             marker=EVOLVE_MODEL_MARKER[label],
@@ -620,30 +648,35 @@ def plot_scale_model_comparison(
             )
     ax_top.axhline(
         active_screen_cap,
-        color=METHOD_COLOR["max_cap"],
+        color=METHOD_COLOR["best_expert"],
         linewidth=2.0,
         label="_nolegend_",
     )
     ax.axhline(active_screen_nopref, color=METHOD_COLOR["OpenEvolve router"], linewidth=1.8, label="_nolegend_")
-    ax.set_xlabel("OpenEvolve iteration", labelpad=10)
+    ax_low.set_xlabel("OpenEvolve iteration", labelpad=10)
     ax.set_ylabel("3-trace geomean IPC speedup vs disabled prefetching")
     ax_top.set_title("OpenEvolve search trajectory by model")
     ax_top.set_ylim(max(1.085, active_screen_cap - 0.010), active_screen_cap + 0.006)
     if all_screen_y:
-        y_min = max(1.010, min(min(all_screen_y), active_screen_nopref) - 0.003)
         y_max = min(1.052, max(max(all_screen_y), active_screen_nopref) + 0.006)
-        ax.set_ylim(y_min, max(y_max, y_min + 0.015))
+        ax.set_ylim(1.025, max(y_max, 1.040))
+        ax_low.set_ylim(max(1.010, min(all_screen_y) - 0.002), 1.015)
     ax_top.spines["bottom"].set_visible(False)
     ax.spines["top"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+    ax_low.spines["top"].set_visible(False)
     ax_top.tick_params(labelbottom=False, bottom=False)
+    ax.tick_params(labelbottom=False, bottom=False)
     ax_top.grid(True, axis="y", linestyle=":")
     break_kwargs = dict(marker=[(-1, -0.5), (1, 0.5)], markersize=8, linestyle="none", color=COLORS["black"], mec=COLORS["black"], mew=1, clip_on=False)
     ax_top.plot([0, 1], [0, 0], transform=ax_top.transAxes, **break_kwargs)
     ax.plot([0, 1], [1, 1], transform=ax.transAxes, **break_kwargs)
+    ax.plot([0, 1], [0, 0], transform=ax.transAxes, **break_kwargs)
+    ax_low.plot([0, 1], [1, 1], transform=ax_low.transAxes, **break_kwargs)
     ax.text(
         0.99,
         0.62,
-        f"max cap {active_screen_cap:.3f}x",
+        f"best expert {active_screen_cap:.3f}x",
         transform=ax_top.transAxes,
         ha="right",
         va="center",
@@ -652,15 +685,16 @@ def plot_scale_model_comparison(
     )
     ax.text(
         0.01,
-        0.04,
+        0.08,
         "prefetcher off 1.000x",
-        transform=ax.transAxes,
+        transform=ax_low.transAxes,
         ha="left",
         va="bottom",
         fontsize=8,
         color=COLORS["black"],
     )
     ax.grid(True, axis="y", linestyle=":")
+    ax_low.grid(True, axis="y", linestyle=":")
     labels = [row["model"] for row in rows]
     quick = [float(row["quick_eval_speedup_vs_prefetcher_off"]) for row in rows]
     wider = [
@@ -686,7 +720,7 @@ def plot_scale_model_comparison(
     ax_right.text(
         0.98,
         0.96,
-        f"max cap {active_confirm_cap:.3f}x",
+        f"best expert {active_confirm_cap:.3f}x",
         transform=ax_right.transAxes,
         ha="right",
         va="top",
@@ -718,7 +752,7 @@ def plot_scale_model_comparison(
     ]
     handles.extend([
         Line2D([0], [0], color=METHOD_COLOR["OpenEvolve router"], linewidth=2.0, label="selected MoP-V2"),
-        Line2D([0], [0], color=METHOD_COLOR["max_cap"], linewidth=2.0, label="max-prefetcher cap"),
+        Line2D([0], [0], color=METHOD_COLOR["best_expert"], linewidth=2.0, label="best expert"),
     ])
     fig.legend(
         handles=handles,
@@ -732,12 +766,12 @@ def plot_scale_model_comparison(
     fig.text(
         0.02,
         0.025,
-        f"Left: 3-trace quick evaluation. Right: 10-trace wider validation. Circles are quick values, triangles are wider values. Selected MoP-V2: {active_confirm_nopref:.3f}x on wider validation.",
+        f"Left: 3-trace quick evaluation with y-axis breaks at 1.015-1.025 and above the main band. Right: 10-trace wider validation. Selected MoP-V2: {active_confirm_nopref:.3f}x.",
         ha="left",
         va="bottom",
         fontsize=8,
     )
-    fig.subplots_adjust(left=0.08, right=0.98, top=0.90, bottom=0.30, wspace=0.24, hspace=0.06)
+    fig.subplots_adjust(left=0.08, right=0.98, top=0.90, bottom=0.32, wspace=0.24, hspace=0.08)
     fig.savefig(out_path, dpi=180)
     plt.close(fig)
 
@@ -776,7 +810,7 @@ def main() -> int:
     )
     write_scale_model_table(scale_rows, args.tables_dir / "stage2_scale_model_summary.md")
     plot_pre_post(rows, args.figures_dir / "stage2_pre_post_geomean.png")
-    plot_heldout_trace_profile(args.heldout_v13, args.figures_dir / "stage2_heldout_trace_profile.png")
+    plot_heldout_trace_profile(args.heldout_v12, args.heldout_v13, args.figures_dir / "stage2_heldout_trace_profile.png")
     plot_model_comparison(args.model_ledger, args.figures_dir / "stage2_model_comparison.png")
     active_screen = required_ledger_record_for_hash(args.candidate_ledger, "a52ed8a4151ad6cc", "stage1")
     active_confirm = required_ledger_record_for_hash(args.candidate_ledger, "a52ed8a4151ad6cc", "stage2")
