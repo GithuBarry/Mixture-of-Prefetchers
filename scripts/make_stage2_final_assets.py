@@ -475,6 +475,10 @@ def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
     router_rows = [r for r in rows if r["method"] in {"Manual router", "OpenEvolve router"}]
     splits = ["training-split validation", "heldout"]
     methods = ["Manual router", "OpenEvolve router"]
+    display_labels = {
+        "Manual router": "MoP-V1 manual router",
+        "OpenEvolve router": "MoP-V2 OpenEvolve router",
+    }
     fig, ax = plt.subplots(figsize=(10, 4.8))
     width = 0.34
     cap_label_done = False
@@ -482,16 +486,15 @@ def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
         split_rows = [r for r in router_rows if r["split"] == split]
         cap_row = next(r for r in split_rows if r["method"] == "OpenEvolve router")
         cap = float(cap_row["best_expert_speedup"])
-        ax.hlines(cap, i - 0.32, i + 0.32, color=COLORS["black"], linewidth=4.2, zorder=4)
-        ax.hlines(cap, i - 0.32, i + 0.32, color=METHOD_COLOR["best_expert"], linewidth=2.6, zorder=5)
+        ax.hlines(cap, i - 0.32, i + 0.32, color=METHOD_COLOR["best_expert"], linewidth=2.8, zorder=5)
         ax.scatter(
             [i],
             [cap],
             marker="D",
             s=58,
             facecolor=METHOD_COLOR["best_expert"],
-            edgecolor=COLORS["black"],
-            linewidth=0.9,
+            edgecolor=METHOD_COLOR["best_expert"],
+            linewidth=0.7,
             label="best expert" if not cap_label_done else None,
             zorder=6,
         )
@@ -510,21 +513,21 @@ def plot_pre_post(rows: list[dict[str, str]], out_path: Path) -> None:
                 edgecolor=COLORS["black"],
                 hatch="//" if method == "Manual router" else None,
                 linewidth=0.8,
-                label=method if i == 0 else None,
+                label=display_labels[method] if i == 0 else None,
             )
             ax.text(x, value + 0.006, f"{value:.3f}", ha="center", va="bottom", fontsize=8)
     ax.axhline(1.0, color=COLORS["black"], linestyle=":", linewidth=1.0, label="prefetcher off")
     ax.set_xticks(range(len(splits)))
     ax.set_xticklabels(["13-trace\ntraining-split validation", "7-trace\nheldout"])
     ax.set_ylabel("Geomean IPC speedup vs disabled prefetching")
-    ax.set_title("Router performance uses disabled prefetching as 1x")
+    ax.set_title("Router performance: MoP-V1 manual to MoP-V2 OpenEvolve")
     ax.set_ylim(0.96, 1.12)
     ax.grid(True, axis="y", linestyle=":")
     ax.legend(frameon=False, loc="upper right", ncols=2)
     fig.text(
         0.02,
         0.01,
-        "Baseline: disabled prefetching at 1.000x. Yellow diamond/line: per-trace best expert before geomean. Hatched orange bars: MoP-V1.",
+        "Baseline: disabled prefetching at 1.000x. Yellow diamond/line: per-trace best expert before geomean.",
         ha="left",
         va="bottom",
         fontsize=8,
@@ -541,11 +544,12 @@ def plot_heldout_trace_profile(heldout_v12: Path, heldout_v13: Path, out_path: P
     ordered = sorted(traces)
     base_y = list(range(len(ordered)))
     lane_offsets = {
-        "MLOP": -0.27,
-        "SPP+PPF": -0.09,
-        "MoP-V1.2": 0.09,
-        "MoP-V1.3": 0.27,
+        "MLOP": 0.27,
+        "SPP+PPF": 0.09,
+        "MoP-V1.2": -0.09,
+        "MoP-V1.3": -0.27,
     }
+    method_order = ["MLOP", "SPP+PPF", "MoP-V1.2", "MoP-V1.3"]
     fig, ax = plt.subplots(figsize=(12.8, 6.8))
     xmin = 0.68
     bar_height = 0.14
@@ -556,24 +560,31 @@ def plot_heldout_trace_profile(heldout_v12: Path, heldout_v13: Path, out_path: P
         "MoP-V1.3": traces,
     }
     method_labels = {
-        "MLOP": "MLOP",
-        "SPP+PPF": "SPP+PPF",
+        "MLOP": "Expert 1: MLOP",
+        "SPP+PPF": "Expert 2: SPP+PPF",
         "MoP-V1.2": "MoP-V1 manual router",
         "MoP-V1.3": "MoP-V2 OpenEvolve router",
     }
-    for method in ["MLOP", "SPP+PPF", "MoP-V1.2", "MoP-V1.3"]:
+    method_styles = {
+        "MLOP": (COLORS["blue"], 0.95),
+        "SPP+PPF": (COLORS["blue"], 0.50),
+        "MoP-V1.2": (METHOD_COLOR["MoP-V1.2"], 0.90),
+        "MoP-V1.3": (METHOD_COLOR["MoP-V1.3"], 0.90),
+    }
+    for method in method_order:
         rows_by_trace = method_rows[method]
         xs = [float(rows_by_trace[t][method]["speedup_vs_baseline"]) for t in ordered]
         ys = [yi + lane_offsets[method] for yi in base_y]
+        color, alpha = method_styles[method]
         ax.barh(
             ys,
             [x_value - xmin for x_value in xs],
             left=xmin,
             height=bar_height,
-            color=METHOD_COLOR[method],
+            color=color,
             edgecolor=COLORS["black"],
             linewidth=0.45,
-            alpha=0.90,
+            alpha=alpha,
             label=method_labels[method],
         )
         for x_value, y_value in zip(xs, ys, strict=True):
@@ -597,7 +608,7 @@ def plot_heldout_trace_profile(heldout_v12: Path, heldout_v13: Path, out_path: P
     fig.text(
         0.02,
         0.01,
-        "Each row uses four horizontal bars: MLOP, SPP+PPF, MoP-V1, and MoP-V2. Black dotted line is disabled prefetching at 1.000x.",
+        "Each trace row is ordered top-to-bottom: Expert 1, Expert 2, MoP-V1, and MoP-V2. Black dotted line is disabled prefetching at 1.000x.",
         ha="left",
         va="bottom",
         fontsize=8,

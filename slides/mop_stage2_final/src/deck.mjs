@@ -220,7 +220,7 @@ addSlide(
   column(
     { name: "root", width: fill, height: fill, padding: { x: 70, y: 56 }, gap: 18 },
     [
-      title("Heldout shows a modest geomean lift", "Horizontal bars compare MLOP, SPP+PPF, MoP-V1, and MoP-V2 on each heldout trace."),
+      title("Heldout shows a modest geomean lift", "Each trace row is ordered Expert 1, Expert 2, MoP-V1, then MoP-V2."),
       image({
         name: "heldout-profile",
         dataUrl: pngDataUrl("stage2_heldout_trace_profile.png"),

@@ -27,11 +27,11 @@ Athena provides the simulator, cache hierarchy, L2C prefetchers, and existing co
 - an OpenEvolve evaluator that accepts a small literal policy dictionary
 - ledgers and plots that rebuild from simulator summaries
 
-The router names in the code mean:
+The public router names in this report are:
 
 | Name | Behavior | Role in this report |
 | --- | --- | --- |
-| `MoP-V1` | probes both experts for one epoch, then selects the higher-scoring expert | manual before-OpenEvolve reference |
+| `MoP-V1` | probes both experts for one epoch, then selects the higher-scoring expert | manual router |
 | `MoP-V2` | OpenEvolve-tuned `MoP-V1` with an evolved budget, score weights, and close-score tie margin | final OpenEvolve-selected router |
 
 The selected `MoP-V2` policy uses a `9216` per-epoch prefetch budget, which means about `18.4` prefetches per 1K retired instructions over a `500K`-instruction epoch. OpenEvolve chose that budget within the allowed policy surface. The same policy uses one initial dual-expert probe epoch, an accuracy floor of `30`, a `3%` close-score tie margin, and score weights `[1.0, 0.55, 1.0]` for accuracy, coverage, and traffic terms. The exact implementation keys live in [writing_logistics.md](writing_logistics.md).
@@ -71,7 +71,7 @@ The expert pair supports the routing story because the two prefetchers have diff
 
 ![Heldout trace profile](figures/stage2_heldout_trace_profile.png)
 
-*Caption: each heldout trace shows `MLOP`, `SPP+PPF`, `MoP-V1`, and `MoP-V2` as horizontal bars. Disabled prefetching is the black `1.000x` reference line, and the legend is outside the plot area so all bars stay readable.*
+*Caption: each heldout trace shows Expert 1 `MLOP`, Expert 2 `SPP+PPF`, `MoP-V1`, and `MoP-V2` as horizontal bars. The two experts use the same blue with different opacity. Disabled prefetching is the black `1.000x` reference line, and the legend is outside the plot area so all bars stay readable.*
 
 | Surface | Manual `MoP-V1` | OpenEvolve `MoP-V2` | Best expert |
 | --- | ---: | ---: | ---: |
