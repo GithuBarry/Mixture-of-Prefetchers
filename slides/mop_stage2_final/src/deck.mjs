@@ -259,7 +259,7 @@ addSlide(
             style: { fontSize: 76, bold: true, color: COLORS.black, lineHeight: 0.96 },
           }),
           rule({ name: "cover-rule", width: fixed(460), stroke: COLORS.pink, weight: 8 }),
-          text("A compact router chooses between MLOP and SPP+PPF at epoch boundaries, then OpenEvolve tunes the policy surface.", {
+          text("A compact router chooses between MLOP and SPP+PPF after each epoch, then OpenEvolve tunes the policy dictionary.", {
             name: "cover-thesis",
             width: fill,
             height: hug,
@@ -330,7 +330,7 @@ addSlide(
             [
               "Epoch-level counters record issued and useful prefetches.",
               "OpenEvolve edits a small literal policy dictionary.",
-              "Generated ledgers preserve valid scored rows and fail-closed rows.",
+              "Generated candidate records preserve valid scored rows and fail-closed rows.",
               "Report tables and figures rebuild from simulator summaries.",
             ],
             28,
@@ -407,7 +407,7 @@ addSlide(
       padding: { x: 76, y: 58 },
     },
     [
-      title("OpenEvolve changed a small policy surface", "The search could tune router-family settings and numeric policy weights while the trace split and simulator stayed fixed."),
+      title("OpenEvolve changed a small policy dictionary", "The search could tune router settings and numeric policy weights while the trace split and simulator stayed fixed."),
       text("", { name: "blank-title-peer", width: fill, height: hug, style: { fontSize: 1, color: COLORS.white } }),
       column(
         { name: "policy-copy", width: fill, height: fill, gap: 18 },
@@ -507,7 +507,7 @@ addSlide(
             [fr(1.2), fr(0.58), fr(0.58), fr(0.74)],
             21,
           ),
-          text("The IPC movement is cycle movement under a fixed retired-instruction window: MoP-V2 has instruction-count ratio 1.000x on both final surfaces, with cycle-count ratio 0.938x on training-split validation and 0.997x on heldout.", {
+          text("The IPC movement is cycle movement under a fixed retired-instruction window: MoP-V2 has instruction-count ratio 1.000x on both final runs, with cycle-count ratio 0.938x on training-split validation and 0.997x on heldout.", {
             name: "cycle-interpretation",
             width: fill,
             height: hug,
@@ -652,7 +652,7 @@ addSlide(
             fit: "contain",
             alt: "MoP-V1 and MoP-V2 geomean comparison",
           }),
-          figureCaption("Caption: MoP-V2 improves over MoP-V1 on the 13-trace validation surface, while the heldout effect is smaller and shown after policy selection."),
+          figureCaption("Caption: MoP-V2 improves over MoP-V1 on the 13-trace validation set, while the heldout effect is smaller and shown after policy selection."),
         ],
       ),
     ],
@@ -702,7 +702,7 @@ addSlide(
             [fr(1.1), fr(0.48), fr(0.68)],
             22,
           ),
-          text("The selected policy reached 1.089x on the same 10-trace wider-validation surface, then 1.066x on the 13-trace training-split validation surface.", {
+          text("The selected policy reached 1.089x on the same 10-trace wider-validation set, then 1.066x on the 13-trace training-split validation set.", {
             name: "selected-policy",
             width: fill,
             height: hug,
@@ -749,9 +749,9 @@ addSlide(
         [
           bulletList(
             [
-              "The router can choose MLOP, SPP+PPF, both, or the off action at epoch boundaries.",
+              "The router can choose MLOP, SPP+PPF, both, or the off action after each epoch.",
               "The selected budget and score weights shape these choices without changing simulator internals.",
-              "This keeps the final method inside a compact, auditable policy surface.",
+              "This keeps the final method inside a compact, auditable policy dictionary.",
             ],
             27,
           ),
@@ -780,7 +780,7 @@ addSlide(
       padding: { x: 92, y: 70 },
     },
     [
-      title("Claim boundary and limitations", "The final report makes a measured claim: strong training-split validation, small heldout lift, and transparent limits."),
+      title("Claim and limitations", "The final report makes a measured claim: strong training-split validation, small heldout lift, and transparent limits."),
       text("", { name: "blank-title-peer", width: fill, height: hug, style: { fontSize: 1, color: COLORS.white } }),
       column(
         { name: "claims", width: fill, height: fill, gap: 22 },
@@ -788,7 +788,7 @@ addSlide(
           eyebrow("claims", COLORS.pink),
           bulletList(
             [
-              "MoP-V2 improves over MoP-V1 on the 13-trace training-split validation surface.",
+              "MoP-V2 improves over MoP-V1 on the 13-trace training-split validation set.",
               "MoP-V2 reaches 1.003x over disabled prefetching on seven heldout traces.",
               "Best expert remains a separate reference, with MoP-V2 reaching 97.9% of it on heldout.",
               "Instruction count stays fixed within simulator-rounding error.",
@@ -805,7 +805,7 @@ addSlide(
             [
               "Seven heldout traces make the heldout result a sanity check with visible per-trace variation.",
               "secret_compute_fp_105 remains the largest heldout loss relative to best expert.",
-              "Malformed or out-of-contract OpenEvolve candidates stay in the ledger with failure scores.",
+              "Malformed or out-of-contract OpenEvolve candidates stay in the candidate record with failure scores.",
               "Reproduction paths, naming map, and generated-file list live in report/writing_logistics.md.",
             ],
             26,

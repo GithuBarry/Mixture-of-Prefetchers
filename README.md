@@ -12,12 +12,12 @@ Start with the final report:
 
 All headline performance is IPC speedup relative to disabled prefetching. The best expert is shown separately and computed as `max(MLOP, SPP+PPF)` on each trace.
 
-| Surface | Selected router | Speedup vs disabled prefetching | Best expert |
+| Evaluation set | Selected router | Speedup vs disabled prefetching | Best expert |
 | --- | --- | ---: | ---: |
 | 13-trace training-split validation | `MoP-V2` | `1.066x` | `1.085x` |
 | 7-trace heldout | `MoP-V2` | `1.003x` | `1.024x` |
 
-The manual reference router is `MoP-V1`. It reaches `1.048x` on the same 13-trace training-split validation surface and `0.998x` on heldout.
+The manual reference router is `MoP-V1`. It reaches `1.048x` on the same 13-trace training-split validation set and `0.998x` on heldout.
 
 ## What We Added To Athena
 
@@ -28,7 +28,7 @@ Athena provides the simulator, cache hierarchy, prefetchers, and baseline machin
 - per-expert issued/useful counters and budget controls
 - fixed train and heldout split handling
 - an OpenEvolve policy-search sandbox
-- candidate ledgers, generated tables, generated figures, and a slide deck
+- candidate records, generated tables, generated figures, and a slide deck
 
 ## Trace Protocol
 
@@ -42,7 +42,7 @@ OpenEvolve search used training traces. The quick evaluator used 3 training trac
 Simulation windows:
 
 - quick and training-split validation runs: `500K` warmup, `1M` simulation
-- heldout runs: `5M` warmup, `10M` simulation
+- heldout runs: `20M` warmup, `50M` simulation
 - router epoch length: `500K` retired instructions
 
 ## Router Names
@@ -56,7 +56,7 @@ The selected `MoP-V2` policy uses a `9216` per-epoch prefetch budget, about `18.
 
 ## OpenEvolve Runs
 
-The candidate ledger contains 374 rows:
+The candidate record contains 374 rows:
 
 - 306 valid scored rows
 - 68 fail-closed rows
@@ -77,7 +77,7 @@ python3 scripts/make_stage2_final_assets.py \
   --heldout-v13 results/stage2_openevolve/heldout/final_v13_20260429
 ```
 
-Raw simulator outputs live under ignored `results/...` paths on the producing machine. The committed report, tables, figures, ledgers, and slide deck are the portable evidence layer.
+Raw simulator outputs live under ignored `results/...` paths on the producing machine. The committed report, tables, figures, candidate records, and slide deck are the portable evidence package.
 
 ## Repository Map
 
@@ -85,6 +85,6 @@ Raw simulator outputs live under ignored `results/...` paths on the producing ma
 - `scripts/run_mop_lite.py`: main experiment runner
 - `scripts/make_stage2_final_assets.py`: final report table and figure builder
 - `stage2/openevolve/evaluator.py`: OpenEvolve evaluator
-- `stage2/openevolve/candidate_ledger.jsonl`: candidate audit ledger
+- `stage2/openevolve/candidate_ledger.jsonl`: candidate record file
 - `report/`: report, figures, tables, and writing logistics
 - `slides/mop_stage2_final/`: presentation source, previews, and PowerPoint output

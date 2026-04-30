@@ -20,6 +20,7 @@ PUBLIC_TABLES = [
     ROOT / "report" / "tables" / "stage2_final_metrics.md",
     ROOT / "report" / "tables" / "stage2_scale_model_summary.md",
     ROOT / "report" / "tables" / "stage2_instruction_cycle_check.md",
+    ROOT / "report" / "tables" / "stage2_policy_summary.md",
 ]
 LONG_DECIMAL = re.compile(r"(?<![\w.])-?\d+\.\d{4,}(?![\w.])")
 SECRET_PATTERN = re.compile(r"sk-[A-Za-z0-9_-]{20,}")

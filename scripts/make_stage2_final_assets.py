@@ -205,7 +205,7 @@ def summarize_instruction_check(result_dir: Path, router: str, label: str) -> di
         ipc_speedups.append(float(trace_rows[router]["speedup_vs_baseline"]))
         max_instr_delta = max(max_instr_delta, abs(instr_ratio - 1.0))
     return {
-        "surface": label,
+        "evaluation_set": label,
         "n": str(len(traces)),
         "ipc_speedup_vs_prefetcher_off": f"{geomean(ipc_speedups):.3f}",
         "instruction_count_ratio_vs_prefetcher_off": f"{geomean(instr_ratios):.3f}",
@@ -296,7 +296,7 @@ def write_markdown_table(rows: list[dict[str, str]], path: Path) -> None:
 
 def write_instruction_check_table(rows: list[dict[str, str]], path: Path) -> None:
     cols = [
-        "surface",
+        "evaluation_set",
         "n",
         "ipc_speedup_vs_prefetcher_off",
         "instruction_count_ratio_vs_prefetcher_off",
@@ -439,15 +439,30 @@ def write_scale_model_table(rows: list[dict[str, str]], path: Path) -> None:
     path.write_text("\n".join(lines) + "\n")
 
 
-def policy_summary_rows(scale_rows: list[dict[str, str]]) -> list[dict[str, str]]:
+def format_policy_value(value: object) -> str:
+    if isinstance(value, list):
+        return "[" + ", ".join(f"{float(v):.2g}" for v in value) + "]"
+    return str(value)
+
+
+def policy_for_result(row: dict[str, str], ledger_path: Path) -> dict:
+    code_hash = Path(row["evaluator_result_dir"]).name
+    record = ledger_record_for_hash(ledger_path, code_hash, "stage2")
+    if record is None:
+        record = ledger_record_for_hash(ledger_path, code_hash, "stage1")
+    assert record is not None, f"Missing policy record for {code_hash}"
+    return record["policy"]
+
+
+def policy_summary_rows(scale_rows: list[dict[str, str]], ledger_path: Path) -> list[dict[str, str]]:
     rows = [
         {
             "name": "MoP-V1",
             "source": "manual reference",
-            "code_hash": "stage3_v12_current_20260429",
-            "code_router": "MoP-V1.2",
             "budget": "8192",
             "sticky_margin": "none",
+            "accuracy_floor": "30",
+            "min_budget_share": "10",
             "weights": "[1.0, 0.5, 1.0]",
             "wider_speedup": "",
             "final_train_speedup": "1.048",
@@ -456,10 +471,10 @@ def policy_summary_rows(scale_rows: list[dict[str, str]]) -> list[dict[str, str]
         {
             "name": "MoP-V2",
             "source": "selected GPT-5.4-mini plus GPT-5.4-nano/local-grid policy",
-            "code_hash": "a52ed8a4151ad6cc",
-            "code_router": "MoP-V1.3",
             "budget": "9216",
             "sticky_margin": "3%",
+            "accuracy_floor": "30",
+            "min_budget_share": "10",
             "weights": "[1.0, 0.55, 1.0]",
             "wider_speedup": "1.089",
             "final_train_speedup": "1.066",
@@ -467,14 +482,15 @@ def policy_summary_rows(scale_rows: list[dict[str, str]]) -> list[dict[str, str]
         },
     ]
     for row in scale_rows:
+        policy = policy_for_result(row, ledger_path)
         rows.append({
             "name": f"V2 candidate from {row['model']}",
             "source": "later model comparison sweep",
-            "code_hash": Path(row["evaluator_result_dir"]).name,
-            "code_router": "MoP-V1.3",
-            "budget": "see candidate ledger",
-            "sticky_margin": "see candidate ledger",
-            "weights": "see candidate ledger",
+            "budget": format_policy_value(policy["mop_total_budget"]),
+            "sticky_margin": f"{format_policy_value(policy['mop_sticky_margin_pct'])}%",
+            "accuracy_floor": format_policy_value(policy["mop_accuracy_floor"]),
+            "min_budget_share": format_policy_value(policy["mop_guarded_min_budget_share"]),
+            "weights": format_policy_value(policy["mop_score_weights"]),
             "wider_speedup": row["wider_eval_speedup_vs_prefetcher_off"],
             "final_train_speedup": "",
             "heldout_speedup": "",
@@ -486,10 +502,10 @@ def write_policy_summary_table(rows: list[dict[str, str]], path: Path) -> None:
     cols = [
         "name",
         "source",
-        "code_hash",
-        "code_router",
         "budget",
         "sticky_margin",
+        "accuracy_floor",
+        "min_budget_share",
         "weights",
         "wider_speedup",
         "final_train_speedup",
@@ -549,7 +565,7 @@ def plot_v1_v2_trace_delta(
         ("13 training traces", by_trace(load_summary(train_v12)), by_trace(load_summary(train_v13)), "MoP-V1.2", "MoP-V1.3"),
         ("7 heldout traces", by_trace(load_summary(heldout_v12)), by_trace(load_summary(heldout_v13)), "MoP-V1.2", "MoP-V1.3"),
     ]
-    fig, axes = plt.subplots(1, 2, figsize=(13.2, 6.4), sharex=True)
+    fig, axes = plt.subplots(1, 2, figsize=(14.8, 6.6), sharex=True)
     for ax, (title, before, after, before_key, after_key) in zip(axes, panels, strict=True):
         traces = sorted(set(before) & set(after))
         rows = []
@@ -567,10 +583,18 @@ def plot_v1_v2_trace_delta(
         ax.set_title(title)
         ax.set_xlabel("MoP-V2 speedup minus MoP-V1 speedup")
         ax.grid(True, axis="x", linestyle=":")
+        ax.set_xlim(-0.055, 0.178)
+        label_x = 0.164
         for yi, (_, v1, v2, delta) in zip(y, rows, strict=True):
-            x = delta + (0.004 if delta >= 0 else -0.004)
-            ha = "left" if delta >= 0 else "right"
-            ax.text(x, yi, f"{v1:.3f}->{v2:.3f}", va="center", ha=ha, fontsize=7)
+            ax.text(
+                label_x,
+                yi,
+                f"{v1:.3f}->{v2:.3f}",
+                va="center",
+                ha="right",
+                fontsize=7,
+                bbox={"facecolor": COLORS["white"], "edgecolor": "none", "pad": 0.8, "alpha": 0.82},
+            )
     handles = [
         Line2D([0], [0], color=METHOD_COLOR["OpenEvolve router"], linewidth=8, label="MoP-V2 faster than MoP-V1"),
         Line2D([0], [0], color=METHOD_COLOR["MoP-V1 manual router"], linewidth=8, label="MoP-V1 faster than MoP-V2"),
@@ -827,69 +851,6 @@ def plot_routing_behavior_stats(
     plt.close(fig)
 
 
-def plot_model_comparison(ledger_path: Path, out_path: Path) -> None:
-    setup_plot()
-    records = [json.loads(line) for line in ledger_path.read_text().splitlines() if line.strip()]
-    active = max(float(record["best_metrics"]["combined_score"]) for record in records)
-    labels = []
-    scores = []
-    valid_counts = []
-    invalid_counts = []
-    for record in records:
-        model = record["model"].replace("claude-haiku-4-5-20251001-v1:0", "Claude\nHaiku 4.5")
-        model = model.replace("gpt-5.4-mini", "GPT-5.4\nmini")
-        model = model.replace("gpt-5.4-nano", "GPT-5.4\nnano")
-        model = model.replace("gpt-5-mini", "GPT-5\nmini")
-        if record["config"].endswith("config_modelcmp_gpt54mini.yaml"):
-            model = "GPT-5.4\nmini verbose"
-        labels.append(model)
-        candidate = record.get("best_generated_nonseed")
-        scores.append(float(candidate["metrics"]["combined_score"]) if candidate else float("nan"))
-        valid_counts.append(int(record["generated_valid_new_candidates"]))
-        invalid_counts.append(int(record["generated_invalid_candidates"]) + int(record["gateway_filter_errors"]))
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.2))
-    x = list(range(len(labels)))
-    for xi, score in zip(x, scores, strict=True):
-        axes[0].bar(
-            xi,
-            0 if math.isnan(score) else score,
-            color=COLORS["blue"],
-            edgecolor=COLORS["black"],
-            linewidth=0.8,
-            alpha=0.2 if math.isnan(score) else 0.9,
-        )
-    axes[0].axhline(active, color=METHOD_COLOR["OpenEvolve router"], linewidth=1.6, label="selected OpenEvolve seed")
-    axes[0].axhline(0.0, color=COLORS["black"], linewidth=0.8)
-    axes[0].set_xticks(x)
-    axes[0].set_xticklabels(labels)
-    axes[0].set_ylabel("Combined score")
-    axes[0].set_title("Active seed remains strongest in the model screen")
-    axes[0].legend(frameon=False)
-    bottom = [0] * len(labels)
-    axes[1].bar(x, valid_counts, color=METHOD_COLOR["OpenEvolve router"], edgecolor=COLORS["black"], linewidth=0.8, label="valid new")
-    bottom = valid_counts
-    axes[1].bar(
-        x,
-        invalid_counts,
-        bottom=bottom,
-        color=COLORS["white"],
-        edgecolor=COLORS["black"],
-        hatch="//",
-        linewidth=0.8,
-        label="invalid/filter",
-    )
-    axes[1].set_xticks(x)
-    axes[1].set_xticklabels(labels)
-    axes[1].set_ylabel("Candidate count")
-    axes[1].set_title("Model quality was mostly about valid candidates")
-    axes[1].legend(frameon=False, loc="lower right")
-    for ax in axes:
-        ax.grid(True, axis="y", linestyle=":")
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=180)
-    plt.close(fig)
-
-
 def plot_scale_model_comparison(
     rows: list[dict[str, str]],
     out_path: Path,
@@ -1113,7 +1074,6 @@ def main() -> int:
     parser.add_argument("--train-v13", type=Path, default=Path("results/stage2_openevolve/stage3/a52ed8a4151ad6cc"))
     parser.add_argument("--heldout-v12", type=Path, required=True)
     parser.add_argument("--heldout-v13", type=Path, required=True)
-    parser.add_argument("--model-ledger", type=Path, default=Path("stage2/openevolve/model_comparison_ledger.jsonl"))
     parser.add_argument("--candidate-ledger", type=Path, default=Path("stage2/openevolve/candidate_ledger.jsonl"))
     parser.add_argument("--scale-gpt5mini", type=Path, default=Path("results/stage2_openevolve/scale/gpt5mini_stage1_iter80_20260430"))
     parser.add_argument("--scale-gpt54", type=Path, default=Path("results/stage2_openevolve/scale/gpt54_stage1_iter80_20260429_224042"))
@@ -1140,7 +1100,7 @@ def main() -> int:
         ],
     )
     write_scale_model_table(scale_rows, args.tables_dir / "stage2_scale_model_summary.md")
-    write_policy_summary_table(policy_summary_rows(scale_rows), args.tables_dir / "stage2_policy_summary.md")
+    write_policy_summary_table(policy_summary_rows(scale_rows, args.candidate_ledger), args.tables_dir / "stage2_policy_summary.md")
     plot_pre_post(rows, args.figures_dir / "stage2_pre_post_geomean.png")
     plot_v1_v2_trace_delta(
         args.train_v12,
@@ -1157,7 +1117,6 @@ def main() -> int:
         args.heldout_v13,
         args.figures_dir / "stage2_routing_behavior_stats.png",
     )
-    plot_model_comparison(args.model_ledger, args.figures_dir / "stage2_model_comparison.png")
     active_screen = required_ledger_record_for_hash(args.candidate_ledger, "a52ed8a4151ad6cc", "stage1")
     active_confirm = required_ledger_record_for_hash(args.candidate_ledger, "a52ed8a4151ad6cc", "stage2")
     active_screen_nopref = float(active_screen["metrics"]["gm_vs_nopref"])

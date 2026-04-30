@@ -250,7 +250,7 @@ def main() -> int:
     draw_image(c, FIG / "stage2_pre_post_geomean.png", left, fig1_y + 0.65 * inch, col_w, 5.6 * inch)
     draw_wrapped(
         c,
-        "Caption: bars compare disabled prefetching, each single expert, the manual MoP-V1 router, the OpenEvolve-tuned MoP-V2 router, and the best expert reference on the same heldout and training-validation surfaces.",
+        "Caption: bars compare disabled prefetching, each single expert, the manual MoP-V1 router, the OpenEvolve-tuned MoP-V2 router, and the best expert reference on the same heldout and training-validation results.",
         left,
         fig1_y + 0.28 * inch,
         col_w,
