@@ -773,7 +773,7 @@ def plot_scale_model_comparison(
         linewidth=2.0,
         label="_nolegend_",
     )
-    ax.axhline(active_screen_nopref, color=COLORS["black"], linestyle="--", linewidth=1.8, label="_nolegend_")
+    ax.axhline(active_screen_nopref, color=METHOD_COLOR["OpenEvolve router"], linestyle="--", linewidth=1.8, label="_nolegend_")
     ax_low.set_xlabel("OpenEvolve iteration", labelpad=10)
     ax.set_ylabel("3-trace geomean IPC speedup vs disabled prefetching")
     ax_top.set_title("OpenEvolve search trajectory by model")
@@ -830,7 +830,7 @@ def plot_scale_model_comparison(
             ax_right.text(xi, quick[xi] + 0.003, "quick\nonly", ha="center", va="bottom", fontsize=8)
         else:
             ax_right.scatter(xi, value, marker="^", s=64, color=model_colors[label])
-    ax_right.axhline(active_confirm_nopref, color=COLORS["black"], linestyle="--", linewidth=1.8)
+    ax_right.axhline(active_confirm_nopref, color=METHOD_COLOR["OpenEvolve router"], linestyle="--", linewidth=1.8)
     ax_right.set_xticks(x)
     ax_right.set_xticklabels(["GPT-5\nmini", "GPT-5.4", "Sonnet\n4.6"])
     ax_right.set_title("Wider validation")
@@ -874,7 +874,7 @@ def plot_scale_model_comparison(
     handles.extend([
         Line2D([0], [0], color=COLORS["lightgrey"], linestyle="--", linewidth=2.0, label="score-selected incumbent IPC"),
         Line2D([0], [0], color=COLORS["black"], linestyle="-", linewidth=2.0, label="best IPC seen so far"),
-        Line2D([0], [0], color=COLORS["black"], linestyle="--", linewidth=2.0, label="selected MoP-V2"),
+        Line2D([0], [0], color=METHOD_COLOR["OpenEvolve router"], linestyle="--", linewidth=2.0, label="selected MoP-V2"),
         Line2D([0], [0], color=METHOD_COLOR["best_expert"], linewidth=2.0, label="best expert"),
     ])
     fig.legend(
