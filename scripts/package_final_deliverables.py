@@ -52,7 +52,7 @@ The source files remain in their normal repo locations so scripts and links keep
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     copy_file(ROOT / "report" / "stage2_final_report.md", OUT / "MoP-Final-report.md")
-    copy_file(ROOT / "output" / "pdf" / "mop_openevolve_poster.pdf", OUT / "MoP-Final-poster.pdf")
+    assert (OUT / "MoP-Final-poster.pdf").exists(), "Run scripts/make_stage2_poster.py before packaging"
     copy_file(ROOT / "slides" / "mop_stage2_final" / "output" / "output.pptx", OUT / "MoP-Final-slides.pptx")
     copy_file(ROOT / "report" / "writing_logistics.md", OUT / "writing_logistics.md")
     for figure in FIGURES:

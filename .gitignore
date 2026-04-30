@@ -1,6 +1,7 @@
 /artifacts/
 /results/
-/output/pdf/icon_cache/
+/output/
+/.cache/
 __pycache__/
 node_modules/
 .DS_Store

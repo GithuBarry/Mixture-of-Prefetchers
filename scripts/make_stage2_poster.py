@@ -14,10 +14,10 @@ from PIL import Image
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "output/pdf/mop_openevolve_poster.pdf"
+OUT = ROOT / "deliverables/MoP-Final/MoP-Final-poster.pdf"
 FIG = ROOT / "report/figures"
 ICON = ROOT / "report/assets/material_symbols"
-ICON_CACHE = ROOT / "output/pdf/icon_cache"
+ICON_CACHE = ROOT / ".cache/mop_poster_icons"
 
 PAGE_W = 24 * inch
 PAGE_H = 36 * inch
